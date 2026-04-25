@@ -18,7 +18,7 @@ from app.api.errors import register_exception_handlers
 from app.api.feedback import router as feedback_router
 from app.api.generate_plan import router as generate_plan_router
 from app.api.health import router as health_router
-from app.api.middleware import RequestContextMiddleware
+from app.api.middleware import RateLimitMiddleware, RequestContextMiddleware
 from app.api.plans import router as plans_router
 from app.config.settings import get_settings
 from app.config.source_tiers import load_source_tiers
@@ -65,9 +65,21 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
 
 
 def create_app() -> FastAPI:
-    """Build the FastAPI application."""
+    """Build the FastAPI application.
+
+    `get_settings()` is called lazily — only when constructing the rate
+    limiter — so that test modules that import `app.main` without having
+    `OPENAI_API_KEY`/`TAVILY_API_KEY` populated yet still load.
+    """
 
     app = FastAPI(title="AI Scientist backend", lifespan=lifespan)
+    # Order matters: RequestContextMiddleware is added last so it's the
+    # outermost middleware (it must always observe the response, including
+    # 429s emitted by the rate limiter).
+    app.add_middleware(
+        RateLimitMiddleware,
+        rate_limit_per_min_factory=lambda: get_settings().RATE_LIMIT_PER_MIN,
+    )
     app.add_middleware(RequestContextMiddleware)
     register_exception_handlers(app)
     app.include_router(health_router)
