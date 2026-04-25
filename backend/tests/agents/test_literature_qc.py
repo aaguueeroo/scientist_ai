@@ -1,16 +1,30 @@
-"""Tests for the literature-QC schema (Step 13)."""
+"""Tests for the literature-QC schema (Step 13) and runtime agent (Step 23)."""
 
 from __future__ import annotations
+
+import json
+import logging
 
 import pytest
 from pydantic import ValidationError
 
+from app.agents.literature_qc import LiteratureQCAgent, NoveltyClaim, ReferenceClaim
+from app.clients.openai_client import (
+    ChatResult,
+    FakeOpenAIClient,
+    ParsedResult,
+    TokenUsage,
+)
+from app.clients.tavily_client import FakeTavilyClient, TavilyHit, TavilySearchResult
+from app.config.source_tiers import load_source_tiers
+from app.observability.logging import configure_logging
 from app.schemas.literature_qc import (
     LiteratureQCResult,
     NoveltyLabel,
     Reference,
     SourceTier,
 )
+from app.verification.citation_resolver import CitationOutcome, FakeCitationResolver
 
 
 def test_source_tier_enum_has_four_values_including_tier_0() -> None:
@@ -81,3 +95,276 @@ def test_literature_qc_result_caps_references_at_three() -> None:
     )
     assert len(ok.references) == 3
     assert ok.tier_0_drops == 0
+
+
+def _keyword_chat(content: str = "trehalose cryopreservation HeLa") -> ChatResult:
+    return ChatResult(
+        content=content,
+        usage=TokenUsage(prompt_tokens=20, completion_tokens=10),
+        model="gpt-4.1-mini",
+    )
+
+
+def _claim(refs: list[ReferenceClaim], confidence: float = 0.9) -> ParsedResult[NoveltyClaim]:
+    return ParsedResult(
+        parsed=NoveltyClaim(
+            novelty=NoveltyLabel.SIMILAR_WORK_EXISTS,
+            references=refs,
+            confidence=confidence,
+        ),
+        usage=TokenUsage(prompt_tokens=120, completion_tokens=80),
+        model="gpt-4.1-mini",
+    )
+
+
+def _verified(ref: Reference) -> CitationOutcome:
+    return CitationOutcome(
+        reference=ref.model_copy(
+            update={
+                "verified": True,
+                "verification_url": ref.url,
+                "confidence": "high",
+            }
+        ),
+        tier_0_drop=False,
+    )
+
+
+def _unverified() -> CitationOutcome:
+    return CitationOutcome(reference=None, tier_0_drop=False)
+
+
+@pytest.mark.asyncio
+async def test_literature_qc_returns_result_with_correct_tier_per_reference() -> None:
+    nature_url = "https://www.nature.com/articles/abc"
+    biorxiv_url = "https://www.biorxiv.org/content/10.1101/2024.01.01"
+
+    tavily = FakeTavilyClient(
+        responses=[
+            TavilySearchResult(
+                query="verbatim",
+                results=[
+                    TavilyHit(url=nature_url, title="Nature paper", snippet="...", score=0.9),
+                ],
+            ),
+            TavilySearchResult(
+                query="keywords",
+                results=[
+                    TavilyHit(url=biorxiv_url, title="Preprint paper", snippet="...", score=0.8),
+                ],
+            ),
+        ]
+    )
+    openai = FakeOpenAIClient(
+        chat_responses=[_keyword_chat("alpha beta gamma")],
+        parsed_responses=[
+            _claim(
+                [
+                    ReferenceClaim(
+                        title="Nature paper",
+                        url=nature_url,
+                        why_relevant="Directly motivates the hypothesis.",
+                    ),
+                    ReferenceClaim(
+                        title="Preprint paper",
+                        url=biorxiv_url,
+                        why_relevant="Closest preprint match.",
+                    ),
+                ]
+            )
+        ],
+    )
+    nature_ref = Reference(
+        title="Nature paper",
+        url=nature_url,
+        why_relevant="Directly motivates the hypothesis.",
+        tier=SourceTier.TIER_1_PEER_REVIEWED,
+    )
+    biorxiv_ref = Reference(
+        title="Preprint paper",
+        url=biorxiv_url,
+        why_relevant="Closest preprint match.",
+        tier=SourceTier.TIER_2_PREPRINT_OR_COMMUNITY,
+    )
+    resolver = FakeCitationResolver(
+        outcomes={
+            nature_url: _verified(nature_ref),
+            biorxiv_url: _verified(biorxiv_ref),
+        }
+    )
+    agent = LiteratureQCAgent(
+        openai=openai,
+        tavily=tavily,
+        citation_resolver=resolver,
+        source_tiers=load_source_tiers(),
+    )
+    result = await agent.run(
+        hypothesis="Trehalose preserves HeLa viability better than sucrose at -80C.",
+        request_id="r-1",
+    )
+    tiers = {str(r.url): r.tier for r in result.references}
+    assert tiers[nature_url] == SourceTier.TIER_1_PEER_REVIEWED
+    assert tiers[biorxiv_url] == SourceTier.TIER_2_PREPRINT_OR_COMMUNITY
+    assert result.tier_0_drops == 0
+
+
+@pytest.mark.asyncio
+async def test_literature_qc_dropped_tier_0_hits_increment_tier_0_drops() -> None:
+    nature_url = "https://www.nature.com/articles/abc"
+    fb_url = "https://www.facebook.com/share/123"
+
+    tavily = FakeTavilyClient(
+        responses=[
+            TavilySearchResult(
+                query="verbatim",
+                results=[
+                    TavilyHit(url=fb_url, title="Facebook post", snippet="...", score=0.7),
+                    TavilyHit(url=nature_url, title="Nature paper", snippet="...", score=0.9),
+                ],
+            ),
+            TavilySearchResult(query="keywords", results=[]),
+        ]
+    )
+    openai = FakeOpenAIClient(
+        chat_responses=[_keyword_chat()],
+        parsed_responses=[
+            _claim(
+                [
+                    ReferenceClaim(
+                        title="Nature paper",
+                        url=nature_url,
+                        why_relevant="Real Nature paper.",
+                    )
+                ]
+            )
+        ],
+    )
+    nature_ref = Reference(
+        title="Nature paper",
+        url=nature_url,
+        why_relevant="Real Nature paper.",
+        tier=SourceTier.TIER_1_PEER_REVIEWED,
+    )
+    resolver = FakeCitationResolver(outcomes={nature_url: _verified(nature_ref)})
+    agent = LiteratureQCAgent(
+        openai=openai,
+        tavily=tavily,
+        citation_resolver=resolver,
+        source_tiers=load_source_tiers(),
+    )
+    result = await agent.run(hypothesis="x" * 20, request_id="r-2")
+    assert result.tier_0_drops == 1
+    parse_call = next(c for c in openai.calls if c["kind"] == "parse")
+    payload = parse_call["messages"][1].content
+    assert "facebook.com" not in payload
+
+
+@pytest.mark.asyncio
+async def test_literature_qc_unverified_references_are_dropped() -> None:
+    good_url = "https://www.nature.com/articles/good"
+    bad_url = "https://www.nature.com/articles/bad"
+    tavily = FakeTavilyClient(
+        responses=[
+            TavilySearchResult(
+                query="verbatim",
+                results=[
+                    TavilyHit(url=good_url, title="Good", snippet="...", score=0.9),
+                    TavilyHit(url=bad_url, title="Bad", snippet="...", score=0.85),
+                ],
+            ),
+            TavilySearchResult(query="keywords", results=[]),
+        ]
+    )
+    openai = FakeOpenAIClient(
+        chat_responses=[_keyword_chat()],
+        parsed_responses=[
+            _claim(
+                [
+                    ReferenceClaim(title="Good", url=good_url, why_relevant="Resolves."),
+                    ReferenceClaim(title="Bad", url=bad_url, why_relevant="Does not."),
+                ]
+            )
+        ],
+    )
+    good_ref = Reference(
+        title="Good",
+        url=good_url,
+        why_relevant="Resolves.",
+        tier=SourceTier.TIER_1_PEER_REVIEWED,
+    )
+    resolver = FakeCitationResolver(
+        outcomes={good_url: _verified(good_ref), bad_url: _unverified()},
+    )
+    agent = LiteratureQCAgent(
+        openai=openai,
+        tavily=tavily,
+        citation_resolver=resolver,
+        source_tiers=load_source_tiers(),
+    )
+    result = await agent.run(hypothesis="x" * 20, request_id="r-3")
+    assert len(result.references) == 1
+    assert str(result.references[0].url) == good_url
+
+
+@pytest.mark.asyncio
+async def test_literature_qc_emits_structured_log_line_with_required_keys(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    configure_logging()
+    nature_url = "https://www.nature.com/articles/abc"
+    tavily = FakeTavilyClient(
+        responses=[
+            TavilySearchResult(
+                query="verbatim",
+                results=[
+                    TavilyHit(url=nature_url, title="N", snippet="...", score=0.9),
+                ],
+            ),
+            TavilySearchResult(query="keywords", results=[]),
+        ]
+    )
+    openai = FakeOpenAIClient(
+        chat_responses=[_keyword_chat()],
+        parsed_responses=[
+            _claim(
+                [
+                    ReferenceClaim(title="N", url=nature_url, why_relevant="Solid."),
+                ]
+            )
+        ],
+    )
+    nature_ref = Reference(
+        title="N",
+        url=nature_url,
+        why_relevant="Solid.",
+        tier=SourceTier.TIER_1_PEER_REVIEWED,
+    )
+    resolver = FakeCitationResolver(outcomes={nature_url: _verified(nature_ref)})
+    agent = LiteratureQCAgent(
+        openai=openai,
+        tavily=tavily,
+        citation_resolver=resolver,
+        source_tiers=load_source_tiers(),
+    )
+
+    with caplog.at_level(logging.INFO, logger="agent"):
+        await agent.run(hypothesis="x" * 20, request_id="req-log-1")
+
+    line = next(rec for rec in caplog.records if "agent.call.complete" in rec.getMessage())
+    payload = json.loads(line.getMessage())
+    for key in (
+        "agent",
+        "model",
+        "prompt_hash",
+        "prompt_tokens",
+        "completion_tokens",
+        "latency_ms",
+        "verified_count",
+        "tier_0_drops",
+        "request_id",
+    ):
+        assert key in payload, f"missing key: {key}"
+    assert payload["agent"] == "literature_qc"
+    assert payload["model"] == "gpt-4.1-mini"
+    assert payload["request_id"] == "req-log-1"
+    assert payload["verified_count"] == 1
