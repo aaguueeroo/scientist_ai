@@ -188,7 +188,7 @@ backend/
 ## 2. Pinned dependencies
 
 Copy-pasteable into `backend/pyproject.toml`. Versions copied verbatim
-from `docs/research.md` �4. No `^` / `~` ranges.
+from `docs/research.md` ?4. No `^` / `~` ranges.
 
 ```toml
 [build-system]
@@ -611,7 +611,7 @@ class ExperimentPlan(BaseModel):
     grounding_summary: GroundingSummary
 ```
 
-### Feedback record (input DTO is in �3)
+### Feedback record (input DTO is in ?3)
 
 ```python
 # extends backend/app/schemas/feedback.py
@@ -635,7 +635,7 @@ class FeedbackRecord(BaseModel):
 
 Every persisted row carries `schema_version: int`,
 `prompt_versions: dict[str, str]` (JSON-encoded column), and
-`request_id: str`. The prompt loader (�4b) is the only writer of
+`request_id: str`. The prompt loader (?4b) is the only writer of
 `prompt_versions`; the LLM never touches it.
 
 ```python
@@ -716,7 +716,7 @@ def prompt_versions() -> dict[str, str]:
     ...
 ```
 
-Required clauses for every role file (per `docs/research.md` �9):
+Required clauses for every role file (per `docs/research.md` ?9):
 
 1. **Persona / scope** ? single-sentence anchor.
 2. **Citation rules** ? Tier 1 + Tier 2 only; never invent DOIs / URLs / catalog numbers / suppliers / quantitative claims.
@@ -733,7 +733,7 @@ Pinning test (`tests/prompts/test_role_files.py`, Step 9?11) per file:
 - contains case-insensitive substrings: `"do not invent"`, `"cite"`, `"refuse"` or `"unverified"`, `"tier"`, `"ignore"` (the prompt-injection clause's anchor word).
 
 The exact role file content is the implementation agent's deliverable
-in Steps 9?11, drafted from the �9 sketches in `docs/research.md`.
+in Steps 9?11, drafted from the ?9 sketches in `docs/research.md`.
 
 ---
 
@@ -800,20 +800,20 @@ Wired into:
 
 ## 5. Ordered implementation steps
 
-Per-step format: **What to build � Tests to write first � Files
-touched � Acceptance criteria � Depends on**. Each step ? 30 min, ? 5
+Per-step format: **What to build ? Tests to write first ? Files
+touched ? Acceptance criteria ? Depends on**. Each step ? 30 min, ? 5
 files, ends green. After each green step the implementation agent
 appends `## Step N ? green` directly under the *Status / resumability*
 trailer.
 
-Steps belong to milestones M1?M6 (�6).
+Steps belong to milestones M1?M6 (?6).
 
 ### M1 ? Skeleton & scaffolding
 
 #### Step 1 ? `Scaffold project + smoke test`  (M1)
 
 - **What to build:** Initialize `backend/` with `pyproject.toml` (deps
-  from �2, `[tool.ruff]`, `[tool.mypy]`, `[tool.pytest.ini_options]`),
+  from ?2, `[tool.ruff]`, `[tool.mypy]`, `[tool.pytest.ini_options]`),
   empty package layout (`app/__init__.py`, `tests/__init__.py`),
   `.env.example`, `.gitignore`, and a single passing test.
 - **Tests to write first (TDD):**
@@ -836,7 +836,7 @@ Steps belong to milestones M1?M6 (�6).
   `OPENAI_MODEL_LITERATURE_QC = "gpt-4.1-mini"`,
   `OPENAI_MODEL_FEEDBACK_RELEVANCE = "gpt-4.1-mini"`,
   `OPENAI_MODEL_EXPERIMENT_PLANNER = "gpt-4.1"`, plus per-agent
-  `temperature`, `seed`, `max_tokens` (per `docs/research.md` �12).
+  `temperature`, `seed`, `max_tokens` (per `docs/research.md` ?12).
   Reads `.env` via `pydantic-settings`. Cached `get_settings()`
   factory.
 - **Tests to write first:**
@@ -853,7 +853,7 @@ Steps belong to milestones M1?M6 (�6).
 #### Step 3 ? `Error schemas (ErrorCode + ErrorResponse)`  (M1)
 
 - **What to build:** `app/schemas/errors.py` with the closed
-  `ErrorCode` `StrEnum` and `ErrorResponse` Pydantic v2 model from �3.
+  `ErrorCode` `StrEnum` and `ErrorResponse` Pydantic v2 model from ?3.
 - **Tests to write first:**
   - `test_error_code_enum_contains_exactly_eight_codes` ? pins the
     closed set.
@@ -863,7 +863,7 @@ Steps belong to milestones M1?M6 (�6).
 - **Files touched:** `backend/app/schemas/__init__.py`,
   `backend/app/schemas/errors.py`,
   `backend/tests/api/test_errors.py` (skeleton; expanded in Step 7).
-- **Acceptance criteria:** three tests green; `ErrorCode` matches �3
+- **Acceptance criteria:** three tests green; `ErrorCode` matches ?3
   exactly.
 - **Depends on:** 1.
 
@@ -874,7 +874,7 @@ Steps belong to milestones M1?M6 (�6).
   `JSONRenderer`. Helper `bind_request(request_id)` binds `request_id`
   into `structlog.contextvars`. Helper
   `agent_call_logger(agent_name)` returns a bound logger that emits
-  a single `event="agent.call.complete"` line with the �13 keys.
+  a single `event="agent.call.complete"` line with the ?13 keys.
 - **Tests to write first:**
   - `test_logging_emits_json_parseable_line`
   - `test_logging_request_id_propagates_through_contextvars`
@@ -934,7 +934,7 @@ Steps belong to milestones M1?M6 (�6).
   (`TavilyUnavailable`, `OpenAIUnavailable`, `OpenAIRateLimited`,
   `StructuredOutputInvalid`, `GroundingFailedRefused`,
   `CostCeilingExceeded`, `InternalError`) and FastAPI exception
-  handlers mapping each to HTTP status per �3 and producing an
+  handlers mapping each to HTTP status per ?3 and producing an
   `ErrorResponse` with the active `request_id`. `validation_error`
   comes from FastAPI's built-in `RequestValidationError` and is
   re-shaped here.
@@ -981,7 +981,7 @@ Steps belong to milestones M1?M6 (�6).
 #### Step 9 ? `Role file: literature_qc.md + pinning test`  (M1)
 
 - **What to build:** Replace the placeholder `literature_qc.md` with
-  the full role string per `docs/research.md` �9 and the �4b required
+  the full role string per `docs/research.md` ?9 and the ?4b required
   clauses. Add `tests/prompts/test_role_files.py::test_literature_qc_role_pins_required_clauses`.
 - **Tests to write first:**
   - `test_literature_qc_role_file_exists_and_nonempty`
@@ -996,10 +996,10 @@ Steps belong to milestones M1?M6 (�6).
 
 #### Step 10 ? `Role file: feedback_relevance.md + pinning test`  (M1)
 
-- **What to build:** Replace placeholder with the �9 role text and
-  the �4b clauses. The role covers two LLM tasks (domain tagging +
+- **What to build:** Replace placeholder with the ?9 role text and
+  the ?4b clauses. The role covers two LLM tasks (domain tagging +
   relevance reranking) under explicit section headers (per
-  `docs/research.md` �7).
+  `docs/research.md` ?7).
 - **Tests to write first:**
   - `test_feedback_relevance_role_file_exists_and_nonempty`
   - `test_feedback_relevance_role_pins_required_clauses` (same
@@ -1011,9 +1011,9 @@ Steps belong to milestones M1?M6 (�6).
 
 #### Step 11 ? `Role file: experiment_planner.md + pinning test`  (M1)
 
-- **What to build:** Replace placeholder with the �9 role text and
-  �4b clauses. Adds the explicit "mark `unverified: true` and explain
-  in `notes`" clause from `docs/research.md` �8 / �10.
+- **What to build:** Replace placeholder with the ?9 role text and
+  ?4b clauses. Adds the explicit "mark `unverified: true` and explain
+  in `notes`" clause from `docs/research.md` ?8 / ?10.
 - **Tests to write first:**
   - `test_experiment_planner_role_file_exists_and_nonempty`
   - `test_experiment_planner_role_pins_required_clauses`
@@ -1034,8 +1034,8 @@ Steps belong to milestones M1?M6 (�6).
 #### Step 12 ? `Hypothesis input schema + responses skeleton`  (M2)
 
 - **What to build:** `app/schemas/hypothesis.py::GeneratePlanRequest`
-  per �3. Extend `app/schemas/responses.py` with
-  `GeneratePlanResponse` (with imports forward-declared until �4
+  per ?3. Extend `app/schemas/responses.py` with
+  `GeneratePlanResponse` (with imports forward-declared until ?4
   schemas land in Steps 14 & 26).
 - **Tests to write first:**
   - `test_generate_plan_request_accepts_valid_hypothesis`
@@ -1050,7 +1050,7 @@ Steps belong to milestones M1?M6 (�6).
 
 #### Step 13 ? `Literature-QC schemas (SourceTier, NoveltyLabel, Reference, LiteratureQCResult)`  (M2)
 
-- **What to build:** `app/schemas/literature_qc.py` per �4. Includes
+- **What to build:** `app/schemas/literature_qc.py` per ?4. Includes
   `SourceTier` enum (with `TIER_0_FORBIDDEN`), `NoveltyLabel`,
   `Reference` (with `tier`, `verified`, `verification_url`,
   `confidence`), and `LiteratureQCResult`.
@@ -1068,7 +1068,7 @@ Steps belong to milestones M1?M6 (�6).
 
 #### Step 14 ? `source_tiers.yaml + classify()`  (M2)
 
-- **What to build:** Author `app/config/source_tiers.yaml` (�4c) and
+- **What to build:** Author `app/config/source_tiers.yaml` (?4c) and
   `app/config/source_tiers.py` exposing `load_source_tiers()`,
   `SourceTiersConfig.classify(url)`, and
   `SourceTiersConfig.tavily_include_domains()`. Tier-0 takes
@@ -1254,7 +1254,7 @@ Steps belong to milestones M1?M6 (�6).
 - **What to build:** `app/agents/literature_qc.py` exposing
   `LiteratureQCAgent.run(hypothesis, request_id) ->
   LiteratureQCResult`. Builds the two queries (`Q1` verbatim, `Q2`
-  keyworded) per `docs/research.md` �6; calls `TavilyClient`,
+  keyworded) per `docs/research.md` ?6; calls `TavilyClient`,
   deduplicates and merges hits, drops Tier-0 hits before the LLM
   call, calls OpenAI with the `literature_qc.md` role for
   classification, applies the confidence floor, runs each chosen
@@ -1323,10 +1323,10 @@ Steps belong to milestones M1?M6 (�6).
 
 #### Step 26 ? `Experiment-plan schemas (Material, ProtocolStep, ?, MIQECompliance)`  (M3)
 
-- **What to build:** `app/schemas/experiment_plan.py` per �4 ? every
+- **What to build:** `app/schemas/experiment_plan.py` per ?4 ? every
   Material/ProtocolStep/Reference field carries `tier`, `verified`,
   `verification_url`, `confidence`. `MIQECompliance` model exactly
-  matches �4. Updates `PipelineState.final_plan` from Step 21 to be
+  matches ?4. Updates `PipelineState.final_plan` from Step 21 to be
   `ExperimentPlan | None` with `model_rebuild()`.
 - **Tests to write first:**
   - `test_experiment_plan_serializes_with_minimum_fields`
@@ -1517,7 +1517,7 @@ Steps belong to milestones M1?M6 (�6).
 
 #### Step 36 ? `Storage: PlanRow + plans_repo`  (M4)
 
-- **What to build:** `app/storage/models.py::PlanRow` per �4,
+- **What to build:** `app/storage/models.py::PlanRow` per ?4,
   `app/storage/plans_repo.py::PlansRepo` with `save(response,
   prompt_versions, request_id)` and `get_by_id(plan_id)`.
   `schema_version=PLAN_SCHEMA_VERSION (=1)`. Persists
@@ -1531,7 +1531,7 @@ Steps belong to milestones M1?M6 (�6).
   `backend/app/storage/plans_repo.py`,
   `backend/tests/storage/test_plans_repo.py`.
 - **Acceptance criteria:** four tests green; row carries
-  `schema_version`, `prompt_versions`, `request_id` per �4.
+  `schema_version`, `prompt_versions`, `request_id` per ?4.
 - **Depends on:** 8, 35.
 
 #### Step 37 ? `POST /generate-plan persists; GET /plans/{id} retrieves`  (M4)
@@ -1573,7 +1573,7 @@ Steps belong to milestones M1?M6 (�6).
 
 #### Step 39 ? `Feedback schemas`  (M5)
 
-- **What to build:** `app/schemas/feedback.py` per �3 (`DomainTag`
+- **What to build:** `app/schemas/feedback.py` per ?3 (`DomainTag`
   enum, `FeedbackRequest`, `FeedbackResponse`,
   `FeedbackRecord`, `FewShotExample`).
 - **Tests to write first:**
@@ -1586,11 +1586,11 @@ Steps belong to milestones M1?M6 (�6).
 - **Acceptance criteria:** three tests green.
 - **Depends on:** 1.
 
-## Step 39 — green
+## Step 39 ? green
 
 #### Step 40 ? `Storage: FeedbackRow + feedback_repo.find_relevant`  (M5)
 
-- **What to build:** `FeedbackRow` model per �4 (with
+- **What to build:** `FeedbackRow` model per ?4 (with
   `schema_version`, `prompt_versions`, `request_id`).
   `FeedbackRepo.save(record, prompt_versions, request_id)` and
   `FeedbackRepo.find_relevant(domain_tag, k=5)` ordered by
@@ -1606,13 +1606,13 @@ Steps belong to milestones M1?M6 (�6).
 - **Acceptance criteria:** four tests green.
 - **Depends on:** 35, 39.
 
-## Step 40 — green
+## Step 40 ? green
 
 #### Step 41 ? `Runtime Agent 2 ? Feedback relevance (against FeedbackRepo)`  (M5)
 
 - **What to build:** `app/agents/feedback_relevance.py` with
   `FeedbackRelevanceAgent.run(hypothesis, repo) ->
-  list[FewShotExample]`. Two LLM calls per `docs/research.md` �7:
+  list[FewShotExample]`. Two LLM calls per `docs/research.md` ?7:
   domain extraction (closed-enum schema-enforced), then
   relevance rerank. Returns ?5 few-shots.
 - **Tests to write first:**
@@ -1626,7 +1626,7 @@ Steps belong to milestones M1?M6 (�6).
 - **Acceptance criteria:** four tests green.
 - **Depends on:** 4, 10, 15, 40.
 
-## Step 41 — green
+## Step 41 ? green
 
 #### Step 42 ? `Adversarial: prompt-injection tests for runtime Agent 2`  (M5)
 
@@ -1645,7 +1645,7 @@ Steps belong to milestones M1?M6 (�6).
 - **Acceptance criteria:** four tests green.
 - **Depends on:** 41.
 
-## Step 42 — green
+## Step 42 ? green
 
 #### Step 43 ? `Orchestrator wires Agent 2 (full path: 1 ? gate ? 2 ? 3)`  (M5)
 
@@ -1662,7 +1662,7 @@ Steps belong to milestones M1?M6 (�6).
 - **Acceptance criteria:** three tests green.
 - **Depends on:** 33, 41.
 
-## Step 43 — green
+## Step 43 ? green
 
 #### Step 44 ? `POST /feedback endpoint`  (M5)
 
@@ -1905,104 +1905,108 @@ Steps belong to milestones M1?M6 (�6).
 
 ## Status: ready-for-implementation
 
-## Step 1 — green
+## Step 1 ? green
 
-## Step 2 — green
+## Step 2 ? green
 
-## Step 3 — green
+## Step 3 ? green
 
-## Step 4 — green
+## Step 4 ? green
 
-## Step 5 — green
+## Step 5 ? green
 
-## Step 6 — green
+## Step 6 ? green
 
-## Step 7 — green
+## Step 7 ? green
 
-## Step 8 — green
+## Step 8 ? green
 
-## Step 9 — green
+## Step 9 ? green
 
-## Step 10 — green
+## Step 10 ? green
 
-## Step 11 — green
+## Step 11 ? green
 
-## Step 12 — green
+## Step 12 ? green
 
-## Step 13 — green
+## Step 13 ? green
 
-## Step 14 — green
+## Step 14 ? green
 
-## Step 15 — green
+## Step 15 ? green
 
-## Step 16 — green
+## Step 16 ? green
 
-## Step 17 — green
+## Step 17 ? green
 
-## Step 18 — green
+## Step 18 ? green
 
-## Step 19 — green
+## Step 19 ? green
 
-## Step 20 — green
+## Step 20 ? green
 
-## Step 21 — green
+## Step 21 ? green
 
-## Step 22 — green
+## Step 22 ? green
 
-## Step 23 — green
+## Step 23 ? green
 
-## Step 24 — green
+## Step 24 ? green
 
-## Step 25 — green
+## Step 25 ? green
 
-## Step 26 — green
+## Step 26 ? green
 
-## Step 27 — green
+## Step 27 ? green
 
-## Step 28 — green
+## Step 28 ? green
 
-## Step 29 — green
+## Step 29 ? green
 
-## Step 30 — green
+## Step 30 ? green
 
-## Step 31 — green
+## Step 31 ? green
 
-## Step 32 — green
+## Step 32 ? green
 
-## Step 33 — green
+## Step 33 ? green
 
-## Step 34 — green
+## Step 34 ? green
 
-## Step 35 — green
+## Step 35 ? green
 
-## Step 36 — green
+## Step 36 ? green
 
-## Step 37 — green
+## Step 37 ? green
 
-## Step 38 — green
+## Step 38 ? green
 
-## Step 39 — green
+## Step 39 ? green
 
-## Step 40 — green
+## Step 40 ? green
 
-## Step 41 — green
+## Step 41 ? green
 
-## Step 42 — green
+## Step 42 ? green
 
-## Step 43 — green
+## Step 43 ? green
 
-## Step 44 — green
+## Step 44 ? green
 
-## Step 45 — green
+## Step 45 ? green
 
-## Step 46 — green
+## Step 46 ? green
 
-## Step 47 — green
+## Step 47 ? green
 
-## Step 48 — green
+## Step 48 ? green
 
-## Step 49 — green
+## Step 49 ? green
 
-## Step 50 — green
+## Step 50 ? green
 
-## Step 51 — green
+## Step 51 ? green
+
+## Step 52 ? green
+
+## Status: complete
