@@ -16,6 +16,7 @@ from __future__ import annotations
 
 import time
 from dataclasses import dataclass
+from typing import Literal
 
 from pydantic import BaseModel, Field, HttpUrl
 
@@ -261,7 +262,7 @@ def _apply_confidence_floor(claim: ParsedResult[NoveltyClaim]) -> NoveltyClaim:
     return parsed
 
 
-def _bucket_confidence(value: float) -> str:
+def _bucket_confidence(value: float) -> Literal["high", "medium", "low"]:
     if value >= 0.8:
         return "high"
     if value >= 0.5:

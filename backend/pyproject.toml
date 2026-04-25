@@ -60,5 +60,8 @@ python_version = "3.11"
 plugins = ["pydantic.mypy"]
 
 [[tool.mypy.overrides]]
-module = "tavily.*"
+# tavily-python ships no `py.typed` marker; treat as untyped so the import
+# does not require a `# type: ignore[import-untyped]` on every site.
+module = ["tavily", "tavily.*"]
 ignore_missing_imports = true
+follow_imports = "skip"

@@ -1,5 +1,11 @@
 """Tests for the literature-QC schema (Step 13) and runtime agent (Step 23)."""
 
+# pydantic v2 coerces plain string URLs into `HttpUrl` at validation time,
+# but the pydantic mypy plugin generates strict `__init__` signatures that
+# reject `str`. Test fixtures here pass literal URLs as `str`; this
+# file-level directive silences the resulting `arg-type` false positives.
+# mypy: disable-error-code="arg-type"
+
 from __future__ import annotations
 
 import json

@@ -15,6 +15,12 @@ and asserts that the agent's defenses hold:
   messages array passed to the OpenAI fake).
 """
 
+# Pydantic v2 coerces plain string URLs into `HttpUrl` at validation time,
+# but the pydantic mypy plugin synthesises strict `__init__` signatures that
+# reject `str`. Test fixtures here pass literal URLs as `str`; this
+# file-level directive silences the resulting `[arg-type]` false positives.
+# mypy: disable-error-code="arg-type"
+
 from __future__ import annotations
 
 import pytest

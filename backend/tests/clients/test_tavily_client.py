@@ -1,5 +1,10 @@
 """Tests for the Tavily client interface + fake (Step 18)."""
 
+# Pydantic v2 coerces plain string URLs into `HttpUrl` at validation time,
+# but the pydantic mypy plugin rejects `str` arguments to `HttpUrl` fields.
+# Fixtures here use literal URLs as `str`; silence the arg-type noise.
+# mypy: disable-error-code="arg-type"
+
 from __future__ import annotations
 
 from collections.abc import Iterator
