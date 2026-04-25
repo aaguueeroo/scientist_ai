@@ -1,14 +1,15 @@
-"""OpenAI client interface, value types, and an in-memory fake."""
+"""OpenAI client interface, value types, fake, real, and cost-ceiling enforcement."""
 
 from __future__ import annotations
 
 from abc import ABC, abstractmethod
+from dataclasses import dataclass, field
 from typing import Any, Generic, Literal, TypeVar
 
 from openai import AsyncOpenAI
 from pydantic import BaseModel, Field
 
-from app.api.errors import OpenAIUnavailable
+from app.api.errors import CostCeilingExceeded, OpenAIUnavailable
 
 ChatRole = Literal["system", "user", "assistant"]
 
@@ -48,6 +49,73 @@ class ParsedResult(BaseModel, Generic[T]):
     model: str
 
 
+@dataclass(frozen=True)
+class PriceTable:
+    """Per-token USD prices for each pinned model."""
+
+    input_per_token: dict[str, float]
+    output_per_token: dict[str, float]
+
+    def cost_for(self, *, model: str, prompt_tokens: int, completion_tokens: int) -> float:
+        return prompt_tokens * self.input_per_token.get(
+            model, 0.0
+        ) + completion_tokens * self.output_per_token.get(model, 0.0)
+
+    def projected_cost_for(
+        self,
+        *,
+        model: str,
+        prompt_chars: int,
+        max_tokens: int,
+    ) -> float:
+        """Pre-call worst-case projection.
+
+        We do not depend on tiktoken here: the wrapper estimates input
+        tokens from `prompt_chars / 4` (a standard rule-of-thumb) and
+        assumes the model emits up to `max_tokens` completion tokens.
+        """
+
+        estimated_prompt_tokens = max(1, prompt_chars // 4)
+        return estimated_prompt_tokens * self.input_per_token.get(
+            model, 0.0
+        ) + max_tokens * self.output_per_token.get(model, 0.0)
+
+
+@dataclass
+class CostTracker:
+    """Per-request cumulative cost tracker enforced by the OpenAI wrapper."""
+
+    ceiling_usd: float
+    prices: PriceTable
+    total_usd: float = 0.0
+    calls: list[dict[str, Any]] = field(default_factory=list)
+
+    def check_projected(self, *, model: str, prompt_chars: int, max_tokens: int) -> None:
+        projected = self.prices.projected_cost_for(
+            model=model, prompt_chars=prompt_chars, max_tokens=max_tokens
+        )
+        if self.total_usd + projected > self.ceiling_usd:
+            raise CostCeilingExceeded(
+                f"projected cost ${self.total_usd + projected:.4f} would exceed "
+                f"ceiling ${self.ceiling_usd:.4f}",
+                details={
+                    "model": model,
+                    "current_usd": self.total_usd,
+                    "projected_usd": projected,
+                    "ceiling_usd": self.ceiling_usd,
+                },
+            )
+
+    def record(self, *, model: str, usage: TokenUsage) -> None:
+        cost = self.prices.cost_for(
+            model=model,
+            prompt_tokens=usage.prompt_tokens,
+            completion_tokens=usage.completion_tokens,
+        )
+        self.total_usd += cost
+        self.calls.append({"model": model, "cost_usd": cost})
+
+
 class AbstractOpenAIClient(ABC):
     """Async OpenAI client interface used by every runtime agent."""
 
@@ -81,6 +149,10 @@ class AbstractOpenAIClient(ABC):
         """Release any underlying transport resources."""
 
 
+def _prompt_chars(messages: list[ChatMessage]) -> int:
+    return sum(len(m.content) for m in messages)
+
+
 class FakeOpenAIClient(AbstractOpenAIClient):
     """Deterministic in-memory client for unit tests."""
 
@@ -89,11 +161,13 @@ class FakeOpenAIClient(AbstractOpenAIClient):
         *,
         chat_responses: list[ChatResult] | None = None,
         parsed_responses: list[ParsedResult[Any]] | None = None,
+        cost_tracker: CostTracker | None = None,
     ) -> None:
         self._chat_queue: list[ChatResult] = list(chat_responses or [])
         self._parsed_queue: list[ParsedResult[Any]] = list(parsed_responses or [])
         self.calls: list[dict[str, Any]] = []
         self.closed = False
+        self.cost_tracker = cost_tracker
 
     async def chat(
         self,
@@ -104,6 +178,10 @@ class FakeOpenAIClient(AbstractOpenAIClient):
         seed: int,
         max_tokens: int,
     ) -> ChatResult:
+        if self.cost_tracker is not None:
+            self.cost_tracker.check_projected(
+                model=model, prompt_chars=_prompt_chars(messages), max_tokens=max_tokens
+            )
         self.calls.append(
             {
                 "kind": "chat",
@@ -116,7 +194,10 @@ class FakeOpenAIClient(AbstractOpenAIClient):
         )
         if not self._chat_queue:
             raise AssertionError("FakeOpenAIClient: no canned chat responses left")
-        return self._chat_queue.pop(0)
+        result = self._chat_queue.pop(0)
+        if self.cost_tracker is not None:
+            self.cost_tracker.record(model=model, usage=result.usage)
+        return result
 
     async def parse(
         self,
@@ -128,6 +209,10 @@ class FakeOpenAIClient(AbstractOpenAIClient):
         seed: int,
         max_tokens: int,
     ) -> ParsedResult[T]:
+        if self.cost_tracker is not None:
+            self.cost_tracker.check_projected(
+                model=model, prompt_chars=_prompt_chars(messages), max_tokens=max_tokens
+            )
         self.calls.append(
             {
                 "kind": "parse",
@@ -147,6 +232,8 @@ class FakeOpenAIClient(AbstractOpenAIClient):
                 "FakeOpenAIClient: canned parsed response type does not match "
                 f"response_format={response_format!r}"
             )
+        if self.cost_tracker is not None:
+            self.cost_tracker.record(model=model, usage=result.usage)
         return result
 
     async def aclose(self) -> None:
@@ -156,10 +243,11 @@ class FakeOpenAIClient(AbstractOpenAIClient):
 class RealOpenAIClient(AbstractOpenAIClient):
     """`openai.AsyncOpenAI`-backed implementation."""
 
-    def __init__(self, *, api_key: str) -> None:
+    def __init__(self, *, api_key: str, cost_tracker: CostTracker | None = None) -> None:
         if not api_key:
             raise OpenAIUnavailable("OPENAI_API_KEY is empty; configure it in the environment.")
         self._client = AsyncOpenAI(api_key=api_key)
+        self.cost_tracker = cost_tracker
 
     async def chat(
         self,
