@@ -127,9 +127,7 @@ LR_FIXTURE = HypothesisFixture(
             title="Quantitative 16S rRNA qPCR for LGG in mouse gut",
             url=LR_REF_PRIMARY_URL,
             doi=LR_DOI_PRIMARY,
-            why_relevant=(
-                "Establishes the strain-specific 16S qPCR primers for LGG."
-            ),
+            why_relevant=("Establishes the strain-specific 16S qPCR primers for LGG."),
         ),
         make_reference(
             title="LGG colonization dynamics in C57BL/6 mice",
@@ -201,8 +199,7 @@ async def test_e2e_lrhamnosus_plan_populates_miqe_compliance_block(
     plan = body["plan"]
     miqe = plan["validation"]["miqe_compliance"]
     assert miqe is not None, (
-        "L. rhamnosus GG protocol contains 16S qPCR -> "
-        "miqe_compliance must be populated"
+        "L. rhamnosus GG protocol contains 16S qPCR -> miqe_compliance must be populated"
     )
     for category in (
         "sample",
