@@ -2,10 +2,15 @@
 
 from __future__ import annotations
 
+import asyncio
 from abc import ABC, abstractmethod
 from typing import Any, Literal
 
 from pydantic import BaseModel, Field, HttpUrl
+from tavily import AsyncTavilyClient
+
+from app.api.errors import TavilyUnavailable
+from app.config.source_tiers import SourceTiersConfig
 
 TavilyDepth = Literal["basic", "advanced"]
 
@@ -35,9 +40,9 @@ class AbstractTavilyClient(ABC):
         self,
         *,
         query: str,
-        include_domains: list[str],
-        depth: TavilyDepth,
-        max_results: int,
+        include_domains: list[str] | None,
+        depth: TavilyDepth = "advanced",
+        max_results: int = 10,
     ) -> TavilySearchResult:
         """Run a Tavily search; reject empty `include_domains`."""
 
@@ -58,11 +63,11 @@ class FakeTavilyClient(AbstractTavilyClient):
         self,
         *,
         query: str,
-        include_domains: list[str],
-        depth: TavilyDepth,
-        max_results: int,
+        include_domains: list[str] | None,
+        depth: TavilyDepth = "advanced",
+        max_results: int = 10,
     ) -> TavilySearchResult:
-        if not include_domains:
+        if include_domains is not None and not include_domains:
             raise ValueError(
                 "Tavily search requires a non-empty include_domains allowlist; "
                 "callers must pass the source-tier-derived domain list."
@@ -70,7 +75,7 @@ class FakeTavilyClient(AbstractTavilyClient):
         self.calls.append(
             {
                 "query": query,
-                "include_domains": list(include_domains),
+                "include_domains": list(include_domains) if include_domains else [],
                 "depth": depth,
                 "max_results": max_results,
             }
@@ -81,3 +86,75 @@ class FakeTavilyClient(AbstractTavilyClient):
 
     async def aclose(self) -> None:
         self.closed = True
+
+
+class RealTavilyClient(AbstractTavilyClient):
+    """`tavily-python`-backed implementation with retry + tier-derived allowlist."""
+
+    _MAX_ATTEMPTS = 3
+
+    def __init__(
+        self,
+        *,
+        api_key: str,
+        source_tiers: SourceTiersConfig,
+    ) -> None:
+        if not api_key:
+            raise TavilyUnavailable("TAVILY_API_KEY is empty; configure it in the environment.")
+        self._client = AsyncTavilyClient(api_key=api_key)
+        self._source_tiers = source_tiers
+
+    async def search(
+        self,
+        *,
+        query: str,
+        include_domains: list[str] | None,
+        depth: TavilyDepth = "advanced",
+        max_results: int = 10,
+    ) -> TavilySearchResult:
+        domains = (
+            list(include_domains)
+            if include_domains is not None
+            else self._source_tiers.tavily_include_domains()
+        )
+        if not domains:
+            raise ValueError("Tavily search requires a non-empty include_domains allowlist.")
+
+        last_error: BaseException | None = None
+        for attempt in range(self._MAX_ATTEMPTS):
+            try:
+                raw = await self._client.search(
+                    query,
+                    search_depth=depth,
+                    include_domains=domains,
+                    max_results=max_results,
+                )
+                return _coerce_result(query, raw)
+            except Exception as err:
+                last_error = err
+                if attempt < self._MAX_ATTEMPTS - 1:
+                    await asyncio.sleep(0.05 * (2**attempt))
+        raise TavilyUnavailable(
+            f"Tavily search failed after {self._MAX_ATTEMPTS} attempts",
+            details={"last_error": repr(last_error)},
+        )
+
+    async def aclose(self) -> None:
+        close = getattr(self._client, "close", None)
+        if close is not None:
+            await close()
+
+
+def _coerce_result(query: str, raw: dict[str, Any]) -> TavilySearchResult:
+    hits: list[TavilyHit] = []
+    for entry in raw.get("results", []):
+        hits.append(
+            TavilyHit(
+                url=entry["url"],
+                title=entry.get("title", "(untitled)"),
+                snippet=entry.get("content", "") or entry.get("snippet", ""),
+                score=float(entry.get("score", 0.0)),
+                published_date=entry.get("published_date"),
+            )
+        )
+    return TavilySearchResult(query=query, results=hits)
