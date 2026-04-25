@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/app_constants.dart';
+import '../../../core/theme/theme_context.dart';
 import '../../../models/literature_review.dart';
+import '../../../ui/app_surface.dart';
 
 class SourceTile extends StatelessWidget {
   const SourceTile({
@@ -11,52 +13,76 @@ class SourceTile extends StatelessWidget {
 
   final Source source;
 
+  static const List<String> _months = <String>[
+    'Jan',
+    'Feb',
+    'Mar',
+    'Apr',
+    'May',
+    'Jun',
+    'Jul',
+    'Aug',
+    'Sep',
+    'Oct',
+    'Nov',
+    'Dec',
+  ];
+
   String _formatDate(DateTime value) {
-    final String month = value.month.toString().padLeft(2, '0');
-    final String day = value.day.toString().padLeft(2, '0');
-    return '${value.year}-$month-$day';
+    return '${_months[value.month - 1]} ${value.year}';
   }
 
   @override
   Widget build(BuildContext context) {
-    return Card(
-      child: Padding(
-        padding: const EdgeInsets.all(kSpaceM),
-        child: Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            const Padding(
-              padding: EdgeInsets.only(top: 2),
-              child: Icon(Icons.description_outlined),
+    final TextTheme textTheme = Theme.of(context).textTheme;
+    final ColorScheme scheme = context.appColorScheme;
+    return AppSurface(
+      padding: const EdgeInsets.all(kSpace16),
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Container(
+            width: 32,
+            height: 32,
+            alignment: Alignment.center,
+            decoration: BoxDecoration(
+              color: scheme.primaryContainer,
+              borderRadius: BorderRadius.circular(kRadius - 2),
             ),
-            const SizedBox(width: kSpaceM),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Text(
-                    source.title,
-                    style: Theme.of(context).textTheme.titleMedium,
-                  ),
-                  const SizedBox(height: kSpaceXs),
-                  Text('${source.author} • ${_formatDate(source.dateOfPublication)}'),
-                  const SizedBox(height: kSpaceS),
-                  Text(
-                    source.abstractText,
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                    style: Theme.of(context).textTheme.bodyMedium,
-                  ),
-                  const SizedBox(height: kSpaceS),
-                  Text(
-                    source.doi,
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ],
-              ),
+            child: Icon(
+              Icons.description_outlined,
+              size: 16,
+              color: scheme.primary,
             ),
-          ],
-        ),
+          ),
+          const SizedBox(width: kSpace16),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Text(source.title, style: textTheme.titleMedium),
+                const SizedBox(height: kSpace4),
+                Text(
+                  '${source.author}  ·  ${_formatDate(source.dateOfPublication)}',
+                  style: textTheme.bodySmall,
+                ),
+                const SizedBox(height: kSpace12),
+                Text(
+                  source.abstractText,
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: context.scientist.bodySecondary,
+                ),
+                const SizedBox(height: kSpace8),
+                Text(
+                  source.doi,
+                  style: context.scientist.bodyTertiaryMonospace
+                      .copyWith(fontSize: 13),
+                ),
+              ],
+            ),
+          ),
+        ],
       ),
     );
   }

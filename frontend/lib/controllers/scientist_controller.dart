@@ -64,6 +64,26 @@ class ScientistController extends ChangeNotifier {
     );
   }
 
+  void openPastConversationReplay(String title) {
+    final String normalizedTitle = title.trim();
+    if (normalizedTitle.isEmpty) {
+      return;
+    }
+    _literatureSubscription?.cancel();
+    _literatureSubscription = null;
+    currentQuery = normalizedTitle;
+    if (!pastConversations.contains(normalizedTitle)) {
+      pastConversations.insert(0, normalizedTitle);
+    }
+    literatureReview = mockLiteratureReviewTemplate;
+    isLoadingLiterature = false;
+    literatureError = null;
+    experimentPlan = mockExperimentPlan;
+    isLoadingPlan = false;
+    planError = null;
+    notifyListeners();
+  }
+
   Future<void> loadExperimentPlan() async {
     final String? query = currentQuery;
     if (query == null || query.isEmpty) {

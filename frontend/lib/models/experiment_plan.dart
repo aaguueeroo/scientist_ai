@@ -1,9 +1,11 @@
 class ExperimentPlan {
   const ExperimentPlan({
+    required this.description,
     required this.budget,
     required this.timePlan,
   });
 
+  final String description;
   final Budget budget;
   final TimePlan timePlan;
 }
@@ -50,10 +52,14 @@ class Step {
     required this.duration,
     required this.name,
     required this.description,
+    this.milestone,
   });
 
   final int number;
   final Duration duration;
   final String name;
   final String description;
+  final String? milestone;
+
+  bool get isMilestone => milestone != null;
 }

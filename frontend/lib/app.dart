@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'controllers/scientist_controller.dart';
 import 'core/app_routes.dart';
 import 'core/app_theme.dart';
+import 'features/conversation/past_conversation_screen.dart';
 import 'features/corrections/corrections_screen.dart';
 import 'features/home/home_screen.dart';
 import 'features/literature/literature_screen.dart';
@@ -22,12 +23,15 @@ class ScientistApp extends StatelessWidget {
         title: 'Scientist AI',
         debugShowCheckedModeBanner: false,
         theme: buildAppTheme(),
+        themeMode: ThemeMode.dark,
         initialRoute: kRouteHome,
         routes: <String, WidgetBuilder>{
           kRouteHome: (_) => const AppShell(child: HomeScreen()),
           kRouteLiterature: (_) => const AppShell(child: LiteratureScreen()),
           kRoutePlan: (_) => const AppShell(child: PlanScreen()),
           kRouteCorrections: (_) => const AppShell(child: CorrectionsScreen()),
+          kRoutePastConversation: (_) =>
+              const AppShell(child: PastConversationScreen()),
         },
       ),
     );

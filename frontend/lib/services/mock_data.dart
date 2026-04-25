@@ -61,6 +61,10 @@ final LiteratureReview mockLiteratureReviewTemplate = LiteratureReview(
 );
 
 const ExperimentPlan mockExperimentPlan = ExperimentPlan(
+  description:
+      'A controlled T-cell expansion assay evaluating cytokine concentration '
+      'ranges in serum-free medium, with pilot validation and dose-response '
+      'optimization across triplicate conditions.',
   budget: Budget(
     total: 5870.50,
     materials: <Material>[
@@ -118,6 +122,7 @@ const ExperimentPlan mockExperimentPlan = ExperimentPlan(
         description:
             'Review query constraints, acceptance criteria, and define assay success '
             'metrics with the requesting scientist.',
+        milestone: 'Protocol approved',
       ),
       Step(
         number: 2,
@@ -134,6 +139,7 @@ const ExperimentPlan mockExperimentPlan = ExperimentPlan(
         description:
             'Execute pilot assay with baseline concentrations and collect first-pass '
             'quality and viability readouts.',
+        milestone: 'Pilot data collected',
       ),
       Step(
         number: 4,
@@ -150,6 +156,7 @@ const ExperimentPlan mockExperimentPlan = ExperimentPlan(
         description:
             'Compile final timeline, material usage, and validation notes into a '
             'proposal package for lab execution.',
+        milestone: 'Report delivered',
       ),
     ],
   ),

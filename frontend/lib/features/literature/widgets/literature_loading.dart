@@ -1,29 +1,35 @@
 import 'package:flutter/material.dart';
 
 import '../../../core/app_constants.dart';
+import '../../../ui/app_surface.dart';
+import '../../../ui/skeleton_bar.dart';
 
 class LiteratureLoading extends StatelessWidget {
   const LiteratureLoading({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return ListView.separated(
+    return ListView.builder(
       itemCount: 3,
-      separatorBuilder: (_, _) => const SizedBox(height: kSpaceS),
       itemBuilder: (BuildContext context, int index) {
-        return Card(
-          child: Padding(
-            padding: const EdgeInsets.all(kSpaceM),
-            child: Column(
+        return Padding(
+          padding: EdgeInsets.only(bottom: index == 2 ? 0 : kSpace12),
+          child: AppSurface(
+            child: Row(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                Container(height: 14, width: 260, color: Colors.black12),
-                const SizedBox(height: kSpaceS),
-                Container(height: 12, width: 180, color: Colors.black12),
-                const SizedBox(height: kSpaceS),
-                Container(height: 12, width: double.infinity, color: Colors.black12),
-                const SizedBox(height: kSpaceXs),
-                Container(height: 12, width: 320, color: Colors.black12),
+                const SkeletonBar(height: 32, width: 32, radius: 6),
+                const SizedBox(width: kSpace16),
+                Expanded(
+                  child: SkeletonBlock(
+                    children: const <Widget>[
+                      SkeletonBar(height: 14, width: 280),
+                      SkeletonBar(height: 12, width: 180),
+                      SkeletonBar(height: 12),
+                      SkeletonBar(height: 12, width: 320),
+                    ],
+                  ),
+                ),
               ],
             ),
           ),

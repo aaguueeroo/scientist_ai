@@ -4,6 +4,14 @@ import 'package:provider/provider.dart';
 import '../../controllers/scientist_controller.dart';
 import '../../core/app_constants.dart';
 import '../../core/app_routes.dart';
+import '../../core/theme/theme_context.dart';
+import '../plan/widgets/workspace_step_header.dart';
+
+const List<String> _kQuerySuggestions = <String>[
+  'Does cold exposure improve insulin sensitivity in metabolically healthy adults?',
+  'How does chronic sleep restriction affect memory consolidation in young adults?',
+  'Summarize recent findings on exerkines and cardiovascular disease outcomes.',
+];
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({super.key});
@@ -14,81 +22,136 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _queryController = TextEditingController();
+  final FocusNode _focusNode = FocusNode();
 
   @override
   void dispose() {
     _queryController.dispose();
+    _focusNode.dispose();
     super.dispose();
+  }
+
+  void _applySuggestion(String text) {
+    setState(() {
+      _queryController.text = text;
+      _queryController.selection = TextSelection.collapsed(offset: text.length);
+    });
+    _focusNode.requestFocus();
   }
 
   @override
   Widget build(BuildContext context) {
+    final TextTheme textTheme = Theme.of(context).textTheme;
     final bool isQueryEmpty = _queryController.text.trim().isEmpty;
     return Padding(
-      padding: const EdgeInsets.all(kSpaceXl),
-      child: Center(
-        child: ConstrainedBox(
-          constraints: const BoxConstraints(maxWidth: 720),
-          child: Card(
-            child: Padding(
-              padding: const EdgeInsets.all(kSpaceL),
-              child: Consumer<ScientistController>(
-                builder: (
-                  BuildContext context,
-                  ScientistController controller,
-                  Widget? child,
-                ) {
-                  return Column(
-                    mainAxisSize: MainAxisSize.min,
-                    crossAxisAlignment: CrossAxisAlignment.stretch,
+      padding: const EdgeInsets.symmetric(
+        horizontal: kSpace40,
+        vertical: kSpace32,
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          WorkspaceStepHeader(
+            stepIndex: 0,
+            stepLabels: kWorkspaceStepLabels,
+            onSelect: (int i) => navigateToWorkspaceStep(context, i),
+          ),
+          const SizedBox(height: kSpace32),
+          Expanded(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(maxWidth: kHomeMaxWidth),
+                child: SingleChildScrollView(
+                  child: Consumer<ScientistController>(
+                    builder: (
+                      BuildContext context,
+                      ScientistController controller,
+                      Widget? child,
+                    ) {
+                      return Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.stretch,
+                        children: <Widget>[
+                  Text(
+                    'What do you want to investigate?',
+                    style: textTheme.headlineMedium,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: kSpace8),
+                  Text(
+                    'Describe a hypothesis or research question and we will plan the literature review and experiments.',
+                    style: context.scientist.bodySecondary,
+                    textAlign: TextAlign.center,
+                  ),
+                  const SizedBox(height: kSpace32),
+                  TextField(
+                    controller: _queryController,
+                    focusNode: _focusNode,
+                    minLines: 7,
+                    maxLines: 12,
+                    style: textTheme.bodyLarge,
+                    onChanged: (_) => setState(() {}),
+                    decoration: const InputDecoration(
+                      hintText:
+                          'e.g. Does intermittent fasting improve markers of mitochondrial biogenesis in sedentary adults?',
+                    ),
+                  ),
+                  const SizedBox(height: kSpace12),
+                  Text(
+                    'Try an example',
+                    style: textTheme.labelSmall,
+                  ),
+                  const SizedBox(height: kSpace8),
+                  Wrap(
+                    spacing: kSpace8,
+                    runSpacing: kSpace8,
                     children: <Widget>[
-                      Text(
-                        'What do you want to investigate?',
-                        style: Theme.of(context).textTheme.headlineSmall,
-                      ),
-                      const SizedBox(height: kSpaceM),
-                      TextField(
-                        controller: _queryController,
-                        minLines: 6,
-                        maxLines: 10,
-                        onChanged: (_) {
-                          setState(() {});
-                        },
-                        decoration: const InputDecoration(
-                          hintText:
-                              'Describe your research question, hypothesis, or '
-                              'experimental objective...',
-                          border: OutlineInputBorder(),
+                      for (final String suggestion in _kQuerySuggestions)
+                        ActionChip(
+                          label: Text(
+                            suggestion,
+                            style: textTheme.bodyMedium,
+                          ),
+                          onPressed: () => _applySuggestion(suggestion),
+                          materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
-                      ),
-                      const SizedBox(height: kSpaceM),
-                      Align(
-                        alignment: Alignment.centerRight,
-                        child: FilledButton(
-                          onPressed: isQueryEmpty
-                              ? null
-                              : () async {
-                                  await controller.submitQuestion(
-                                    _queryController.text,
-                                  );
-                                  if (!context.mounted) {
-                                    return;
-                                  }
-                                  Navigator.pushNamed(
-                                    context,
-                                    kRouteLiterature,
-                                  );
-                                },
-                          child: const Text('Submit'),
-                        ),
-                      ),
                     ],
-                  );
-                },
+                  ),
+                  const SizedBox(height: kSpace16),
+                  Align(
+                    alignment: Alignment.centerRight,
+                    child: AnimatedOpacity(
+                      duration: const Duration(milliseconds: 150),
+                      opacity: isQueryEmpty ? 0.6 : 1,
+                      child: FilledButton.icon(
+                        onPressed: isQueryEmpty
+                            ? null
+                            : () async {
+                                await controller.submitQuestion(
+                                  _queryController.text,
+                                );
+                                if (!context.mounted) {
+                                  return;
+                                }
+                                Navigator.pushNamed(
+                                  context,
+                                  kRouteLiterature,
+                                );
+                              },
+                        icon: const Icon(Icons.arrow_forward, size: 16),
+                        label: const Text('Submit'),
+                      ),
+                    ),
+                  ),
+                        ],
+                      );
+                    },
+                  ),
+                ),
               ),
             ),
           ),
-        ),
+        ],
       ),
     );
   }
