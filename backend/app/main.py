@@ -18,10 +18,12 @@ from app.api.errors import register_exception_handlers
 from app.api.generate_plan import router as generate_plan_router
 from app.api.health import router as health_router
 from app.api.middleware import RequestContextMiddleware
+from app.api.plans import router as plans_router
 from app.config.settings import get_settings
 from app.config.source_tiers import load_source_tiers
 from app.observability.logging import configure_logging
 from app.storage import db as storage_db
+from app.storage.plans_repo import PlansRepo
 
 
 @asynccontextmanager
@@ -39,6 +41,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     db_engine = storage_db.create_engine(settings)
     await storage_db.create_all(db_engine)
     db_session_factory = storage_db.async_session(db_engine)
+    plans_repo = PlansRepo(db_session_factory)
 
     app.state.openai_client = openai_client
     app.state.tavily_client = tavily_client
@@ -47,6 +50,7 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     app.state.source_tiers = source_tiers
     app.state.db_engine = db_engine
     app.state.db_session_factory = db_session_factory
+    app.state.plans_repo = plans_repo
 
     try:
         yield
@@ -64,6 +68,7 @@ def create_app() -> FastAPI:
     register_exception_handlers(app)
     app.include_router(health_router)
     app.include_router(generate_plan_router)
+    app.include_router(plans_router)
     return app
 
 

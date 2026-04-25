@@ -107,6 +107,7 @@ def _render(
     code: ErrorCode,
     message: str,
     details: dict[str, Any] | None = None,
+    status_override: int | None = None,
 ) -> JSONResponse:
     body = ErrorResponse(
         code=code,
@@ -115,7 +116,7 @@ def _render(
         request_id=_request_id(request),
     )
     return JSONResponse(
-        status_code=http_status_for(code),
+        status_code=status_override if status_override is not None else http_status_for(code),
         content=body.model_dump(),
     )
 
@@ -127,11 +128,13 @@ async def _domain_error_handler(request: Request, exc: Exception) -> JSONRespons
             code=ErrorCode.INTERNAL_ERROR,
             message=InternalError.default_message,
         )
+    status_override = exc.http_status if exc.http_status != http_status_for(exc.code) else None
     return _render(
         request,
         code=exc.code,
         message=exc.message,
         details=exc.details,
+        status_override=status_override,
     )
 
 

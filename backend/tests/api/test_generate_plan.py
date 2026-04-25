@@ -19,6 +19,7 @@ import pytest_asyncio
 from fastapi import FastAPI
 from httpx import ASGITransport, AsyncClient
 from pydantic import ValidationError
+from sqlalchemy.ext.asyncio import create_async_engine
 
 from app.agents.literature_qc import NoveltyClaim, ReferenceClaim
 from app.api import deps as api_deps
@@ -42,6 +43,7 @@ from app.schemas.experiment_plan import (
 )
 from app.schemas.hypothesis import GeneratePlanRequest
 from app.schemas.literature_qc import NoveltyLabel, Reference, SourceTier
+from app.storage import db as storage_db
 from app.verification.catalog_resolver import FakeCatalogResolver
 from app.verification.citation_resolver import CitationOutcome, FakeCitationResolver
 
@@ -129,6 +131,14 @@ def _fake_clients() -> tuple[FakeOpenAIClient, FakeTavilyClient, FakeCitationRes
     return openai, tavily, resolver
 
 
+def _patch_in_memory_storage(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setattr(
+        storage_db,
+        "create_engine",
+        lambda settings: create_async_engine("sqlite+aiosqlite:///:memory:", future=True),
+    )
+
+
 @pytest_asyncio.fixture
 async def exact_match_app(monkeypatch: pytest.MonkeyPatch) -> AsyncIterator[FastAPI]:
     """Build the app with fake runtime dependencies wired in."""
@@ -141,6 +151,7 @@ async def exact_match_app(monkeypatch: pytest.MonkeyPatch) -> AsyncIterator[Fast
     monkeypatch.setattr(api_deps, "build_openai_client", lambda settings: openai)
     monkeypatch.setattr(api_deps, "build_tavily_client", lambda settings, source_tiers: tavily)
     monkeypatch.setattr(api_deps, "build_citation_resolver", lambda source_tiers: resolver)
+    _patch_in_memory_storage(monkeypatch)
     _ = source_tiers  # kept for parity with the production resolver wiring
 
     app = create_app()
@@ -391,6 +402,7 @@ async def full_path_app(monkeypatch: pytest.MonkeyPatch) -> AsyncIterator[FastAP
         "build_catalog_resolver",
         lambda source_tiers: catalog_resolver,
     )
+    _patch_in_memory_storage(monkeypatch)
 
     _ = load_source_tiers()  # parity with production wiring
 
@@ -431,6 +443,7 @@ async def grounding_failed_app(monkeypatch: pytest.MonkeyPatch) -> AsyncIterator
         "build_catalog_resolver",
         lambda source_tiers: catalog_resolver,
     )
+    _patch_in_memory_storage(monkeypatch)
 
     app = create_app()
     async with app.router.lifespan_context(app):
