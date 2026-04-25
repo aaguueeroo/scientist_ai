@@ -1606,6 +1606,8 @@ Steps belong to milestones M1–M6 (§6).
 - **Acceptance criteria:** four tests green.
 - **Depends on:** 35, 39.
 
+## Step 40 — green
+
 #### Step 41 — `Runtime Agent 2 — Feedback relevance (against FeedbackRepo)`  (M5)
 
 - **What to build:** `app/agents/feedback_relevance.py` with

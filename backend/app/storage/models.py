@@ -16,6 +16,7 @@ from sqlalchemy import JSON, DateTime, Integer, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 PLAN_SCHEMA_VERSION = 1
+FEEDBACK_SCHEMA_VERSION = 1
 
 
 class Base(DeclarativeBase):
@@ -33,4 +34,27 @@ class PlanRow(Base):
     prompt_versions: Mapped[dict[str, str]] = mapped_column(JSON, nullable=False)
     domain_tag: Mapped[str | None] = mapped_column(String(64), index=True, nullable=True)
     payload: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+
+class FeedbackRow(Base):
+    """Persisted feedback record + its provenance metadata.
+
+    `before_text` / `after_text` mirror `FeedbackRecord.before` / `.after`
+    using non-reserved column names so SQLite cannot collide with its
+    keyword set. The repo translates the column names back at read time.
+    """
+
+    __tablename__ = "feedback"
+
+    feedback_id: Mapped[str] = mapped_column(String(64), primary_key=True)
+    plan_id: Mapped[str] = mapped_column(String(64), index=True)
+    request_id: Mapped[str] = mapped_column(String(64), index=True)
+    schema_version: Mapped[int] = mapped_column(Integer, nullable=False)
+    prompt_versions: Mapped[dict[str, str]] = mapped_column(JSON, nullable=False)
+    domain_tag: Mapped[str] = mapped_column(String(64), index=True)
+    corrected_field: Mapped[str] = mapped_column(String(120))
+    before_text: Mapped[str] = mapped_column(String(4000))
+    after_text: Mapped[str] = mapped_column(String(4000))
+    reason: Mapped[str] = mapped_column(String(2000))
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
