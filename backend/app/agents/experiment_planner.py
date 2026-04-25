@@ -25,7 +25,8 @@ from app.config.settings import Settings, get_settings
 from app.observability.logging import emit_agent_call_complete
 from app.prompts.loader import load_role, prompt_versions
 from app.runtime.pipeline_state import PipelineState
-from app.schemas.experiment_plan import ExperimentPlan
+from app.schemas.experiment_plan import ExperimentPlan, Material, ProtocolStep
+from app.schemas.literature_qc import Reference
 
 _AGENT_NAME = "experiment_planner"
 _ROLE_FILE = "experiment_planner.md"
@@ -96,7 +97,55 @@ class ExperimentPlannerAgent:
             tier_0_drops=0,
             request_id=state.request_id,
         )
-        return parsed.parsed
+        return _strip_llm_verified_claims(parsed.parsed)
+
+
+def _strip_llm_verified_claims(plan: ExperimentPlan) -> ExperimentPlan:
+    """Zero `verified`/`verification_url`/`confidence` on every LLM-emitted row.
+
+    The grounding pipeline (Step 30) is the only writer of `verified=True`.
+    Anything the LLM placed in those fields is treated as untrusted and
+    discarded here so a successful prompt-injection can never elevate
+    confidence on a fabricated row.
+    """
+
+    return plan.model_copy(
+        update={
+            "references": [_strip_reference(r) for r in plan.references],
+            "protocol": [_strip_protocol_step(s) for s in plan.protocol],
+            "materials": [_strip_material(m) for m in plan.materials],
+        }
+    )
+
+
+def _strip_reference(ref: Reference) -> Reference:
+    return ref.model_copy(
+        update={
+            "verified": False,
+            "verification_url": None,
+            "confidence": "low",
+        }
+    )
+
+
+def _strip_protocol_step(step: ProtocolStep) -> ProtocolStep:
+    return step.model_copy(
+        update={
+            "verified": False,
+            "verification_url": None,
+            "confidence": "low",
+        }
+    )
+
+
+def _strip_material(material: Material) -> Material:
+    return material.model_copy(
+        update={
+            "verified": False,
+            "verification_url": None,
+            "confidence": "low",
+        }
+    )
 
 
 def _format_user_payload(state: PipelineState) -> str:
