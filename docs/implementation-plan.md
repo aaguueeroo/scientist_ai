@@ -1899,3 +1899,5 @@ Steps belong to milestones M1–M6 (§6).
 
 ## Step 2 — green
 
+## Step 3 — green
+
