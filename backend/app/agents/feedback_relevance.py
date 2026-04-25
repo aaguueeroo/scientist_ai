@@ -73,6 +73,40 @@ class FeedbackRelevanceAgent:
     openai: AbstractOpenAIClient
     settings: Settings | None = None
 
+    async def extract_domain(
+        self,
+        *,
+        hypothesis: str,
+        request_id: str,
+    ) -> DomainTag:
+        """Run only the domain-extraction LLM call.
+
+        Used by `POST /feedback` when the caller omits `domain_tag` so the
+        route can avoid Agent 2's heavier rerank step. Emits a single
+        structured log line with the contract keys.
+        """
+
+        cfg = self.settings or get_settings()
+        role = load_role(_ROLE_FILE)
+        versions = prompt_versions()
+        start = time.perf_counter()
+
+        result = await self._extract_domain(role, hypothesis, cfg)
+
+        latency_ms = int((time.perf_counter() - start) * 1000)
+        emit_agent_call_complete(
+            _AGENT_NAME,
+            model=cfg.OPENAI_MODEL_FEEDBACK_RELEVANCE,
+            prompt_hash=versions[_ROLE_FILE],
+            prompt_tokens=result.usage.prompt_tokens,
+            completion_tokens=result.usage.completion_tokens,
+            latency_ms=latency_ms,
+            verified_count=0,
+            tier_0_drops=0,
+            request_id=request_id,
+        )
+        return result.parsed.domain_tag
+
     async def run(
         self,
         *,

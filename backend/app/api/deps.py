@@ -26,6 +26,7 @@ from app.clients.openai_client import (
 from app.clients.tavily_client import AbstractTavilyClient, RealTavilyClient
 from app.config.settings import Settings
 from app.config.source_tiers import SourceTiersConfig
+from app.storage.feedback_repo import FeedbackRepo
 from app.storage.plans_repo import PlansRepo
 from app.verification.catalog_resolver import (
     AbstractCatalogResolver,
@@ -111,6 +112,10 @@ async def get_catalog_resolver(request: Request) -> AbstractCatalogResolver:
 
 async def get_plans_repo(request: Request) -> PlansRepo:
     return cast(PlansRepo, request.app.state.plans_repo)
+
+
+async def get_feedback_repo(request: Request) -> FeedbackRepo:
+    return cast(FeedbackRepo, request.app.state.feedback_repo)
 
 
 async def get_source_tiers(request: Request) -> SourceTiersConfig:
