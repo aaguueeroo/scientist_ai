@@ -1,14 +1,14 @@
 import 'package:flutter/material.dart' hide Material, Step;
 import 'package:provider/provider.dart';
 
+import '../../../controllers/review_store_controller.dart';
 import '../../../core/app_constants.dart';
 import '../../../models/experiment_plan.dart';
+import '../../review/models/review.dart' as global_review;
 import 'editable_review_body.dart';
-import 'pending_batch_review_body.dart';
 import 'plan_review_controller.dart';
 import 'read_only_review_body.dart';
 import 'review_history_drawer.dart';
-import 'widgets/pending_batch_banner.dart';
 import 'widgets/review_action_bar.dart';
 
 /// Top-level surface for the review feature. Owns the
@@ -18,11 +18,13 @@ class PlanReviewScaffold extends StatefulWidget {
     super.key,
     required this.plan,
     required this.onLivePlanChanged,
+    required this.conversationId,
     this.query,
   });
 
   final ExperimentPlan plan;
   final ValueChanged<ExperimentPlan> onLivePlanChanged;
+  final String conversationId;
   final String? query;
 
   @override
@@ -36,23 +38,36 @@ class _PlanReviewScaffoldState extends State<PlanReviewScaffold> {
   @override
   void initState() {
     super.initState();
-    _controller = PlanReviewController(
+    _controller = _buildController();
+  }
+
+  PlanReviewController _buildController() {
+    return PlanReviewController(
       source: widget.plan,
       onLivePlanChanged: widget.onLivePlanChanged,
+      conversationId: widget.conversationId,
+      query: widget.query ?? '',
+      onReviewsEmitted: _forwardReviewsToStore,
     );
+  }
+
+  void _forwardReviewsToStore(List<global_review.Review> reviews) {
+    final ReviewStoreController? store =
+        context.read<ReviewStoreController?>();
+    if (store == null) return;
+    store.submitReviews(reviews);
   }
 
   @override
   void didUpdateWidget(covariant PlanReviewScaffold oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!identical(oldWidget.plan, widget.plan)) {
-      // Plan changes from outside (e.g. fresh literature review). Recreate
-      // controller to keep state coherent.
+    if (!identical(oldWidget.plan, widget.plan) ||
+        oldWidget.conversationId != widget.conversationId ||
+        oldWidget.query != widget.query) {
+      // Plan or conversation context changes from outside (e.g. fresh
+      // literature review). Recreate controller to keep state coherent.
       _controller.dispose();
-      _controller = PlanReviewController(
-        source: widget.plan,
-        onLivePlanChanged: widget.onLivePlanChanged,
-      );
+      _controller = _buildController();
     }
   }
 
@@ -97,9 +112,6 @@ class _ReviewScaffoldShell extends StatelessWidget {
     if (controller.mode == ReviewMode.editing) {
       return EditableReviewBody(query: query);
     }
-    if (controller.mode == ReviewMode.reviewingPending) {
-      return PendingBatchReviewBody(query: query);
-    }
     return ReadOnlyReviewBody(
       plan: controller.displayPlan,
       query: query,
@@ -117,8 +129,6 @@ class _ReviewScaffoldShell extends StatelessWidget {
             padding: const EdgeInsets.only(top: 56),
             child: Column(
               children: <Widget>[
-                if (controller.mode == ReviewMode.reviewingPending)
-                  const PendingBatchBanner(),
                 if (controller.isHistoricalView)
                   _HistoricalBanner(
                     onReturn: controller.returnToCurrentVersion,

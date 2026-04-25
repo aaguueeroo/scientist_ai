@@ -3,9 +3,10 @@ import 'package:provider/provider.dart';
 
 import '../../../controllers/scientist_controller.dart';
 import '../../../core/app_constants.dart';
-import '../../../core/theme/theme_context.dart';
 import '../../../core/app_routes.dart';
+import '../../../core/theme/theme_context.dart';
 import 'past_conversation_tile.dart';
+import 'sidebar_nav_link.dart';
 
 class Sidebar extends StatelessWidget {
   const Sidebar({super.key});
@@ -13,6 +14,8 @@ class Sidebar extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final TextTheme textTheme = Theme.of(context).textTheme;
+    final ColorScheme scheme = context.appColorScheme;
+    final String? activeRoute = ModalRoute.of(context)?.settings.name;
     return Container(
       decoration: BoxDecoration(
         color: context.scientist.sidebarBackground,
@@ -39,20 +42,43 @@ class Sidebar extends StatelessWidget {
                 ),
               ),
               Padding(
-                padding: const EdgeInsets.symmetric(horizontal: kSpace16),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: FilledButton.icon(
-                    onPressed: () {
-                      controller.reset();
-                      Navigator.pushReplacementNamed(context, kRouteHome);
-                    },
-                    icon: const Icon(Icons.add, size: 16),
-                    label: const Text('New Question'),
-                  ),
+                padding: const EdgeInsets.symmetric(horizontal: kSpace8),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
+                  children: <Widget>[
+                    SidebarNavLink(
+                      icon: Icons.add_rounded,
+                      label: 'New conversation',
+                      isActive: activeRoute == kRouteHome,
+                      onTap: () {
+                        controller.reset();
+                        if (activeRoute != kRouteHome) {
+                          Navigator.pushReplacementNamed(context, kRouteHome);
+                        }
+                      },
+                    ),
+                    SidebarNavLink(
+                      icon: Icons.rate_review_outlined,
+                      label: 'Reviewer',
+                      isActive: activeRoute == kRouteReviewer,
+                      onTap: () {
+                        if (activeRoute == kRouteReviewer) return;
+                        Navigator.pushNamed(context, kRouteReviewer);
+                      },
+                    ),
+                  ],
                 ),
               ),
-              const SizedBox(height: kSpace24),
+              const SizedBox(height: kSpace16),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: kSpace16),
+                child: Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: scheme.outline.withValues(alpha: 0.25),
+                ),
+              ),
+              const SizedBox(height: kSpace16),
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: kSpace24),
                 child: Text(
@@ -82,24 +108,6 @@ class Sidebar extends StatelessWidget {
                       },
                     );
                   },
-                ),
-              ),
-              Padding(
-                padding: const EdgeInsets.fromLTRB(
-                  kSpace16,
-                  kSpace16,
-                  kSpace16,
-                  kSpace24,
-                ),
-                child: SizedBox(
-                  width: double.infinity,
-                  child: OutlinedButton.icon(
-                    onPressed: () {
-                      Navigator.pushNamed(context, kRouteCorrections);
-                    },
-                    icon: const Icon(Icons.inventory_2_outlined, size: 16),
-                    label: const Text('Correction Store'),
-                  ),
                 ),
               ),
             ],

@@ -3,6 +3,9 @@ import 'package:flutter/material.dart' show Color;
 
 import '../../../core/id_generator.dart';
 import '../../../models/experiment_plan.dart';
+import '../../review/models/review.dart' as global_review;
+import '../correction/correction_format.dart';
+import '../experiment_plan_view.dart' show formatExperimentPlanTotalDuration;
 import 'models/batch_status.dart';
 import 'models/change_target.dart';
 import 'models/comment_anchor.dart';
@@ -11,6 +14,7 @@ import 'models/material_field.dart';
 import 'models/plan_change.dart';
 import 'models/plan_comment.dart';
 import 'models/plan_version.dart';
+import 'models/removed_draft_slot.dart';
 import 'models/review_section.dart';
 import 'models/section_feedback.dart';
 import 'models/step_field.dart';
@@ -18,10 +22,17 @@ import 'models/suggestion_batch.dart';
 import 'plan_diff.dart';
 import 'review_color_palette.dart';
 
+/// Optional callback invoked by [PlanReviewController] whenever the user
+/// produces new persistable feedback (corrections, comments, or
+/// section feedback). Wired by `PlanReviewScaffold` to forward events to
+/// the global `ReviewStoreController`.
+typedef ReviewsEmittedCallback = void Function(
+  List<global_review.Review> reviews,
+);
+
 enum ReviewMode {
   viewing,
   editing,
-  reviewingPending,
 }
 
 /// Single source of truth for the plan-review screen. Owns the canonical
@@ -33,10 +44,29 @@ class PlanReviewController extends ChangeNotifier {
     required ValueChanged<ExperimentPlan> onLivePlanChanged,
     BatchColorPalette? palette,
     String localAuthorId = kLocalAuthorId,
+    String conversationId = '',
+    String query = '',
+    ReviewsEmittedCallback? onReviewsEmitted,
+    ChangeTarget? focusedTarget,
+    ReviewSection? focusedSection,
+    FeedbackPolarity? focusedPolarity,
+    bool isReadOnlyFocus = false,
+    List<PlanComment> initialComments = const <PlanComment>[],
+    Map<ReviewSection, SectionFeedback> initialSectionFeedback =
+        const <ReviewSection, SectionFeedback>{},
+    List<SuggestionBatch> initialAcceptedBatches =
+        const <SuggestionBatch>[],
   })  : _original = source,
         _onLivePlanChanged = onLivePlanChanged,
         _palette = palette ?? BatchColorPalette(),
-        _localAuthorId = localAuthorId {
+        _localAuthorId = localAuthorId,
+        _conversationId = conversationId,
+        _query = query,
+        _onReviewsEmitted = onReviewsEmitted,
+        _focusedTarget = focusedTarget,
+        _focusedSection = focusedSection,
+        _focusedPolarity = focusedPolarity,
+        _isReadOnlyFocus = isReadOnlyFocus {
     _versions.add(
       PlanVersion(
         id: generateLocalId('ver'),
@@ -47,6 +77,15 @@ class PlanReviewController extends ChangeNotifier {
         changeCount: 0,
       ),
     );
+    if (initialComments.isNotEmpty) {
+      _comments.addAll(initialComments);
+    }
+    if (initialSectionFeedback.isNotEmpty) {
+      _sectionFeedback.addAll(initialSectionFeedback);
+    }
+    if (initialAcceptedBatches.isNotEmpty) {
+      _acceptedBatches.addAll(initialAcceptedBatches);
+    }
   }
 
   static const String kLocalAuthorId = 'local-user';
@@ -55,11 +94,14 @@ class PlanReviewController extends ChangeNotifier {
   final ValueChanged<ExperimentPlan> _onLivePlanChanged;
   final BatchColorPalette _palette;
   final String _localAuthorId;
+  final String _conversationId;
+  final String _query;
+  final ReviewsEmittedCallback? _onReviewsEmitted;
 
   final ExperimentPlan _original;
   final List<SuggestionBatch> _acceptedBatches = <SuggestionBatch>[];
-  SuggestionBatch? _pendingBatch;
   ExperimentPlan? _draft;
+  ExperimentPlan? _editBaseline;
   final List<PlanComment> _comments = <PlanComment>[];
   final Map<ReviewSection, SectionFeedback> _sectionFeedback =
       <ReviewSection, SectionFeedback>{};
@@ -68,11 +110,28 @@ class PlanReviewController extends ChangeNotifier {
   ReviewMode _mode = ReviewMode.viewing;
   String? _viewingVersionId;
 
+  /// Reviewer-mode focus fields: when set, the read-only widgets render
+  /// a one-shot highlight around the matching target/section so the
+  /// Reviewer screen can draw attention to a single review.
+  final ChangeTarget? _focusedTarget;
+  final ReviewSection? _focusedSection;
+  final FeedbackPolarity? _focusedPolarity;
+  final bool _isReadOnlyFocus;
+
+  ChangeTarget? get focusedTarget => _focusedTarget;
+  ReviewSection? get focusedSection => _focusedSection;
+  FeedbackPolarity? get focusedPolarity => _focusedPolarity;
+
+  /// True when this controller is rendering a single review in the
+  /// Reviewer screen. Editable affordances (action bar, feedback bar,
+  /// comment popovers) hide themselves on this signal.
+  bool get isReadOnlyFocus => _isReadOnlyFocus;
+
   ExperimentPlan get original => _original;
   List<SuggestionBatch> get acceptedBatches =>
       List<SuggestionBatch>.unmodifiable(_acceptedBatches);
-  SuggestionBatch? get pendingBatch => _pendingBatch;
   ExperimentPlan? get draft => _draft;
+  ExperimentPlan? get editBaseline => _editBaseline;
   List<PlanComment> get comments => List<PlanComment>.unmodifiable(_comments);
   Map<ReviewSection, SectionFeedback> get sectionFeedback =>
       Map<ReviewSection, SectionFeedback>.unmodifiable(_sectionFeedback);
@@ -102,8 +161,7 @@ class PlanReviewController extends ChangeNotifier {
     return livePlan;
   }
 
-  /// Plan with all accepted batches applied. Pending batches do NOT count;
-  /// they only modify the rendering layer.
+  /// Plan with all accepted batches applied.
   ExperimentPlan get livePlan {
     if (_acceptedBatches.isEmpty) {
       return _original;
@@ -127,71 +185,98 @@ class PlanReviewController extends ChangeNotifier {
     return null;
   }
 
-  /// Returns the pending [FieldChange] for [target] if any. Used by
-  /// SuggestionAwareText to render the strikethrough+colored layout.
-  FieldChange? pendingFieldChangeFor(ChangeTarget target) {
-    final SuggestionBatch? pending = _pendingBatch;
-    if (pending == null) {
-      return null;
-    }
-    for (final PlanChange change in pending.changes) {
-      if (change is FieldChange && change.target == target) {
-        return change;
-      }
-    }
-    return null;
-  }
-
-  /// Returns true when [stepId] was inserted by the pending batch.
-  bool isStepPendingInsert(String stepId) {
-    final SuggestionBatch? pending = _pendingBatch;
-    if (pending == null) return false;
-    return pending.changes.any(
-      (PlanChange c) => c is StepInserted && c.step.id == stepId,
-    );
-  }
-
-  /// Returns the [StepRemoved] entry for the pending batch if any.
-  StepRemoved? pendingStepRemovalFor(String stepId) {
-    final SuggestionBatch? pending = _pendingBatch;
-    if (pending == null) return null;
-    for (final PlanChange c in pending.changes) {
-      if (c is StepRemoved && c.step.id == stepId) {
-        return c;
-      }
-    }
-    return null;
-  }
-
-  bool isMaterialPendingInsert(String materialId) {
-    final SuggestionBatch? pending = _pendingBatch;
-    if (pending == null) return false;
-    return pending.changes.any(
-      (PlanChange c) => c is MaterialInserted && c.material.id == materialId,
-    );
-  }
-
-  MaterialRemoved? pendingMaterialRemovalFor(String materialId) {
-    final SuggestionBatch? pending = _pendingBatch;
-    if (pending == null) return null;
-    for (final PlanChange c in pending.changes) {
-      if (c is MaterialRemoved && c.material.id == materialId) {
-        return c;
-      }
-    }
-    return null;
-  }
-
   /// Returns the color associated with the latest accepted batch that
   /// touched [target], or null if the field is original content.
   Color? colorForTarget(ChangeTarget target) =>
       acceptedBatchFor(target)?.color;
 
+  /// True when at least one accepted batch contains a [FieldChange] for
+  /// [target]. Inserts (StepInserted / MaterialInserted) intentionally do
+  /// not count: a freshly inserted step/material is communicated by its
+  /// parent tile, so a per-field "edited from baseline" highlight would
+  /// be redundant.
+  bool hasFieldEditFromBaseline(ChangeTarget target) {
+    for (final SuggestionBatch batch in _acceptedBatches) {
+      for (final PlanChange change in batch.changes) {
+        if (change is FieldChange && change.target == target) {
+          return true;
+        }
+      }
+    }
+    return false;
+  }
+
+  /// Formatted v0 baseline value for [target], suitable for display in a
+  /// tooltip. Returns `null` when the target was never touched by any
+  /// [FieldChange] in an accepted batch (i.e. there is no "previous"
+  /// value worth surfacing).
+  String? originalLabelFor(ChangeTarget target) {
+    if (!hasFieldEditFromBaseline(target)) {
+      return null;
+    }
+    if (target is PlanDescriptionTarget) {
+      return _formatStringValue(_original.description);
+    }
+    if (target is BudgetTotalTarget) {
+      return formatBudgetLabel(_original.budget.total);
+    }
+    if (target is TotalDurationTarget) {
+      return formatExperimentPlanTotalDuration(
+        _original.timePlan.totalDuration,
+      );
+    }
+    if (target is StepFieldTarget) {
+      final Step? step = _findStep(_original, target.stepId);
+      if (step == null) return null;
+      return _formatStepFieldValue(step, target.field);
+    }
+    if (target is MaterialFieldTarget) {
+      final Material? mat = _findMaterial(_original, target.materialId);
+      if (mat == null) return null;
+      return _formatMaterialFieldValue(mat, target.field);
+    }
+    return null;
+  }
+
+  String _formatStringValue(String value) {
+    return value.isEmpty ? '(empty)' : value;
+  }
+
+  String _formatStepFieldValue(Step step, StepField field) {
+    switch (field) {
+      case StepField.name:
+        return _formatStringValue(step.name);
+      case StepField.description:
+        return _formatStringValue(step.description);
+      case StepField.duration:
+        return formatDurationLabel(step.duration);
+      case StepField.milestone:
+        return _formatStringValue(step.milestone ?? '');
+    }
+  }
+
+  String _formatMaterialFieldValue(Material material, MaterialField field) {
+    switch (field) {
+      case MaterialField.title:
+        return _formatStringValue(material.title);
+      case MaterialField.description:
+        return _formatStringValue(material.description);
+      case MaterialField.catalogNumber:
+        return _formatStringValue(material.catalogNumber);
+      case MaterialField.amount:
+        return material.amount.toString();
+      case MaterialField.price:
+        return formatBudgetLabel(material.price);
+    }
+  }
+
   // --- Mode transitions -----------------------------------------------------
 
   void enterEditing() {
     if (_mode == ReviewMode.editing) return;
-    _draft = livePlan;
+    final ExperimentPlan snapshot = livePlan;
+    _draft = snapshot;
+    _editBaseline = snapshot;
     _mode = ReviewMode.editing;
     _viewingVersionId = null;
     notifyListeners();
@@ -200,47 +285,36 @@ class PlanReviewController extends ChangeNotifier {
   void cancelEditing() {
     if (_mode != ReviewMode.editing) return;
     _draft = null;
+    _editBaseline = null;
     _mode = ReviewMode.viewing;
     notifyListeners();
   }
 
-  /// Diffs the draft against the live plan and turns it into a pending
-  /// batch. No-op when nothing changed.
+  /// Diffs the draft against the live plan and commits it as a single
+  /// accepted suggestion batch with a fresh palette color. The live plan,
+  /// version history, and any [ReviewsEmittedCallback] are updated in
+  /// one shot. No-op when nothing has changed.
   void applySuggestions() {
     if (_mode != ReviewMode.editing || _draft == null) return;
     final List<PlanChange> changes =
         diffPlans(before: livePlan, after: _draft!);
+    _draft = null;
+    _editBaseline = null;
+    _mode = ReviewMode.viewing;
     if (changes.isEmpty) {
-      _draft = null;
-      _mode = ReviewMode.viewing;
       notifyListeners();
       return;
     }
     final int batchIndex = _acceptedBatches.length;
-    _pendingBatch = SuggestionBatch(
+    final SuggestionBatch accepted = SuggestionBatch(
       id: generateLocalId('batch'),
       authorId: _localAuthorId,
       createdAt: DateTime.now(),
       color: _palette.colorAt(batchIndex),
-      status: BatchStatus.pending,
+      status: BatchStatus.accepted,
       changes: changes,
     );
-    _draft = null;
-    _mode = ReviewMode.reviewingPending;
-    notifyListeners();
-  }
-
-  /// Promote the pending batch to accepted, push a new version, and tell
-  /// the parent controller about the new live plan.
-  void acceptPendingBatch() {
-    final SuggestionBatch? pending = _pendingBatch;
-    if (pending == null) return;
-    final SuggestionBatch accepted = pending.copyWith(
-      status: BatchStatus.accepted,
-    );
     _acceptedBatches.add(accepted);
-    _pendingBatch = null;
-    _mode = ReviewMode.viewing;
     final ExperimentPlan nextLive = livePlan;
     _versions.add(
       PlanVersion(
@@ -253,22 +327,43 @@ class PlanReviewController extends ChangeNotifier {
       ),
     );
     _reanchorComments(nextLive);
+    _emitCorrectionReviews(accepted);
     _onLivePlanChanged(nextLive);
     notifyListeners();
   }
 
-  void discardPendingBatch() {
-    if (_pendingBatch == null) return;
-    _pendingBatch = null;
-    _mode = ReviewMode.viewing;
-    notifyListeners();
+  /// Builds one [global_review.CorrectionReview] per [FieldChange] in
+  /// [batch] and forwards them to [_onReviewsEmitted]. Insert/remove
+  /// changes are not currently surfaced as standalone review rows in v1.
+  void _emitCorrectionReviews(SuggestionBatch batch) {
+    final ReviewsEmittedCallback? cb = _onReviewsEmitted;
+    if (cb == null) return;
+    final List<global_review.Review> emitted = <global_review.Review>[];
+    for (final PlanChange change in batch.changes) {
+      if (change is! FieldChange) continue;
+      emitted.add(
+        global_review.CorrectionReview(
+          id: generateLocalId('review'),
+          conversationId: _conversationId,
+          query: _query,
+          originalPlan: _original,
+          createdAt: DateTime.now(),
+          target: change.target,
+          before: change.before,
+          after: change.after,
+        ),
+      );
+    }
+    if (emitted.isEmpty) return;
+    cb(emitted);
   }
 
   // --- Section feedback -----------------------------------------------------
 
   void setSectionFeedback(ReviewSection section, FeedbackPolarity polarity) {
     final SectionFeedback? current = _sectionFeedback[section];
-    if (current?.polarity == polarity) {
+    final bool isToggleOff = current?.polarity == polarity;
+    if (isToggleOff) {
       _sectionFeedback.remove(section);
     } else {
       _sectionFeedback[section] = SectionFeedback(
@@ -278,6 +373,28 @@ class PlanReviewController extends ChangeNotifier {
       );
     }
     notifyListeners();
+    if (!isToggleOff) {
+      _emitFeedbackReview(section, polarity);
+    }
+  }
+
+  void _emitFeedbackReview(
+    ReviewSection section,
+    FeedbackPolarity polarity,
+  ) {
+    final ReviewsEmittedCallback? cb = _onReviewsEmitted;
+    if (cb == null) return;
+    cb(<global_review.Review>[
+      global_review.FeedbackReview(
+        id: generateLocalId('review'),
+        conversationId: _conversationId,
+        query: _query,
+        originalPlan: _original,
+        createdAt: DateTime.now(),
+        section: section,
+        polarity: polarity,
+      ),
+    ]);
   }
 
   // --- Comments -------------------------------------------------------------
@@ -303,7 +420,27 @@ class PlanReviewController extends ChangeNotifier {
     );
     _comments.add(comment);
     notifyListeners();
+    _emitCommentReview(comment);
     return comment;
+  }
+
+  void _emitCommentReview(PlanComment comment) {
+    final ReviewsEmittedCallback? cb = _onReviewsEmitted;
+    if (cb == null) return;
+    cb(<global_review.Review>[
+      global_review.CommentReview(
+        id: generateLocalId('review'),
+        conversationId: _conversationId,
+        query: _query,
+        originalPlan: _original,
+        createdAt: comment.createdAt,
+        target: comment.anchor.target,
+        quote: comment.anchor.quote,
+        start: comment.anchor.start,
+        end: comment.anchor.end,
+        body: comment.body,
+      ),
+    ]);
   }
 
   void updateComment(String commentId, String body) {
@@ -355,9 +492,7 @@ class PlanReviewController extends ChangeNotifier {
   // --- History --------------------------------------------------------------
 
   void viewVersion(String versionId) {
-    if (_mode == ReviewMode.editing || _mode == ReviewMode.reviewingPending) {
-      return;
-    }
+    if (_mode == ReviewMode.editing) return;
     if (!_versions.any((PlanVersion v) => v.id == versionId)) return;
     _viewingVersionId = versionId;
     notifyListeners();
@@ -480,6 +615,145 @@ class PlanReviewController extends ChangeNotifier {
       budget: draft.budget.copyWith(materials: next),
     );
     notifyListeners();
+  }
+
+  // --- Draft diff helpers (edit-mode highlights) ---------------------------
+
+  /// True when the step with [stepId] does not exist in the edit baseline
+  /// (i.e. the user added it during the current edit session).
+  bool isStepInsertedInDraft(String stepId) {
+    final ExperimentPlan? base = _editBaseline;
+    if (base == null) return false;
+    return !base.timePlan.steps.any((Step s) => s.id == stepId);
+  }
+
+  bool isMaterialInsertedInDraft(String materialId) {
+    final ExperimentPlan? base = _editBaseline;
+    if (base == null) return false;
+    return !base.budget.materials.any((Material m) => m.id == materialId);
+  }
+
+  /// Set of fields on [stepId] that differ between the baseline and the
+  /// current draft. Empty for inserted or unchanged steps.
+  Set<StepField> draftChangedStepFields(String stepId) {
+    final ExperimentPlan? base = _editBaseline;
+    final ExperimentPlan? draft = _draft;
+    if (base == null || draft == null) return const <StepField>{};
+    final Step? before = _findStep(base, stepId);
+    final Step? after = _findStep(draft, stepId);
+    if (before == null || after == null) return const <StepField>{};
+    final Set<StepField> changed = <StepField>{};
+    if (before.name != after.name) changed.add(StepField.name);
+    if (before.description != after.description) {
+      changed.add(StepField.description);
+    }
+    if (before.duration != after.duration) changed.add(StepField.duration);
+    if (before.milestone != after.milestone) changed.add(StepField.milestone);
+    return changed;
+  }
+
+  Set<MaterialField> draftChangedMaterialFields(String materialId) {
+    final ExperimentPlan? base = _editBaseline;
+    final ExperimentPlan? draft = _draft;
+    if (base == null || draft == null) return const <MaterialField>{};
+    final Material? before = _findMaterial(base, materialId);
+    final Material? after = _findMaterial(draft, materialId);
+    if (before == null || after == null) return const <MaterialField>{};
+    final Set<MaterialField> changed = <MaterialField>{};
+    if (before.title != after.title) changed.add(MaterialField.title);
+    if (before.catalogNumber != after.catalogNumber) {
+      changed.add(MaterialField.catalogNumber);
+    }
+    if (before.description != after.description) {
+      changed.add(MaterialField.description);
+    }
+    if (before.amount != after.amount) changed.add(MaterialField.amount);
+    if (before.price != after.price) changed.add(MaterialField.price);
+    return changed;
+  }
+
+  /// True when the plan-level scalar at [target] has been edited in the
+  /// current draft. Only meaningful for [PlanDescriptionTarget],
+  /// [BudgetTotalTarget] and [TotalDurationTarget].
+  bool isDraftFieldChanged(ChangeTarget target) {
+    final ExperimentPlan? base = _editBaseline;
+    final ExperimentPlan? draft = _draft;
+    if (base == null || draft == null) return false;
+    if (target is PlanDescriptionTarget) {
+      return base.description != draft.description;
+    }
+    if (target is BudgetTotalTarget) {
+      return base.budget.total != draft.budget.total;
+    }
+    if (target is TotalDurationTarget) {
+      return base.timePlan.totalDuration != draft.timePlan.totalDuration;
+    }
+    return false;
+  }
+
+  /// All steps removed from the draft, anchored to the surviving step they
+  /// previously followed in the baseline so the UI can render tombstones
+  /// in the right slot. Order matches the baseline order.
+  List<RemovedStepSlot> get draftRemovedStepSlots {
+    final ExperimentPlan? base = _editBaseline;
+    final ExperimentPlan? draft = _draft;
+    if (base == null || draft == null) return const <RemovedStepSlot>[];
+    final Set<String> draftIds = <String>{
+      for (final Step s in draft.timePlan.steps) s.id,
+    };
+    final List<RemovedStepSlot> slots = <RemovedStepSlot>[];
+    String? lastSurvivingId;
+    for (int i = 0; i < base.timePlan.steps.length; i++) {
+      final Step current = base.timePlan.steps[i];
+      if (draftIds.contains(current.id)) {
+        lastSurvivingId = current.id;
+        continue;
+      }
+      slots.add(RemovedStepSlot(
+        step: current,
+        baselineIndex: i,
+        afterDraftStepId: lastSurvivingId,
+      ));
+    }
+    return slots;
+  }
+
+  List<RemovedMaterialSlot> get draftRemovedMaterialSlots {
+    final ExperimentPlan? base = _editBaseline;
+    final ExperimentPlan? draft = _draft;
+    if (base == null || draft == null) return const <RemovedMaterialSlot>[];
+    final Set<String> draftIds = <String>{
+      for (final Material m in draft.budget.materials) m.id,
+    };
+    final List<RemovedMaterialSlot> slots = <RemovedMaterialSlot>[];
+    String? lastSurvivingId;
+    for (int i = 0; i < base.budget.materials.length; i++) {
+      final Material current = base.budget.materials[i];
+      if (draftIds.contains(current.id)) {
+        lastSurvivingId = current.id;
+        continue;
+      }
+      slots.add(RemovedMaterialSlot(
+        material: current,
+        baselineIndex: i,
+        afterDraftMaterialId: lastSurvivingId,
+      ));
+    }
+    return slots;
+  }
+
+  Step? _findStep(ExperimentPlan plan, String id) {
+    for (final Step s in plan.timePlan.steps) {
+      if (s.id == id) return s;
+    }
+    return null;
+  }
+
+  Material? _findMaterial(ExperimentPlan plan, String id) {
+    for (final Material m in plan.budget.materials) {
+      if (m.id == id) return m;
+    }
+    return null;
   }
 
   // --- Internals ------------------------------------------------------------

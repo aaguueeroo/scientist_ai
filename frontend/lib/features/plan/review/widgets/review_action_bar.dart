@@ -2,13 +2,11 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
 import '../../../../core/app_constants.dart';
-import '../models/suggestion_batch.dart';
 import '../plan_review_controller.dart';
 
-/// Top-right action cluster. Three states:
+/// Top-right action cluster. Two states:
 /// - viewing: History + Edit plan.
-/// - editing: Cancel + Apply suggestions.
-/// - reviewingPending: batch color chip + Discard + Accept.
+/// - editing: Cancel + Apply suggestions (commits a single batch).
 class ReviewActionBar extends StatelessWidget {
   const ReviewActionBar({
     super.key,
@@ -36,12 +34,6 @@ class ReviewActionBar extends StatelessWidget {
         return _EditingActions(
           onCancel: controller.cancelEditing,
           onApply: controller.applySuggestions,
-        );
-      case ReviewMode.reviewingPending:
-        return _PendingActions(
-          batch: controller.pendingBatch!,
-          onAccept: controller.acceptPendingBatch,
-          onDiscard: controller.discardPendingBatch,
         );
     }
   }
@@ -94,40 +86,6 @@ class _EditingActions extends StatelessWidget {
           onPressed: onApply,
           icon: const Icon(Icons.compare_arrows_rounded, size: 16),
           label: const Text('Apply suggestions'),
-        ),
-      ],
-    );
-  }
-}
-
-class _PendingActions extends StatelessWidget {
-  const _PendingActions({
-    required this.batch,
-    required this.onAccept,
-    required this.onDiscard,
-  });
-
-  final SuggestionBatch batch;
-  final VoidCallback onAccept;
-  final VoidCallback onDiscard;
-
-  @override
-  Widget build(BuildContext context) {
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: <Widget>[
-        BatchColorChip(color: batch.color),
-        const SizedBox(width: kSpace12),
-        OutlinedButton.icon(
-          onPressed: onDiscard,
-          icon: const Icon(Icons.close_rounded, size: 16),
-          label: const Text('Discard batch'),
-        ),
-        const SizedBox(width: kSpace12),
-        FilledButton.icon(
-          onPressed: batch.isEmpty ? null : onAccept,
-          icon: const Icon(Icons.check_rounded, size: 16),
-          label: const Text('Accept batch'),
         ),
       ],
     );

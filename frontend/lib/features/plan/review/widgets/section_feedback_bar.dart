@@ -25,7 +25,7 @@ class SectionFeedbackBar extends StatelessWidget {
   Widget build(BuildContext context) {
     final PlanReviewController controller =
         context.watch<PlanReviewController>();
-    if (controller.isHistoricalView) {
+    if (controller.isHistoricalView || controller.isReadOnlyFocus) {
       return const SizedBox.shrink();
     }
     final TextStyle? labelStyle = Theme.of(context).textTheme.labelSmall;

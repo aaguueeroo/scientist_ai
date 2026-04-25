@@ -141,7 +141,8 @@ class _SelectablePlanTextState extends State<SelectablePlanText> {
     final List<PlanComment> commentsHere =
         controller.commentsForTarget(widget.target, widget.text);
     final bool selectableEnabled = controller.mode != ReviewMode.editing &&
-        !controller.isHistoricalView;
+        !controller.isHistoricalView &&
+        !controller.isReadOnlyFocus;
     return MouseRegion(
       onHover: (PointerHoverEvent event) {
         _pointerLocal = event.localPosition;

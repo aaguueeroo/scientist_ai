@@ -21,10 +21,6 @@ const List<Color> _kBatchPalette = <Color>[
 /// palette so commented spans never look like a suggestion.
 const Color kCommentMarkerColor = Color(0xFFD0BCFF);
 
-/// Soft-text color used for crossed-out "before" content while a batch
-/// is pending review. Intentionally low-contrast on the dark surface.
-const Color kPendingStrikeColor = Color(0xFF837D73);
-
 /// Picks a stable color for the [index]-th batch in the current session.
 /// A random session offset keeps successive runs from always opening with
 /// the same hue without compromising determinism within a session.

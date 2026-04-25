@@ -31,7 +31,8 @@ class _HeroMetricFeedbackOverlayState extends State<HeroMetricFeedbackOverlay> {
     final PlanReviewController controller =
         context.watch<PlanReviewController>();
     final bool canShow = controller.mode == ReviewMode.viewing &&
-        !controller.isHistoricalView;
+        !controller.isHistoricalView &&
+        !controller.isReadOnlyFocus;
     return MouseRegion(
       onEnter: (_) {
         if (canShow) setState(() => _isHovered = true);

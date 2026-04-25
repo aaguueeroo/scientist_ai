@@ -5,10 +5,10 @@ import '../../../../core/app_constants.dart';
 import '../../../../core/theme/theme_context.dart';
 import '../../../../models/experiment_plan.dart';
 import '../../../../ui/app_surface.dart';
+import '../../../review/widgets/focus_highlight_container.dart';
 import '../../widgets/material_tile.dart' show MaterialTableHeader, PlanMaterialsDensity, planMaterialsDensityForWidth;
 import '../models/change_target.dart';
 import '../models/material_field.dart';
-import '../models/plan_change.dart';
 import '../plan_review_controller.dart';
 import 'selectable_plan_text.dart';
 import 'suggestion_aware_text.dart';
@@ -41,9 +41,15 @@ class ReviewMaterialsList extends StatelessWidget {
               if (density != PlanMaterialsDensity.stacked)
                 MaterialTableHeader(density: density),
               for (final Material material in materials)
-                _ReviewMaterialTile(
-                  material: material,
-                  density: density,
+                FocusHighlightContainer(
+                  target: MaterialFieldTarget(
+                    materialId: material.id,
+                    field: MaterialField.title,
+                  ),
+                  child: _ReviewMaterialTile(
+                    material: material,
+                    density: density,
+                  ),
                 ),
             ],
           ),
@@ -66,19 +72,16 @@ class _ReviewMaterialTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final PlanReviewController controller =
         context.watch<PlanReviewController>();
-    final bool pendingInsert =
-        controller.isMaterialPendingInsert(material.id);
-    final MaterialRemoved? pendingRemoval =
-        controller.pendingMaterialRemovalFor(material.id);
-    final bool isPendingRemoved = pendingRemoval != null;
-    final Color? acceptedTint = controller.colorForTarget(
-      MaterialFieldTarget(
-        materialId: material.id,
-        field: MaterialField.title,
-      ),
-    );
-    final Color? insertTint =
-        pendingInsert ? controller.pendingBatch?.color : acceptedTint;
+    final bool isInsertedFromBaseline = !controller.original.budget.materials
+        .any((Material m) => m.id == material.id);
+    final Color? insertTint = isInsertedFromBaseline
+        ? controller.colorForTarget(
+            MaterialFieldTarget(
+              materialId: material.id,
+              field: MaterialField.title,
+            ),
+          )
+        : null;
     return Container(
       decoration: BoxDecoration(
         border: insertTint != null
@@ -87,16 +90,13 @@ class _ReviewMaterialTile extends StatelessWidget {
               )
             : null,
       ),
-      child: Opacity(
-        opacity: isPendingRemoved ? 0.5 : 1,
-        child: switch (density) {
-          PlanMaterialsDensity.full => _ReviewMaterialFull(material: material),
-          PlanMaterialsDensity.compact =>
-            _ReviewMaterialCompact(material: material),
-          PlanMaterialsDensity.stacked =>
-            _ReviewMaterialStacked(material: material),
-        },
-      ),
+      child: switch (density) {
+        PlanMaterialsDensity.full => _ReviewMaterialFull(material: material),
+        PlanMaterialsDensity.compact =>
+          _ReviewMaterialCompact(material: material),
+        PlanMaterialsDensity.stacked =>
+          _ReviewMaterialStacked(material: material),
+      },
     );
   }
 }

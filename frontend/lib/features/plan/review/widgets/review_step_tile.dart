@@ -6,7 +6,6 @@ import '../../../../core/theme/theme_context.dart';
 import '../../../../models/experiment_plan.dart';
 import '../../correction/correction_format.dart';
 import '../models/change_target.dart';
-import '../models/plan_change.dart';
 import '../models/step_field.dart';
 import '../plan_review_controller.dart';
 import 'selectable_plan_text.dart';
@@ -14,8 +13,10 @@ import 'suggestion_aware_text.dart';
 
 /// Read-only step tile used in the review body. Renders the step number,
 /// name, description and duration with suggestion-aware text. The tile
-/// also highlights itself if it was inserted by a pending or accepted
-/// batch.
+/// keeps a coloured left border only when the step was *inserted* by an
+/// accepted batch (i.e. it does not exist in the original v0 plan); for
+/// steps that were merely edited, the per-field inline highlight in
+/// [SuggestionAwareText] communicates the version on its own.
 class ReviewStepTile extends StatefulWidget {
   const ReviewStepTile({
     super.key,
@@ -37,16 +38,13 @@ class _ReviewStepTileState extends State<ReviewStepTile> {
     final ColorScheme scheme = context.appColorScheme;
     final PlanReviewController controller =
         context.watch<PlanReviewController>();
-    final bool pendingInsert =
-        controller.isStepPendingInsert(widget.step.id);
-    final StepRemoved? pendingRemoval =
-        controller.pendingStepRemovalFor(widget.step.id);
-    final bool isPendingRemoved = pendingRemoval != null;
-    final Color? acceptedTint = controller.colorForTarget(
-      StepFieldTarget(stepId: widget.step.id, field: StepField.name),
-    );
-    final Color? insertTint =
-        pendingInsert ? controller.pendingBatch?.color : acceptedTint;
+    final bool isInsertedFromBaseline = !controller.original.timePlan.steps
+        .any((Step s) => s.id == widget.step.id);
+    final Color? insertTint = isInsertedFromBaseline
+        ? controller.colorForTarget(
+            StepFieldTarget(stepId: widget.step.id, field: StepField.name),
+          )
+        : null;
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
@@ -63,73 +61,50 @@ class _ReviewStepTileState extends State<ReviewStepTile> {
                 )
               : null,
         ),
-        child: Opacity(
-          opacity: isPendingRemoved ? 0.5 : 1,
-          child: Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              _StepNumberBadge(number: widget.step.number),
-              const SizedBox(width: kSpace16),
-              Expanded(
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: <Widget>[
-                    SuggestionAwareText(
+        child: Row(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: <Widget>[
+            _StepNumberBadge(number: widget.step.number),
+            const SizedBox(width: kSpace16),
+            Expanded(
+              child: Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  SuggestionAwareText(
+                    target: StepFieldTarget(
+                      stepId: widget.step.id,
+                      field: StepField.name,
+                    ),
+                    text: widget.step.name,
+                    style: textTheme.titleMedium,
+                  ),
+                  if (widget.step.description.trim().isNotEmpty) ...<Widget>[
+                    const SizedBox(height: kSpace4),
+                    SelectablePlanText(
                       target: StepFieldTarget(
                         stepId: widget.step.id,
-                        field: StepField.name,
+                        field: StepField.description,
                       ),
-                      text: widget.step.name,
-                      style: textTheme.titleMedium,
+                      text: widget.step.description,
+                      style: context.scientist.bodySecondary,
                     ),
-                    if (widget.step.description.trim().isNotEmpty) ...<Widget>[
-                      const SizedBox(height: kSpace4),
-                      SelectablePlanText(
-                        target: StepFieldTarget(
-                          stepId: widget.step.id,
-                          field: StepField.description,
-                        ),
-                        text: widget.step.description,
-                        style: context.scientist.bodySecondary,
-                      ),
-                    ],
-                    if (isPendingRemoved)
-                      Padding(
-                        padding: const EdgeInsets.only(top: kSpace8),
-                        child: Row(
-                          children: <Widget>[
-                            Icon(
-                              Icons.delete_outline_rounded,
-                              size: 14,
-                              color: controller.pendingBatch?.color,
-                            ),
-                            const SizedBox(width: kSpace4),
-                            Text(
-                              'Marked for removal',
-                              style: textTheme.labelSmall?.copyWith(
-                                color: controller.pendingBatch?.color,
-                              ),
-                            ),
-                          ],
-                        ),
-                      ),
                   ],
-                ),
+                ],
               ),
-              const SizedBox(width: kSpace16),
-              SuggestionAwareText(
-                target: StepFieldTarget(
-                  stepId: widget.step.id,
-                  field: StepField.duration,
-                ),
-                text: formatDurationLabel(widget.step.duration),
-                style: context.scientist.numericBody.copyWith(
-                  color: scheme.onSurfaceVariant,
-                ),
-                textAlign: TextAlign.right,
+            ),
+            const SizedBox(width: kSpace16),
+            SuggestionAwareText(
+              target: StepFieldTarget(
+                stepId: widget.step.id,
+                field: StepField.duration,
               ),
-            ],
-          ),
+              text: formatDurationLabel(widget.step.duration),
+              style: context.scientist.numericBody.copyWith(
+                color: scheme.onSurfaceVariant,
+              ),
+              textAlign: TextAlign.right,
+            ),
+          ],
         ),
       ),
     );
@@ -161,20 +136,3 @@ class _StepNumberBadge extends StatelessWidget {
   }
 }
 
-/// Tile representing a step that was removed by an accepted batch but is
-/// being shown in pending review for context. Currently unused (we
-/// optimistically apply removals before displaying), kept for future
-/// pending-removal tooltips.
-class PendingRemovedStepTile extends StatelessWidget {
-  const PendingRemovedStepTile({super.key, required this.step});
-
-  final Step step;
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(vertical: kSpace4),
-      child: ReviewStepTile(step: step),
-    );
-  }
-}

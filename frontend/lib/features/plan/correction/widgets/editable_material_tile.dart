@@ -1,23 +1,30 @@
 import 'package:flutter/material.dart' hide Material;
 import 'package:flutter/services.dart';
+import 'package:provider/provider.dart';
 
 import '../../../../core/app_constants.dart';
 import '../../../../core/theme/theme_context.dart';
 import '../../../../models/experiment_plan.dart';
 import '../../../../ui/app_surface.dart';
+import '../../review/models/material_field.dart';
+import '../../review/models/removed_draft_slot.dart';
+import '../../review/plan_review_controller.dart';
 import '../../widgets/material_tile.dart' show MaterialTableHeader, PlanMaterialsDensity, planMaterialsDensityForWidth;
+import 'edit_highlight.dart';
 import 'inline_editable_text.dart';
 
 class EditablePlanMaterialsList extends StatelessWidget {
   const EditablePlanMaterialsList({
     super.key,
     required this.materials,
+    required this.removedSlots,
     required this.onMaterialChanged,
     required this.onMaterialRemoved,
     required this.onAddMaterial,
   });
 
   final List<Material> materials;
+  final List<RemovedMaterialSlot> removedSlots;
   final void Function(int index, Material material) onMaterialChanged;
   final ValueChanged<int> onMaterialRemoved;
   final VoidCallback onAddMaterial;
@@ -31,23 +38,66 @@ class EditablePlanMaterialsList extends StatelessWidget {
         return AppSurface(
           padding: EdgeInsets.zero,
           child: Column(
-            children: <Widget>[
-              if (density != PlanMaterialsDensity.stacked)
-                MaterialTableHeader(density: density),
-              ...List<Widget>.generate(materials.length, (int index) {
-                return EditableMaterialTile(
-                  material: materials[index],
-                  density: density,
-                  onChanged: (Material next) =>
-                      onMaterialChanged(index, next),
-                  onRemove: () => onMaterialRemoved(index),
-                );
-              }),
-              AddMaterialTile(onPressed: onAddMaterial),
-            ],
+            children: _buildRows(context, density),
           ),
         );
       },
+    );
+  }
+
+  List<Widget> _buildRows(BuildContext context, PlanMaterialsDensity density) {
+    final Map<String?, List<Material>> tombstonesByAnchor =
+        <String?, List<Material>>{};
+    for (final RemovedMaterialSlot slot in removedSlots) {
+      tombstonesByAnchor
+          .putIfAbsent(slot.afterDraftMaterialId, () => <Material>[])
+          .add(slot.material);
+    }
+    final List<Widget> rows = <Widget>[];
+    if (density != PlanMaterialsDensity.stacked) {
+      rows.add(MaterialTableHeader(density: density));
+    }
+    for (final Material removed
+        in tombstonesByAnchor[null] ?? const <Material>[]) {
+      rows.add(_wrapTombstone(removed));
+    }
+    for (int index = 0; index < materials.length; index++) {
+      final Material material = materials[index];
+      rows.add(EditableMaterialTile(
+        material: material,
+        density: density,
+        onChanged: (Material next) => onMaterialChanged(index, next),
+        onRemove: () => onMaterialRemoved(index),
+      ));
+      final List<Material> following =
+          tombstonesByAnchor[material.id] ?? const <Material>[];
+      for (final Material removed in following) {
+        rows.add(_wrapTombstone(removed));
+      }
+    }
+    rows.add(AddMaterialTile(onPressed: onAddMaterial));
+    return rows;
+  }
+
+  Widget _wrapTombstone(Material removed) {
+    final String title = removed.title.trim().isEmpty
+        ? 'Untitled material'
+        : removed.title.trim();
+    final String detail = <String>[
+      if (removed.description.trim().isNotEmpty) removed.description.trim(),
+      if (removed.amount > 0)
+        '${removed.amount} × \$${removed.price.toStringAsFixed(2)}',
+    ].join('  •  ');
+    return Padding(
+      padding: const EdgeInsets.symmetric(
+        horizontal: kSpace12,
+        vertical: kSpace4,
+      ),
+      child: RemovedDraftSlot(
+        removedLabel: 'Material',
+        title: title,
+        detail: detail.isEmpty ? null : detail,
+      ),
     );
   }
 }
@@ -76,52 +126,85 @@ class _EditableMaterialTileState extends State<EditableMaterialTile> {
   @override
   Widget build(BuildContext context) {
     final ColorScheme scheme = context.appColorScheme;
-    return MouseRegion(
-      onEnter: (_) => setState(() => _isHovered = true),
-      onExit: (_) => setState(() => _isHovered = false),
-      child: AnimatedContainer(
-        duration: const Duration(milliseconds: 120),
-        decoration: BoxDecoration(
-          color:
-              _isHovered ? scheme.primaryContainer : Colors.transparent,
-        ),
-        child: Stack(
-          children: <Widget>[
-            _buildBody(context),
-            Positioned(
-              top: kSpace8,
-              right: kSpace8,
-              child: AnimatedOpacity(
-                duration: const Duration(milliseconds: 120),
-                opacity: _isHovered ? 1 : 0,
-                child: IgnorePointer(
-                  ignoring: !_isHovered,
-                  child: _MaterialDeleteButton(onPressed: widget.onRemove),
+    final PlanReviewController controller =
+        context.watch<PlanReviewController>();
+    final bool isInserted =
+        controller.isMaterialInsertedInDraft(widget.material.id);
+    final Set<MaterialField> changedFields =
+        controller.draftChangedMaterialFields(widget.material.id);
+    final EditChangeKind kind = isInserted
+        ? EditChangeKind.inserted
+        : (changedFields.isEmpty
+            ? EditChangeKind.unchanged
+            : EditChangeKind.edited);
+    final Set<MaterialField> highlightFields = isInserted
+        ? const <MaterialField>{
+            MaterialField.title,
+            MaterialField.catalogNumber,
+            MaterialField.description,
+            MaterialField.amount,
+            MaterialField.price,
+          }
+        : changedFields;
+    return EditedContainerHighlight(
+      kind: kind,
+      padding: kind == EditChangeKind.unchanged
+          ? EdgeInsets.zero
+          : const EdgeInsets.symmetric(
+              horizontal: kSpace4,
+              vertical: kSpace4,
+            ),
+      child: MouseRegion(
+        onEnter: (_) => setState(() => _isHovered = true),
+        onExit: (_) => setState(() => _isHovered = false),
+        child: AnimatedContainer(
+          duration: const Duration(milliseconds: 120),
+          decoration: BoxDecoration(
+            color: _isHovered && kind == EditChangeKind.unchanged
+                ? scheme.primaryContainer
+                : Colors.transparent,
+          ),
+          child: Stack(
+            children: <Widget>[
+              _buildBody(context, highlightFields),
+              Positioned(
+                top: kSpace8,
+                right: kSpace8,
+                child: AnimatedOpacity(
+                  duration: const Duration(milliseconds: 120),
+                  opacity: _isHovered ? 1 : 0,
+                  child: IgnorePointer(
+                    ignoring: !_isHovered,
+                    child: _MaterialDeleteButton(onPressed: widget.onRemove),
+                  ),
                 ),
               ),
-            ),
-          ],
+            ],
+          ),
         ),
       ),
     );
   }
 
-  Widget _buildBody(BuildContext context) {
+  Widget _buildBody(BuildContext context, Set<MaterialField> changedFields) {
     if (widget.density == PlanMaterialsDensity.stacked) {
       return _EditableMaterialStacked(
         material: widget.material,
         onChanged: widget.onChanged,
+        changedFields: changedFields,
       );
     }
     if (widget.density == PlanMaterialsDensity.compact) {
       return _EditableMaterialCompact(
         material: widget.material,
         onChanged: widget.onChanged,
+        changedFields: changedFields,
       );
     }
     return _EditableMaterialFull(
       material: widget.material,
       onChanged: widget.onChanged,
+      changedFields: changedFields,
     );
   }
 }
@@ -130,16 +213,21 @@ class _EditableMaterialFull extends StatelessWidget {
   const _EditableMaterialFull({
     required this.material,
     required this.onChanged,
+    required this.changedFields,
   });
 
   final Material material;
   final ValueChanged<Material> onChanged;
+  final Set<MaterialField> changedFields;
 
   @override
   Widget build(BuildContext context) {
     final TextTheme textTheme = Theme.of(context).textTheme;
     final double lineTotal = material.amount * material.price;
     final TextStyle numericStyle = context.scientist.numericBody;
+    final bool isLineTotalChanged =
+        changedFields.contains(MaterialField.amount) ||
+            changedFields.contains(MaterialField.price);
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: kSpace16,
@@ -156,7 +244,10 @@ class _EditableMaterialFull extends StatelessWidget {
                 InlineEditableText(
                   value: material.title,
                   expandHorizontally: true,
-                  style: textTheme.titleMedium,
+                  style: editedTextStyle(
+                    textTheme.titleMedium,
+                    isChanged: changedFields.contains(MaterialField.title),
+                  ),
                   maxLines: 2,
                   hintText: 'Material name',
                   onSubmitted: (String text) =>
@@ -166,7 +257,11 @@ class _EditableMaterialFull extends StatelessWidget {
                 InlineEditableText(
                   value: material.description,
                   expandHorizontally: true,
-                  style: textTheme.bodySmall,
+                  style: editedTextStyle(
+                    textTheme.bodySmall,
+                    isChanged:
+                        changedFields.contains(MaterialField.description),
+                  ),
                   maxLines: null,
                   minLines: 1,
                   hintText: 'Description',
@@ -182,7 +277,11 @@ class _EditableMaterialFull extends StatelessWidget {
             child: InlineEditableText(
               value: material.catalogNumber,
               expandHorizontally: true,
-              style: context.scientist.bodyTertiaryMonospace,
+              style: editedTextStyle(
+                context.scientist.bodyTertiaryMonospace,
+                isChanged:
+                    changedFields.contains(MaterialField.catalogNumber),
+              ),
               maxLines: 1,
               hintText: 'Catalog #',
               placeholderWhenEmpty: 'Catalog #',
@@ -196,6 +295,7 @@ class _EditableMaterialFull extends StatelessWidget {
               material: material,
               onChanged: onChanged,
               style: numericStyle,
+              isChanged: changedFields.contains(MaterialField.amount),
             ),
           ),
           Expanded(
@@ -206,6 +306,7 @@ class _EditableMaterialFull extends StatelessWidget {
               style: numericStyle.copyWith(
                 color: context.appColorScheme.onSurfaceVariant,
               ),
+              isChanged: changedFields.contains(MaterialField.price),
             ),
           ),
           Expanded(
@@ -215,7 +316,10 @@ class _EditableMaterialFull extends StatelessWidget {
               child: Text(
                 '\$${lineTotal.toStringAsFixed(2)}',
                 textAlign: TextAlign.right,
-                style: numericStyle.copyWith(fontWeight: FontWeight.w600),
+                style: editedTextStyle(
+                  numericStyle.copyWith(fontWeight: FontWeight.w600),
+                  isChanged: isLineTotalChanged,
+                ),
               ),
             ),
           ),
@@ -229,16 +333,21 @@ class _EditableMaterialCompact extends StatelessWidget {
   const _EditableMaterialCompact({
     required this.material,
     required this.onChanged,
+    required this.changedFields,
   });
 
   final Material material;
   final ValueChanged<Material> onChanged;
+  final Set<MaterialField> changedFields;
 
   @override
   Widget build(BuildContext context) {
     final TextTheme textTheme = Theme.of(context).textTheme;
     final double lineTotal = material.amount * material.price;
     final TextStyle numericStyle = context.scientist.numericBody;
+    final bool isLineTotalChanged =
+        changedFields.contains(MaterialField.amount) ||
+            changedFields.contains(MaterialField.price);
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: kSpace16,
@@ -255,7 +364,10 @@ class _EditableMaterialCompact extends StatelessWidget {
                 InlineEditableText(
                   value: material.title,
                   expandHorizontally: true,
-                  style: textTheme.titleMedium,
+                  style: editedTextStyle(
+                    textTheme.titleMedium,
+                    isChanged: changedFields.contains(MaterialField.title),
+                  ),
                   maxLines: 2,
                   hintText: 'Material name',
                   onSubmitted: (String text) =>
@@ -265,7 +377,11 @@ class _EditableMaterialCompact extends StatelessWidget {
                 InlineEditableText(
                   value: material.description,
                   expandHorizontally: true,
-                  style: textTheme.bodySmall,
+                  style: editedTextStyle(
+                    textTheme.bodySmall,
+                    isChanged:
+                        changedFields.contains(MaterialField.description),
+                  ),
                   maxLines: null,
                   minLines: 1,
                   hintText: 'Description',
@@ -277,8 +393,12 @@ class _EditableMaterialCompact extends StatelessWidget {
                 InlineEditableText(
                   value: material.catalogNumber,
                   expandHorizontally: true,
-                  style: context.scientist.bodyTertiaryMonospace
-                      .copyWith(fontSize: 13),
+                  style: editedTextStyle(
+                    context.scientist.bodyTertiaryMonospace
+                        .copyWith(fontSize: 13),
+                    isChanged:
+                        changedFields.contains(MaterialField.catalogNumber),
+                  ),
                   maxLines: 1,
                   hintText: 'Catalog #',
                   placeholderWhenEmpty: 'Catalog #',
@@ -294,6 +414,8 @@ class _EditableMaterialCompact extends StatelessWidget {
                       onChanged: onChanged,
                       style: textTheme.labelSmall ?? numericStyle,
                       align: TextAlign.left,
+                      isChanged:
+                          changedFields.contains(MaterialField.price),
                     ),
                     Text(' each', style: textTheme.labelSmall),
                   ],
@@ -307,6 +429,7 @@ class _EditableMaterialCompact extends StatelessWidget {
               material: material,
               onChanged: onChanged,
               style: numericStyle,
+              isChanged: changedFields.contains(MaterialField.amount),
             ),
           ),
           Expanded(
@@ -316,7 +439,10 @@ class _EditableMaterialCompact extends StatelessWidget {
               child: Text(
                 '\$${lineTotal.toStringAsFixed(2)}',
                 textAlign: TextAlign.right,
-                style: numericStyle.copyWith(fontWeight: FontWeight.w600),
+                style: editedTextStyle(
+                  numericStyle.copyWith(fontWeight: FontWeight.w600),
+                  isChanged: isLineTotalChanged,
+                ),
               ),
             ),
           ),
@@ -330,16 +456,21 @@ class _EditableMaterialStacked extends StatelessWidget {
   const _EditableMaterialStacked({
     required this.material,
     required this.onChanged,
+    required this.changedFields,
   });
 
   final Material material;
   final ValueChanged<Material> onChanged;
+  final Set<MaterialField> changedFields;
 
   @override
   Widget build(BuildContext context) {
     final TextTheme textTheme = Theme.of(context).textTheme;
     final double lineTotal = material.amount * material.price;
     final TextStyle numericStyle = context.scientist.numericBody;
+    final bool isLineTotalChanged =
+        changedFields.contains(MaterialField.amount) ||
+            changedFields.contains(MaterialField.price);
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: kSpace16,
@@ -353,7 +484,10 @@ class _EditableMaterialStacked extends StatelessWidget {
             child: InlineEditableText(
               value: material.title,
               expandHorizontally: true,
-              style: textTheme.titleMedium,
+              style: editedTextStyle(
+                textTheme.titleMedium,
+                isChanged: changedFields.contains(MaterialField.title),
+              ),
               maxLines: 2,
               hintText: 'Material name',
               onSubmitted: (String text) =>
@@ -364,7 +498,10 @@ class _EditableMaterialStacked extends StatelessWidget {
           InlineEditableText(
             value: material.description,
             expandHorizontally: true,
-            style: textTheme.bodySmall,
+            style: editedTextStyle(
+              textTheme.bodySmall,
+              isChanged: changedFields.contains(MaterialField.description),
+            ),
             maxLines: null,
             minLines: 1,
             hintText: 'Description',
@@ -376,8 +513,10 @@ class _EditableMaterialStacked extends StatelessWidget {
           InlineEditableText(
             value: material.catalogNumber,
             expandHorizontally: true,
-            style: context.scientist.bodyTertiaryMonospace
-                .copyWith(fontSize: 13),
+            style: editedTextStyle(
+              context.scientist.bodyTertiaryMonospace.copyWith(fontSize: 13),
+              isChanged: changedFields.contains(MaterialField.catalogNumber),
+            ),
             maxLines: 1,
             hintText: 'Catalog #',
             placeholderWhenEmpty: 'Catalog #',
@@ -397,6 +536,8 @@ class _EditableMaterialStacked extends StatelessWidget {
                         color: context.appColorScheme.onSurfaceVariant,
                       ),
                       align: TextAlign.left,
+                      isChanged:
+                          changedFields.contains(MaterialField.amount),
                     ),
                     Text(
                       ' x \$',
@@ -411,6 +552,7 @@ class _EditableMaterialStacked extends StatelessWidget {
                         color: context.appColorScheme.onSurfaceVariant,
                       ),
                       align: TextAlign.left,
+                      isChanged: changedFields.contains(MaterialField.price),
                     ),
                   ],
                 ),
@@ -418,7 +560,10 @@ class _EditableMaterialStacked extends StatelessWidget {
               Text(
                 '\$${lineTotal.toStringAsFixed(2)}',
                 textAlign: TextAlign.right,
-                style: numericStyle.copyWith(fontWeight: FontWeight.w600),
+                style: editedTextStyle(
+                  numericStyle.copyWith(fontWeight: FontWeight.w600),
+                  isChanged: isLineTotalChanged,
+                ),
               ),
             ],
           ),
@@ -434,19 +579,21 @@ class _AmountField extends StatelessWidget {
     required this.onChanged,
     required this.style,
     this.align = TextAlign.right,
+    this.isChanged = false,
   });
 
   final Material material;
   final ValueChanged<Material> onChanged;
   final TextStyle style;
   final TextAlign align;
+  final bool isChanged;
 
   @override
   Widget build(BuildContext context) {
     return InlineEditableText(
       value: material.amount.toString(),
       expandHorizontally: true,
-      style: style,
+      style: editedTextStyle(style, isChanged: isChanged),
       textAlign: align,
       maxLines: 1,
       hintText: '0',
@@ -470,19 +617,21 @@ class _PriceField extends StatelessWidget {
     required this.onChanged,
     required this.style,
     this.align = TextAlign.right,
+    this.isChanged = false,
   });
 
   final Material material;
   final ValueChanged<Material> onChanged;
   final TextStyle style;
   final TextAlign align;
+  final bool isChanged;
 
   @override
   Widget build(BuildContext context) {
     return InlineEditableText(
       value: material.price.toStringAsFixed(2),
       expandHorizontally: true,
-      style: style,
+      style: editedTextStyle(style, isChanged: isChanged),
       textAlign: align,
       maxLines: 1,
       hintText: '0.00',

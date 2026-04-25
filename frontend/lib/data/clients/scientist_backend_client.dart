@@ -20,6 +20,19 @@ abstract class ScientistBackendClient {
   Future<Map<String, dynamic>> postExperimentPlan(
     Map<String, dynamic> requestBody,
   );
+
+  // POST /reviews.
+  //
+  // Persists a single review event (correction, comment, or feedback).
+  // Returns the decoded JSON body of a successful response.
+  // On non-2xx, throws a `ScientistTransportException`.
+  Future<Map<String, dynamic>> postReview(Map<String, dynamic> requestBody);
+
+  // GET /reviews.
+  //
+  // Returns the decoded JSON body `{ "reviews": [...] }`.
+  // On non-2xx, throws a `ScientistTransportException`.
+  Future<Map<String, dynamic>> fetchReviews();
 }
 
 class ScientistTransportException implements Exception {

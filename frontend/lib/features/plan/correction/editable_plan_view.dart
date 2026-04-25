@@ -5,7 +5,10 @@ import '../../../core/app_constants.dart';
 import '../../../core/theme/theme_context.dart';
 import '../../../models/experiment_plan.dart';
 import '../../../ui/app_section_header.dart';
+import '../review/models/removed_draft_slot.dart';
 import '../review/plan_review_controller.dart';
+import 'correction_format.dart';
+import 'widgets/edit_highlight.dart';
 import 'widgets/editable_hero_metrics.dart';
 import 'widgets/editable_material_tile.dart';
 import 'widgets/editable_plan_timeline.dart';
@@ -25,6 +28,9 @@ class EditablePlanView extends StatelessWidget {
     final PlanReviewController controller =
         context.watch<PlanReviewController>();
     final ExperimentPlan draft = controller.draft ?? controller.livePlan;
+    final List<RemovedStepSlot> removedSteps = controller.draftRemovedStepSlots;
+    final List<RemovedMaterialSlot> removedMaterials =
+        controller.draftRemovedMaterialSlots;
     return ListView(
       padding: EdgeInsets.zero,
       children: <Widget>[
@@ -55,6 +61,7 @@ class EditablePlanView extends StatelessWidget {
             Expanded(
               child: _EditableStepsColumn(
                 steps: draft.timePlan.steps,
+                removedSlots: removedSteps,
                 onStepChanged: controller.updateStep,
                 onStepRemoved: controller.removeStep,
                 onAddStep: controller.appendStep,
@@ -69,6 +76,7 @@ class EditablePlanView extends StatelessWidget {
                   const AppSectionHeader(title: 'Materials'),
                   EditablePlanMaterialsList(
                     materials: draft.budget.materials,
+                    removedSlots: removedMaterials,
                     onMaterialChanged: controller.updateMaterial,
                     onMaterialRemoved: controller.removeMaterial,
                     onAddMaterial: controller.appendMaterial,
@@ -86,6 +94,7 @@ class EditablePlanView extends StatelessWidget {
 class _EditableStepsColumn extends StatelessWidget {
   const _EditableStepsColumn({
     required this.steps,
+    required this.removedSlots,
     required this.onStepChanged,
     required this.onStepRemoved,
     required this.onAddStep,
@@ -93,6 +102,7 @@ class _EditableStepsColumn extends StatelessWidget {
   });
 
   final List<Step> steps;
+  final List<RemovedStepSlot> removedSlots;
   final void Function(int index, Step step) onStepChanged;
   final ValueChanged<int> onStepRemoved;
   final VoidCallback onAddStep;
@@ -105,14 +115,25 @@ class _EditableStepsColumn extends StatelessWidget {
       children: <Widget>[
         const AppSectionHeader(title: 'Steps'),
         ..._buildTiles(),
-        if (steps.isNotEmpty) const SizedBox(height: kSpace12),
+        if (steps.isNotEmpty || removedSlots.isNotEmpty)
+          const SizedBox(height: kSpace12),
         AddStepTile(onPressed: onAddStep),
       ],
     );
   }
 
   List<Widget> _buildTiles() {
+    final Map<String?, List<Step>> tombstonesByAnchor = <String?, List<Step>>{};
+    for (final RemovedStepSlot slot in removedSlots) {
+      tombstonesByAnchor
+          .putIfAbsent(slot.afterDraftStepId, () => <Step>[])
+          .add(slot.step);
+    }
     final List<Widget> widgets = <Widget>[];
+    for (final Step removed in tombstonesByAnchor[null] ?? const <Step>[]) {
+      widgets.add(_buildStepTombstone(removed));
+      widgets.add(const SizedBox(height: kSpace8));
+    }
     for (int i = 0; i < steps.length; i++) {
       if (i > 0) {
         widgets.add(
@@ -128,7 +149,29 @@ class _EditableStepsColumn extends StatelessWidget {
           onRemove: () => onStepRemoved(i),
         ),
       );
+      final List<Step> following =
+          tombstonesByAnchor[steps[i].id] ?? const <Step>[];
+      for (final Step removed in following) {
+        widgets.add(const SizedBox(height: kSpace8));
+        widgets.add(_buildStepTombstone(removed));
+      }
     }
     return widgets;
+  }
+
+  Widget _buildStepTombstone(Step removed) {
+    final String title = removed.name.trim().isEmpty
+        ? 'Untitled step'
+        : removed.name.trim();
+    final String detail = <String>[
+      if (removed.description.trim().isNotEmpty) removed.description.trim(),
+      if (removed.duration.inMinutes > 0)
+        formatDurationLabel(removed.duration),
+    ].join('  •  ');
+    return RemovedDraftSlot(
+      removedLabel: 'Step',
+      title: title,
+      detail: detail.isEmpty ? null : detail,
+    );
   }
 }

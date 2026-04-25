@@ -4,8 +4,10 @@ import 'package:provider/provider.dart';
 import '../../../../core/app_constants.dart';
 import '../../../../core/theme/theme_context.dart';
 import '../../../../models/experiment_plan.dart';
+import '../../review/models/change_target.dart';
 import '../../review/plan_review_controller.dart';
 import '../correction_format.dart';
+import 'edit_highlight.dart';
 import 'hover_stepper.dart';
 import 'inline_editable_text.dart';
 
@@ -19,6 +21,10 @@ class EditableHeroMetrics extends StatelessWidget {
     final ExperimentPlan plan = controller.draft ?? controller.livePlan;
     final Duration duration = plan.timePlan.totalDuration;
     final double total = plan.budget.total;
+    final bool isDurationChanged =
+        controller.isDraftFieldChanged(const TotalDurationTarget());
+    final bool isBudgetChanged =
+        controller.isDraftFieldChanged(const BudgetTotalTarget());
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: <Widget>[
@@ -27,6 +33,7 @@ class EditableHeroMetrics extends StatelessWidget {
           label: 'TOTAL TIME',
           child: _TimeMetric(
             duration: duration,
+            isChanged: isDurationChanged,
             onChanged: controller.updateTotalDuration,
           ),
         ),
@@ -36,6 +43,7 @@ class EditableHeroMetrics extends StatelessWidget {
           label: 'BUDGET',
           child: _BudgetMetric(
             total: total,
+            isChanged: isBudgetChanged,
             onChanged: controller.updateBudgetTotal,
           ),
         ),
@@ -81,10 +89,12 @@ class _MetricCluster extends StatelessWidget {
 class _TimeMetric extends StatelessWidget {
   const _TimeMetric({
     required this.duration,
+    required this.isChanged,
     required this.onChanged,
   });
 
   final Duration duration;
+  final bool isChanged;
   final ValueChanged<Duration> onChanged;
 
   @override
@@ -104,7 +114,7 @@ class _TimeMetric extends StatelessWidget {
       },
       child: InlineEditableText(
         value: formatDurationLabel(duration),
-        style: style,
+        style: editedTextStyle(style, isChanged: isChanged),
         textAlign: TextAlign.center,
         maxLines: 1,
         hintText: '0 d 0 h',
@@ -122,10 +132,12 @@ class _TimeMetric extends StatelessWidget {
 class _BudgetMetric extends StatelessWidget {
   const _BudgetMetric({
     required this.total,
+    required this.isChanged,
     required this.onChanged,
   });
 
   final double total;
+  final bool isChanged;
   final ValueChanged<double> onChanged;
 
   @override
@@ -144,7 +156,7 @@ class _BudgetMetric extends StatelessWidget {
       },
       child: InlineEditableText(
         value: formatBudgetLabel(total),
-        style: style,
+        style: editedTextStyle(style, isChanged: isChanged),
         textAlign: TextAlign.center,
         maxLines: 1,
         hintText: '\$0.00',

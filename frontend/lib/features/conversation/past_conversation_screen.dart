@@ -199,6 +199,7 @@ class _ExperimentPlanStepPane extends StatelessWidget {
     return PlanReviewScaffold(
       plan: currentPlan,
       query: query,
+      conversationId: query ?? '',
       onLivePlanChanged: onLivePlanChanged,
     );
   }

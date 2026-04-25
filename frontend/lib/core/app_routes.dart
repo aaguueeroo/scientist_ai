@@ -1,5 +1,5 @@
 const String kRouteHome = '/';
 const String kRouteLiterature = '/literature';
 const String kRoutePlan = '/plan';
-const String kRouteCorrections = '/corrections';
+const String kRouteReviewer = '/reviewer';
 const String kRoutePastConversation = '/past-conversation';

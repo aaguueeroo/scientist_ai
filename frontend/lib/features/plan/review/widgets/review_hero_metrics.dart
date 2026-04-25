@@ -2,6 +2,7 @@ import 'package:flutter/material.dart' hide Material, Step;
 
 import '../../../../core/app_constants.dart';
 import '../../../../core/theme/theme_context.dart';
+import '../../../review/widgets/focus_highlight_container.dart';
 import '../models/change_target.dart';
 import '../models/review_section.dart';
 import 'hero_metric_feedback_overlay.dart';
@@ -24,35 +25,41 @@ class ReviewHeroMetrics extends StatelessWidget {
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: <Widget>[
-        HeroMetricFeedbackOverlay(
+        FocusHighlightContainer(
           section: ReviewSection.totalTime,
-          child: _MetricCluster(
-            icon: Icons.hourglass_bottom_rounded,
-            iconColor: iconColor,
-            label: 'TOTAL TIME',
-            valueWidget: SuggestionAwareText(
-              target: const TotalDurationTarget(),
-              text: totalTimeLabel,
-              style: textTheme.displaySmall,
-              textAlign: TextAlign.center,
+          child: HeroMetricFeedbackOverlay(
+            section: ReviewSection.totalTime,
+            child: _MetricCluster(
+              icon: Icons.hourglass_bottom_rounded,
+              iconColor: iconColor,
+              label: 'TOTAL TIME',
+              valueWidget: SuggestionAwareText(
+                target: const TotalDurationTarget(),
+                text: totalTimeLabel,
+                style: textTheme.displaySmall,
+                textAlign: TextAlign.center,
+              ),
+              labelStyle: textTheme.labelSmall,
             ),
-            labelStyle: textTheme.labelSmall,
           ),
         ),
         const SizedBox(width: kSpace40),
-        HeroMetricFeedbackOverlay(
+        FocusHighlightContainer(
           section: ReviewSection.budget,
-          child: _MetricCluster(
-            icon: Icons.attach_money_rounded,
-            iconColor: iconColor,
-            label: 'BUDGET',
-            valueWidget: SuggestionAwareText(
-              target: const BudgetTotalTarget(),
-              text: totalBudgetLabel,
-              style: textTheme.displaySmall,
-              textAlign: TextAlign.center,
+          child: HeroMetricFeedbackOverlay(
+            section: ReviewSection.budget,
+            child: _MetricCluster(
+              icon: Icons.attach_money_rounded,
+              iconColor: iconColor,
+              label: 'BUDGET',
+              valueWidget: SuggestionAwareText(
+                target: const BudgetTotalTarget(),
+                text: totalBudgetLabel,
+                style: textTheme.displaySmall,
+                textAlign: TextAlign.center,
+              ),
+              labelStyle: textTheme.labelSmall,
             ),
-            labelStyle: textTheme.labelSmall,
           ),
         ),
       ],

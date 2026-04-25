@@ -1,3 +1,4 @@
+import '../features/review/models/review.dart';
 import '../models/experiment_plan.dart';
 import '../models/literature_review.dart';
 
@@ -9,6 +10,15 @@ abstract class ScientistRepository {
   // Generates an experiment plan for the given query.
   // Throws `ScientistApiException` on backend errors and on parse failures.
   Future<ExperimentPlan> fetchExperimentPlan(String query);
+
+  // Persists a single review event (correction, comment, or feedback).
+  // Throws `ScientistApiException` on backend errors and on parse failures.
+  Future<Review> submitReview(Review review);
+
+  // Loads every persisted review for the current user, ordered most
+  // recent first.
+  // Throws `ScientistApiException` on backend errors and on parse failures.
+  Future<List<Review>> fetchReviews();
 }
 
 class ScientistApiException implements Exception {

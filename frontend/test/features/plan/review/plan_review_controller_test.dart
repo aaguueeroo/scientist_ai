@@ -2,8 +2,10 @@ import 'package:flutter/foundation.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:scientist_ai/features/plan/review/models/batch_status.dart';
 import 'package:scientist_ai/features/plan/review/models/change_target.dart';
+import 'package:scientist_ai/features/plan/review/models/material_field.dart';
 import 'package:scientist_ai/features/plan/review/models/plan_change.dart';
 import 'package:scientist_ai/features/plan/review/models/plan_comment.dart';
+import 'package:scientist_ai/features/plan/review/models/removed_draft_slot.dart';
 import 'package:scientist_ai/features/plan/review/models/step_field.dart';
 import 'package:scientist_ai/features/plan/review/models/suggestion_batch.dart';
 import 'package:scientist_ai/features/plan/review/plan_review_controller.dart';
@@ -49,26 +51,46 @@ PlanReviewController _buildController({
 
 void main() {
   group('PlanReviewController editing flow', () {
-    test('applySuggestions creates a pending batch with the diff', () {
-      final PlanReviewController controller = _buildController();
+    test(
+      'applySuggestions commits the draft as a single accepted batch and '
+      'updates the live plan',
+      () {
+        ExperimentPlan? actualEmittedPlan;
+        final PlanReviewController controller = _buildController(
+          onLivePlanChanged: (ExperimentPlan p) => actualEmittedPlan = p,
+        );
 
-      controller.enterEditing();
-      controller.updateStep(
-        0,
-        _kStepA.copyWith(name: 'Setup (revised)'),
-      );
-      controller.applySuggestions();
+        controller.enterEditing();
+        controller.updateStep(
+          0,
+          _kStepA.copyWith(name: 'Setup (revised)'),
+        );
+        controller.applySuggestions();
 
-      expect(controller.mode, ReviewMode.reviewingPending);
-      final SuggestionBatch? actualPending = controller.pendingBatch;
-      expect(actualPending, isNotNull);
-      expect(actualPending!.status, BatchStatus.pending);
-      expect(actualPending.changes.length, 1);
-      final FieldChange actualChange =
-          actualPending.changes.single as FieldChange;
-      expect((actualChange.target as StepFieldTarget).stepId, 'step-a');
-      expect(actualChange.after, 'Setup (revised)');
-    });
+        expect(controller.mode, ReviewMode.viewing);
+        expect(controller.draft, isNull);
+        expect(controller.editBaseline, isNull);
+        expect(controller.acceptedBatches.length, 1);
+        final SuggestionBatch actualAccepted =
+            controller.acceptedBatches.single;
+        expect(actualAccepted.status, BatchStatus.accepted);
+        expect(actualAccepted.changes.length, 1);
+        final FieldChange actualChange =
+            actualAccepted.changes.single as FieldChange;
+        expect((actualChange.target as StepFieldTarget).stepId, 'step-a');
+        expect(actualChange.after, 'Setup (revised)');
+        expect(
+          controller.livePlan.timePlan.steps.first.name,
+          'Setup (revised)',
+        );
+        expect(controller.versions.length, 2);
+        expect(actualEmittedPlan, isNotNull);
+        expect(
+          actualEmittedPlan!.timePlan.steps.first.name,
+          'Setup (revised)',
+        );
+      },
+    );
 
     test('applySuggestions with no diff returns to viewing mode', () {
       final PlanReviewController controller = _buildController();
@@ -77,11 +99,11 @@ void main() {
       controller.applySuggestions();
 
       expect(controller.mode, ReviewMode.viewing);
-      expect(controller.pendingBatch, isNull);
+      expect(controller.acceptedBatches, isEmpty);
+      expect(controller.versions.length, 1);
     });
 
-    test('discardPendingBatch clears pending state without mutating live plan',
-        () {
+    test('cancelEditing leaves the live plan untouched', () {
       final PlanReviewController controller = _buildController();
       final ExperimentPlan expectedLive = controller.livePlan;
 
@@ -90,41 +112,18 @@ void main() {
         0,
         _kStepA.copyWith(name: 'Setup (revised)'),
       );
-      controller.applySuggestions();
-      controller.discardPendingBatch();
+      controller.cancelEditing();
 
       expect(controller.mode, ReviewMode.viewing);
-      expect(controller.pendingBatch, isNull);
-      expect(controller.livePlan.timePlan.steps.first.name, expectedLive.timePlan.steps.first.name);
+      expect(controller.acceptedBatches, isEmpty);
+      expect(
+        controller.livePlan.timePlan.steps.first.name,
+        expectedLive.timePlan.steps.first.name,
+      );
     });
   });
 
   group('PlanReviewController batch acceptance', () {
-    test('acceptPendingBatch promotes batch, updates live plan and history',
-        () {
-      ExperimentPlan? actualEmittedPlan;
-      final PlanReviewController controller = _buildController(
-        onLivePlanChanged: (ExperimentPlan p) => actualEmittedPlan = p,
-      );
-
-      controller.enterEditing();
-      controller.updateStep(0, _kStepA.copyWith(name: 'Setup (revised)'));
-      controller.applySuggestions();
-      controller.acceptPendingBatch();
-
-      expect(controller.mode, ReviewMode.viewing);
-      expect(controller.pendingBatch, isNull);
-      expect(controller.acceptedBatches.length, 1);
-      expect(
-        controller.acceptedBatches.single.status,
-        BatchStatus.accepted,
-      );
-      expect(controller.livePlan.timePlan.steps.first.name, 'Setup (revised)');
-      expect(controller.versions.length, 2);
-      expect(actualEmittedPlan, isNotNull);
-      expect(actualEmittedPlan!.timePlan.steps.first.name, 'Setup (revised)');
-    });
-
     test('colorForTarget returns the color of the latest accepted batch', () {
       final PlanReviewController controller = _buildController();
       const StepFieldTarget inputTarget =
@@ -135,7 +134,6 @@ void main() {
       controller.enterEditing();
       controller.updateStep(0, _kStepA.copyWith(name: 'Renamed'));
       controller.applySuggestions();
-      controller.acceptPendingBatch();
 
       final SuggestionBatch acceptedBatch =
           controller.acceptedBatches.single;
@@ -189,7 +187,6 @@ void main() {
         ),
       );
       controller.applySuggestions();
-      controller.acceptPendingBatch();
 
       final List<PlanComment> actualMatched =
           controller.commentsForTarget(inputTarget, controller.livePlan.timePlan.steps[0].description);
@@ -221,10 +218,153 @@ void main() {
         _kStepA.copyWith(description: 'Prepare the laboratory carefully'),
       );
       controller.applySuggestions();
-      controller.acceptPendingBatch();
 
       expect(controller.staleComments.length, 1);
       expect(controller.staleComments.single.body, 'Which one?');
+    });
+  });
+
+  group('PlanReviewController draft-diff helpers', () {
+    test('reports zero changes when nothing has been edited', () {
+      final PlanReviewController controller = _buildController();
+      controller.enterEditing();
+
+      expect(controller.draftChangedStepFields('step-a'), isEmpty);
+      expect(controller.draftChangedMaterialFields('material-x'), isEmpty);
+      expect(
+        controller.isDraftFieldChanged(const TotalDurationTarget()),
+        isFalse,
+      );
+      expect(
+        controller.isDraftFieldChanged(const BudgetTotalTarget()),
+        isFalse,
+      );
+      expect(controller.draftRemovedStepSlots, isEmpty);
+      expect(controller.draftRemovedMaterialSlots, isEmpty);
+    });
+
+    test('isStepInsertedInDraft is true only for steps not in baseline', () {
+      final PlanReviewController controller = _buildController();
+      controller.enterEditing();
+      final int initialLength =
+          controller.draft!.timePlan.steps.length;
+      controller.appendStep();
+
+      final String insertedId =
+          controller.draft!.timePlan.steps.last.id;
+      expect(controller.draft!.timePlan.steps.length, initialLength + 1);
+      expect(controller.isStepInsertedInDraft(insertedId), isTrue);
+      expect(controller.isStepInsertedInDraft('step-a'), isFalse);
+    });
+
+    test('draftChangedStepFields returns the precise changed fields', () {
+      final PlanReviewController controller = _buildController();
+      controller.enterEditing();
+      controller.updateStep(
+        0,
+        _kStepA.copyWith(
+          name: 'Setup (revised)',
+          duration: const Duration(days: 3),
+        ),
+      );
+
+      final Set<StepField> actualChanged =
+          controller.draftChangedStepFields('step-a');
+      expect(actualChanged, <StepField>{StepField.name, StepField.duration});
+      expect(controller.draftChangedStepFields('step-b'), isEmpty);
+    });
+
+    test('draftChangedMaterialFields detects scalar field changes', () {
+      const Material baseMaterial = Material(
+        id: 'material-1',
+        title: 'Reagent',
+        catalogNumber: 'A-100',
+        description: 'Sterile',
+        amount: 2,
+        price: 12.0,
+      );
+      final ExperimentPlan inputPlan = ExperimentPlan(
+        description: 'Plan',
+        budget: const Budget(total: 24, materials: <Material>[baseMaterial]),
+        timePlan: const TimePlan(
+          totalDuration: Duration(days: 1),
+          steps: <Step>[],
+        ),
+      );
+      final PlanReviewController controller = PlanReviewController(
+        source: inputPlan,
+        onLivePlanChanged: (ExperimentPlan _) {},
+        palette: BatchColorPalette(sessionSeed: 0),
+      );
+      controller.enterEditing();
+      controller.updateMaterial(0, baseMaterial.copyWith(amount: 5));
+
+      final Set<MaterialField> actualChanged =
+          controller.draftChangedMaterialFields('material-1');
+      expect(actualChanged, <MaterialField>{MaterialField.amount});
+    });
+
+    test(
+      'isDraftFieldChanged tracks plan-level scalars',
+      () {
+        final PlanReviewController controller = _buildController();
+        controller.enterEditing();
+        controller.updateBudgetTotal(2500);
+
+        expect(
+          controller.isDraftFieldChanged(const BudgetTotalTarget()),
+          isTrue,
+        );
+        expect(
+          controller.isDraftFieldChanged(const TotalDurationTarget()),
+          isFalse,
+        );
+      },
+    );
+
+    test('draftRemovedStepSlots anchors to the previous surviving step', () {
+      final PlanReviewController controller = _buildController();
+      controller.enterEditing();
+      controller.removeStep(1);
+
+      final List<RemovedStepSlot> actualSlots =
+          controller.draftRemovedStepSlots;
+      expect(actualSlots.length, 1);
+      expect(actualSlots.single.step.id, 'step-b');
+      expect(actualSlots.single.afterDraftStepId, 'step-a');
+    });
+
+    test(
+      'draftRemovedStepSlots anchors first removal to null (top) when '
+      'no surviving step precedes it',
+      () {
+        final PlanReviewController controller = _buildController();
+        controller.enterEditing();
+        controller.removeStep(0);
+
+        final List<RemovedStepSlot> actualSlots =
+            controller.draftRemovedStepSlots;
+        expect(actualSlots.length, 1);
+        expect(actualSlots.single.step.id, 'step-a');
+        expect(actualSlots.single.afterDraftStepId, isNull);
+      },
+    );
+
+    test('cancelEditing clears the baseline and draft', () {
+      final PlanReviewController controller = _buildController();
+      controller.enterEditing();
+      controller.updateStep(0, _kStepA.copyWith(name: 'Other'));
+
+      expect(
+        controller.draftChangedStepFields('step-a'),
+        contains(StepField.name),
+      );
+
+      controller.cancelEditing();
+
+      expect(controller.editBaseline, isNull);
+      expect(controller.draft, isNull);
+      expect(controller.draftChangedStepFields('step-a'), isEmpty);
     });
   });
 }

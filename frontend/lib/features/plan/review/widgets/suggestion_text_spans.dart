@@ -1,13 +1,15 @@
 import 'package:flutter/material.dart';
 
+import '../../../../core/app_constants.dart';
 import '../models/change_target.dart';
-import '../models/plan_change.dart';
 import '../models/plan_comment.dart';
 import '../plan_review_controller.dart';
 import '../review_color_palette.dart';
 
-/// Builds a [TextSpan] that reflects pending-suggestion strikethrough,
-/// accepted batch coloring, and comment underlines for the given [target].
+/// Builds a [TextSpan] that reflects accepted-batch version highlighting
+/// (a soft translucent background in the latest-touching batch's color
+/// plus an inline caret marker that surfaces the v0 baseline value on
+/// hover) and existing comment underlines for the given [target].
 ///
 /// The caller owns the base [text] (the value currently shown to the user)
 /// and the [baseStyle]. The returned span is a [TextSpan] wrapping zero or
@@ -18,64 +20,35 @@ TextSpan buildSuggestionAwareSpan({
   required ChangeTarget target,
   required String text,
   required TextStyle baseStyle,
-  TextStyle? newSuggestionStyle,
-  TextStyle? oldSuggestionStyle,
   GestureRecognizerFactoryProvider? recognizerFactory,
 }) {
-  final FieldChange? pending = controller.pendingFieldChangeFor(target);
-  if (pending != null) {
-    return _buildPendingSpan(
-      pending: pending,
-      controller: controller,
-      target: target,
-      baseStyle: baseStyle,
-      newSuggestionStyle: newSuggestionStyle,
-      oldSuggestionStyle: oldSuggestionStyle,
-    );
-  }
-  final Color? acceptedColor = controller.colorForTarget(target);
-  final TextStyle effective = acceptedColor != null
-      ? baseStyle.copyWith(color: acceptedColor)
-      : baseStyle;
-  return _buildBaseSpan(
+  final Color? batchColor = controller.colorForTarget(target);
+  final bool hasEditFromBaseline =
+      batchColor != null && controller.hasFieldEditFromBaseline(target);
+  final Color? highlightColor =
+      hasEditFromBaseline ? batchColor.withValues(alpha: 0.16) : null;
+  final TextSpan baseSpan = _buildBaseSpan(
     text: text,
-    style: effective,
+    style: baseStyle,
     comments: controller.commentsForTarget(target, text),
+    backgroundColor: highlightColor,
   );
-}
-
-TextSpan _buildPendingSpan({
-  required FieldChange pending,
-  required PlanReviewController controller,
-  required ChangeTarget target,
-  required TextStyle baseStyle,
-  TextStyle? newSuggestionStyle,
-  TextStyle? oldSuggestionStyle,
-}) {
-  final Color batchColor =
-      controller.pendingBatch?.color ?? baseStyle.color ?? Colors.white;
-  final TextStyle oldStyle = (oldSuggestionStyle ?? baseStyle).copyWith(
-    color: kPendingStrikeColor,
-    decoration: TextDecoration.lineThrough,
-    decorationColor: kPendingStrikeColor,
-  );
-  final TextStyle newStyle = (newSuggestionStyle ?? baseStyle).copyWith(
-    color: batchColor,
-    fontWeight: baseStyle.fontWeight,
-  );
-  final String beforeText = pending.before?.toString() ?? '';
-  final String afterText = pending.after?.toString() ?? '';
-  if (beforeText.isEmpty && afterText.isNotEmpty) {
-    return TextSpan(text: afterText, style: newStyle);
+  if (!hasEditFromBaseline) {
+    return baseSpan;
   }
-  if (afterText.isEmpty && beforeText.isNotEmpty) {
-    return TextSpan(text: beforeText, style: oldStyle);
-  }
+  final String originalLabel = controller.originalLabelFor(target) ?? '';
+  final double caretHeight = (baseStyle.fontSize ?? 14) * 0.9;
   return TextSpan(
     children: <InlineSpan>[
-      TextSpan(text: beforeText, style: oldStyle),
-      const TextSpan(text: '  '),
-      TextSpan(text: afterText, style: newStyle),
+      baseSpan,
+      WidgetSpan(
+        alignment: PlaceholderAlignment.middle,
+        child: _OriginalValueCaret(
+          color: batchColor,
+          height: caretHeight,
+          originalLabel: originalLabel,
+        ),
+      ),
     ],
   );
 }
@@ -84,9 +57,13 @@ TextSpan _buildBaseSpan({
   required String text,
   required TextStyle style,
   required List<PlanComment> comments,
+  Color? backgroundColor,
 }) {
+  final TextStyle effectiveStyle = backgroundColor != null
+      ? style.copyWith(background: Paint()..color = backgroundColor)
+      : style;
   if (comments.isEmpty) {
-    return TextSpan(text: text, style: style);
+    return TextSpan(text: text, style: effectiveStyle);
   }
   final List<_Range> ranges = <_Range>[];
   for (final PlanComment c in comments) {
@@ -104,12 +81,12 @@ TextSpan _buildBaseSpan({
     if (r.start > cursor) {
       children.add(TextSpan(
         text: text.substring(cursor, r.start),
-        style: style,
+        style: effectiveStyle,
       ));
     }
     children.add(TextSpan(
       text: text.substring(r.start, r.end),
-      style: style.copyWith(
+      style: effectiveStyle.copyWith(
         decoration: TextDecoration.underline,
         decorationColor: kCommentMarkerColor,
         decorationStyle: TextDecorationStyle.wavy,
@@ -119,9 +96,48 @@ TextSpan _buildBaseSpan({
     cursor = r.end;
   }
   if (cursor < text.length) {
-    children.add(TextSpan(text: text.substring(cursor), style: style));
+    children.add(TextSpan(text: text.substring(cursor), style: effectiveStyle));
   }
-  return TextSpan(children: children, style: style);
+  return TextSpan(children: children, style: effectiveStyle);
+}
+
+/// Thin vertical caret rendered just after a highlighted span. Hovering
+/// it surfaces a tooltip with the v0 baseline value of that field.
+class _OriginalValueCaret extends StatelessWidget {
+  const _OriginalValueCaret({
+    required this.color,
+    required this.height,
+    required this.originalLabel,
+  });
+
+  final Color color;
+  final double height;
+  final String originalLabel;
+
+  @override
+  Widget build(BuildContext context) {
+    final String message = originalLabel.isEmpty
+        ? 'Original: (empty)'
+        : 'Original: $originalLabel';
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: kSpace4 / 2),
+      child: MouseRegion(
+        cursor: SystemMouseCursors.help,
+        child: Tooltip(
+          message: message,
+          waitDuration: const Duration(milliseconds: 100),
+          child: Container(
+            width: 2,
+            height: height,
+            decoration: BoxDecoration(
+              color: color,
+              borderRadius: BorderRadius.circular(1),
+            ),
+          ),
+        ),
+      ),
+    );
+  }
 }
 
 class _Range {

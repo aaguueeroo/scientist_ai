@@ -58,6 +58,7 @@ class PlanScreen extends StatelessWidget {
                 return PlanReviewScaffold(
                   plan: plan,
                   query: controller.currentQuery,
+                  conversationId: controller.currentQuery ?? '',
                   onLivePlanChanged: controller.applyCorrectedPlan,
                 );
               },
