@@ -159,12 +159,12 @@ class FakeOpenAIClient(AbstractOpenAIClient):
     def __init__(
         self,
         *,
-        chat_responses: list[ChatResult] | None = None,
-        parsed_responses: list[ParsedResult[Any]] | None = None,
+        chat_responses: list[ChatResult | BaseException] | None = None,
+        parsed_responses: list[ParsedResult[Any] | BaseException] | None = None,
         cost_tracker: CostTracker | None = None,
     ) -> None:
-        self._chat_queue: list[ChatResult] = list(chat_responses or [])
-        self._parsed_queue: list[ParsedResult[Any]] = list(parsed_responses or [])
+        self._chat_queue: list[ChatResult | BaseException] = list(chat_responses or [])
+        self._parsed_queue: list[ParsedResult[Any] | BaseException] = list(parsed_responses or [])
         self.calls: list[dict[str, Any]] = []
         self.closed = False
         self.cost_tracker = cost_tracker
@@ -194,10 +194,12 @@ class FakeOpenAIClient(AbstractOpenAIClient):
         )
         if not self._chat_queue:
             raise AssertionError("FakeOpenAIClient: no canned chat responses left")
-        result = self._chat_queue.pop(0)
+        next_item = self._chat_queue.pop(0)
+        if isinstance(next_item, BaseException):
+            raise next_item
         if self.cost_tracker is not None:
-            self.cost_tracker.record(model=model, usage=result.usage)
-        return result
+            self.cost_tracker.record(model=model, usage=next_item.usage)
+        return next_item
 
     async def parse(
         self,
@@ -226,15 +228,17 @@ class FakeOpenAIClient(AbstractOpenAIClient):
         )
         if not self._parsed_queue:
             raise AssertionError("FakeOpenAIClient: no canned parsed responses left")
-        result = self._parsed_queue.pop(0)
-        if not isinstance(result.parsed, response_format):
+        next_item = self._parsed_queue.pop(0)
+        if isinstance(next_item, BaseException):
+            raise next_item
+        if not isinstance(next_item.parsed, response_format):
             raise AssertionError(
                 "FakeOpenAIClient: canned parsed response type does not match "
                 f"response_format={response_format!r}"
             )
         if self.cost_tracker is not None:
-            self.cost_tracker.record(model=model, usage=result.usage)
-        return result
+            self.cost_tracker.record(model=model, usage=next_item.usage)
+        return next_item
 
     async def aclose(self) -> None:
         self.closed = True
