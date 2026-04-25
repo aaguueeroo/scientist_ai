@@ -1957,3 +1957,5 @@ Steps belong to milestones M1–M6 (§6).
 
 ## Step 31 — green
 
+## Step 32 — green
+
