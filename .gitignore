@@ -1,6 +1,14 @@
 # Created by https://www.toptal.com/developers/gitignore/api/flutter,androidstudio,dart,xcode,macos
 # Edit at https://www.toptal.com/developers/gitignore?templates=flutter,androidstudio,dart,xcode,macos
 
+# Monorepo: Python backend (not covered by Flutter template)
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+backend/.venv/
+
 ### Dart ###
 # See https://www.dartlang.org/guides/libraries/private-files
 
