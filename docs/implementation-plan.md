@@ -1645,6 +1645,8 @@ Steps belong to milestones M1–M6 (§6).
 - **Acceptance criteria:** four tests green.
 - **Depends on:** 41.
 
+## Step 42 — green
+
 #### Step 43 — `Orchestrator wires Agent 2 (full path: 1 → gate → 2 → 3)`  (M5)
 
 - **What to build:** Update `Orchestrator.run` to call
