@@ -9,47 +9,50 @@ import 'scientist_app_theme_data.dart';
 ThemeData buildApplicationTheme() {
   final TextTheme textTheme = buildAppTextTheme();
   final ColorScheme colorScheme = buildAppColorScheme();
-  final ScientistAppTheme scientist = ScientistAppTheme.of(colorScheme, textTheme);
-  final WidgetStateProperty<Color?> accentOverlay = WidgetStateProperty
-      .resolveWith<Color?>((Set<WidgetState> states) {
-    if (states.contains(WidgetState.pressed)) {
-      return AppColors.accentHover.withValues(alpha: 0.16);
-    }
-    if (states.contains(WidgetState.hovered)) {
-      return AppColors.accentHover.withValues(alpha: 0.10);
-    }
-    if (states.contains(WidgetState.focused)) {
-      return AppColors.accent.withValues(alpha: 0.12);
-    }
-    return null;
-  });
-  final WidgetStateProperty<Color?> filledButtonBackground = WidgetStateProperty
-      .resolveWith<Color?>((Set<WidgetState> states) {
-    if (states.contains(WidgetState.disabled)) {
-      return colorScheme.surface;
-    }
-    if (states.contains(WidgetState.hovered) ||
-        states.contains(WidgetState.pressed)) {
-      return AppColors.accentHover;
-    }
-    return colorScheme.primary;
-  });
-  final WidgetStateProperty<Color?> filledButtonForeground = WidgetStateProperty
-      .resolveWith<Color?>((Set<WidgetState> states) {
-    if (states.contains(WidgetState.disabled)) {
-      return scientist.onSurfaceFaint;
-    }
-    return colorScheme.onPrimary;
-  });
-  final WidgetStateProperty<Color?> outlineHover = WidgetStateProperty
-      .resolveWith<Color?>((Set<WidgetState> states) {
-    if (states.contains(WidgetState.hovered) ||
-        states.contains(WidgetState.pressed) ||
-        states.contains(WidgetState.focused)) {
-      return colorScheme.primaryContainer;
-    }
-    return null;
-  });
+  final ScientistAppTheme scientist = ScientistAppTheme.of(
+    colorScheme,
+    textTheme,
+  );
+  final WidgetStateProperty<Color?> accentOverlay =
+      WidgetStateProperty.resolveWith<Color?>((Set<WidgetState> states) {
+        if (states.contains(WidgetState.pressed)) {
+          return AppColors.accentHover.withValues(alpha: 0.16);
+        }
+        if (states.contains(WidgetState.hovered)) {
+          return AppColors.accentHover.withValues(alpha: 0.10);
+        }
+        if (states.contains(WidgetState.focused)) {
+          return AppColors.accent.withValues(alpha: 0.12);
+        }
+        return null;
+      });
+  final WidgetStateProperty<Color?> filledButtonBackground =
+      WidgetStateProperty.resolveWith<Color?>((Set<WidgetState> states) {
+        if (states.contains(WidgetState.disabled)) {
+          return colorScheme.surface;
+        }
+        if (states.contains(WidgetState.hovered) ||
+            states.contains(WidgetState.pressed)) {
+          return AppColors.accentHover;
+        }
+        return colorScheme.primary;
+      });
+  final WidgetStateProperty<Color?> filledButtonForeground =
+      WidgetStateProperty.resolveWith<Color?>((Set<WidgetState> states) {
+        if (states.contains(WidgetState.disabled)) {
+          return scientist.onSurfaceFaint;
+        }
+        return colorScheme.onPrimary;
+      });
+  final WidgetStateProperty<Color?> outlineHover =
+      WidgetStateProperty.resolveWith<Color?>((Set<WidgetState> states) {
+        if (states.contains(WidgetState.hovered) ||
+            states.contains(WidgetState.pressed) ||
+            states.contains(WidgetState.focused)) {
+          return colorScheme.primaryContainer;
+        }
+        return null;
+      });
   return ThemeData(
     useMaterial3: true,
     colorScheme: colorScheme,
@@ -60,17 +63,20 @@ ThemeData buildApplicationTheme() {
     textTheme: textTheme,
     primaryTextTheme: textTheme,
     extensions: <ThemeExtension<dynamic>>[scientist],
-    iconTheme: IconThemeData(
-      color: colorScheme.onSurfaceVariant,
-      size: 20,
-    ),
+    iconTheme: IconThemeData(color: colorScheme.onSurfaceVariant, size: 20),
     chipTheme: ChipThemeData(
       backgroundColor: colorScheme.surface,
       showCheckmark: false,
       side: BorderSide.none,
       labelStyle: textTheme.bodyMedium,
-      padding: const EdgeInsets.symmetric(horizontal: kSpace4, vertical: kSpace4),
-      labelPadding: const EdgeInsets.symmetric(horizontal: kSpace8, vertical: kSpace4),
+      padding: const EdgeInsets.symmetric(
+        horizontal: kSpace4,
+        vertical: kSpace4,
+      ),
+      labelPadding: const EdgeInsets.symmetric(
+        horizontal: kSpace8,
+        vertical: kSpace4,
+      ),
       shape: RoundedRectangleBorder(
         borderRadius: BorderRadius.circular(kRadius),
       ),
@@ -151,26 +157,26 @@ ThemeData buildApplicationTheme() {
         elevation: WidgetStateProperty.all(0),
         shadowColor: WidgetStateProperty.all(Colors.transparent),
         animationDuration: const Duration(milliseconds: 150),
-        mouseCursor: WidgetStateProperty.resolveWith<MouseCursor>(
-          (Set<WidgetState> states) {
-            if (states.contains(WidgetState.disabled)) {
-              return SystemMouseCursors.basic;
-            }
-            return SystemMouseCursors.click;
-          },
-        ),
+        mouseCursor: WidgetStateProperty.resolveWith<MouseCursor>((
+          Set<WidgetState> states,
+        ) {
+          if (states.contains(WidgetState.disabled)) {
+            return SystemMouseCursors.basic;
+          }
+          return SystemMouseCursors.click;
+        }),
       ),
     ),
     outlinedButtonTheme: OutlinedButtonThemeData(
       style: ButtonStyle(
-        foregroundColor: WidgetStateProperty.resolveWith<Color?>(
-          (Set<WidgetState> states) {
-            if (states.contains(WidgetState.disabled)) {
-              return scientist.onSurfaceFaint;
-            }
-            return colorScheme.onSurface;
-          },
-        ),
+        foregroundColor: WidgetStateProperty.resolveWith<Color?>((
+          Set<WidgetState> states,
+        ) {
+          if (states.contains(WidgetState.disabled)) {
+            return scientist.onSurfaceFaint;
+          }
+          return colorScheme.onSurface;
+        }),
         backgroundColor: outlineHover,
         overlayColor: WidgetStateProperty.all(Colors.transparent),
         side: WidgetStateProperty.all(BorderSide.none),
@@ -188,18 +194,18 @@ ThemeData buildApplicationTheme() {
     ),
     textButtonTheme: TextButtonThemeData(
       style: ButtonStyle(
-        foregroundColor: WidgetStateProperty.resolveWith<Color?>(
-          (Set<WidgetState> states) {
-            if (states.contains(WidgetState.disabled)) {
-              return scientist.onSurfaceFaint;
-            }
-            if (states.contains(WidgetState.hovered) ||
-                states.contains(WidgetState.pressed)) {
-              return AppColors.accentHover;
-            }
-            return colorScheme.primary;
-          },
-        ),
+        foregroundColor: WidgetStateProperty.resolveWith<Color?>((
+          Set<WidgetState> states,
+        ) {
+          if (states.contains(WidgetState.disabled)) {
+            return scientist.onSurfaceFaint;
+          }
+          if (states.contains(WidgetState.hovered) ||
+              states.contains(WidgetState.pressed)) {
+            return AppColors.accentHover;
+          }
+          return colorScheme.primary;
+        }),
         overlayColor: accentOverlay,
         padding: WidgetStateProperty.all(
           const EdgeInsets.symmetric(horizontal: kSpace12, vertical: kSpace8),
@@ -221,8 +227,16 @@ ThemeData buildApplicationTheme() {
       collapsedTextColor: colorScheme.onSurface,
       shape: const Border(),
       collapsedShape: const Border(),
-      tilePadding: const EdgeInsets.symmetric(horizontal: kSpace16, vertical: kSpace4),
-      childrenPadding: const EdgeInsets.fromLTRB(kSpace16, 0, kSpace16, kSpace16),
+      tilePadding: const EdgeInsets.symmetric(
+        horizontal: kSpace16,
+        vertical: kSpace4,
+      ),
+      childrenPadding: const EdgeInsets.fromLTRB(
+        kSpace16,
+        0,
+        kSpace16,
+        kSpace16,
+      ),
     ),
     listTileTheme: ListTileThemeData(
       iconColor: colorScheme.onSurfaceVariant,

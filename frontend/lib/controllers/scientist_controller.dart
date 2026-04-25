@@ -4,16 +4,24 @@ import 'package:flutter/foundation.dart';
 
 import '../models/experiment_plan.dart';
 import '../models/literature_review.dart';
-import '../services/mock_data.dart';
-import '../services/scientist_api.dart';
+import '../repositories/scientist_repository.dart';
+
+// Seed list shown in the sidebar before any past-conversations endpoint exists.
+// Replace with `GET /conversations` once the BE provides one.
+const List<String> _kSeedPastConversations = <String>[
+  'mRNA vaccine stability under freeze-thaw cycles',
+  'CRISPR Cas9 delivery optimization in liver cells',
+  'Protein folding assay with fluorescence readout',
+  'Cell culture contamination prevention protocol',
+];
 
 class ScientistController extends ChangeNotifier {
   ScientistController({
-    required ScientistApi api,
-  }) : _api = api,
-       pastConversations = List<String>.from(mockPastConversations);
+    required ScientistRepository repository,
+  })  : _repository = repository,
+        pastConversations = List<String>.from(_kSeedPastConversations);
 
-  final ScientistApi _api;
+  final ScientistRepository _repository;
   StreamSubscription<LiteratureReview>? _literatureSubscription;
   final List<String> pastConversations;
 
@@ -49,7 +57,7 @@ class ScientistController extends ChangeNotifier {
     literatureError = null;
     literatureReview = null;
     notifyListeners();
-    _literatureSubscription = _api.streamLiteratureReview(query).listen(
+    _literatureSubscription = _repository.streamLiteratureReview(query).listen(
       (LiteratureReview nextReview) {
         literatureReview = nextReview;
         isLoadingLiterature = false;
@@ -64,24 +72,24 @@ class ScientistController extends ChangeNotifier {
     );
   }
 
-  void openPastConversationReplay(String title) {
+  Future<void> openPastConversationReplay(String title) async {
     final String normalizedTitle = title.trim();
     if (normalizedTitle.isEmpty) {
       return;
     }
-    _literatureSubscription?.cancel();
+    await _literatureSubscription?.cancel();
     _literatureSubscription = null;
     currentQuery = normalizedTitle;
     if (!pastConversations.contains(normalizedTitle)) {
       pastConversations.insert(0, normalizedTitle);
     }
-    literatureReview = mockLiteratureReviewTemplate;
-    isLoadingLiterature = false;
+    literatureReview = null;
     literatureError = null;
-    experimentPlan = mockExperimentPlan;
-    isLoadingPlan = false;
+    experimentPlan = null;
     planError = null;
     notifyListeners();
+    await loadLiteratureReview();
+    await loadExperimentPlan();
   }
 
   Future<void> loadExperimentPlan() async {
@@ -93,7 +101,7 @@ class ScientistController extends ChangeNotifier {
     planError = null;
     notifyListeners();
     try {
-      experimentPlan = await _api.fetchExperimentPlan(query);
+      experimentPlan = await _repository.fetchExperimentPlan(query);
     } catch (err) {
       debugPrint('Experiment plan error: $err');
       planError = 'Unable to generate experiment plan. Please retry.';
@@ -101,6 +109,11 @@ class ScientistController extends ChangeNotifier {
       isLoadingPlan = false;
       notifyListeners();
     }
+  }
+
+  void applyCorrectedPlan(ExperimentPlan plan) {
+    experimentPlan = plan;
+    notifyListeners();
   }
 
   void reset() {

@@ -23,3 +23,7 @@ const double kPlanMaterialsLayoutFullMinWidth = 500;
 
 /// Below [kPlanMaterialsLayoutFullMinWidth] but above this, use compact 3-column layout.
 const double kPlanMaterialsLayoutCompactMinWidth = 260;
+
+const double kBudgetIncrementLow = 10;
+const double kBudgetIncrementHigh = 100;
+const double kBudgetIncrementThreshold = 1000;
