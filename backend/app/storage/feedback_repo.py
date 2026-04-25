@@ -17,7 +17,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 from datetime import UTC, datetime
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.schemas.feedback import DomainTag, FeedbackRecord, FewShotExample
@@ -54,6 +54,19 @@ class FeedbackRepo:
         async with self.session_factory() as session, session.begin():
             session.add(row)
         return row
+
+    async def count(self) -> int:
+        """Total number of `FeedbackRow`s persisted (across all domains).
+
+        Used by Agent 2's short-circuit: when the store is empty there is
+        no point spending a domain-extraction LLM call only to retrieve
+        zero candidates.
+        """
+
+        async with self.session_factory() as session:
+            result = await session.execute(select(func.count(FeedbackRow.feedback_id)))
+            total = result.scalar_one()
+            return int(total)
 
     async def get_row_by_id(self, feedback_id: str) -> FeedbackRow | None:
         async with self.session_factory() as session:

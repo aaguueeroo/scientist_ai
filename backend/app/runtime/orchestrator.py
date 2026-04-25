@@ -72,7 +72,7 @@ class Orchestrator:
             )
 
         few_shots: list[FewShotExample] = []
-        if self.feedback_repo is not None:
+        if self.feedback_repo is not None and await self.feedback_repo.count() > 0:
             agent_2 = FeedbackRelevanceAgent(openai=self.openai, settings=cfg)
             few_shots = await agent_2.run(
                 hypothesis=hypothesis,

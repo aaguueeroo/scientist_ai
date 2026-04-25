@@ -17,6 +17,7 @@ from fastapi import APIRouter, Depends, Request
 from app.api.deps import (
     get_catalog_resolver,
     get_citation_resolver,
+    get_feedback_repo,
     get_openai_client,
     get_plans_repo,
     get_source_tiers,
@@ -30,6 +31,7 @@ from app.prompts.loader import prompt_versions as load_prompt_versions
 from app.runtime.orchestrator import Orchestrator
 from app.schemas.hypothesis import GeneratePlanRequest
 from app.schemas.responses import GeneratePlanResponse
+from app.storage.feedback_repo import FeedbackRepo
 from app.storage.plans_repo import PlansRepo
 from app.verification.catalog_resolver import AbstractCatalogResolver
 from app.verification.citation_resolver import AbstractCitationResolver
@@ -47,6 +49,7 @@ async def generate_plan(
     catalog_resolver: Annotated[AbstractCatalogResolver, Depends(get_catalog_resolver)],
     source_tiers: Annotated[SourceTiersConfig, Depends(get_source_tiers)],
     plans_repo: Annotated[PlansRepo, Depends(get_plans_repo)],
+    feedback_repo: Annotated[FeedbackRepo, Depends(get_feedback_repo)],
 ) -> GeneratePlanResponse:
     ctx: RequestContext = request.state.request_context
 
@@ -56,6 +59,7 @@ async def generate_plan(
         citation_resolver=citation_resolver,
         catalog_resolver=catalog_resolver,
         source_tiers=source_tiers,
+        feedback_repo=feedback_repo,
     )
     response = await orchestrator.run(
         hypothesis=body.hypothesis,
