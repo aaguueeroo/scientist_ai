@@ -1586,6 +1586,8 @@ Steps belong to milestones M1–M6 (§6).
 - **Acceptance criteria:** three tests green.
 - **Depends on:** 1.
 
+## Step 39 — green
+
 #### Step 40 — `Storage: FeedbackRow + feedback_repo.find_relevant`  (M5)
 
 - **What to build:** `FeedbackRow` model per §4 (with
