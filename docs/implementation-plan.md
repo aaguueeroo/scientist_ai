@@ -1907,3 +1907,5 @@ Steps belong to milestones M1–M6 (§6).
 
 ## Step 6 — green
 
+## Step 7 — green
+
