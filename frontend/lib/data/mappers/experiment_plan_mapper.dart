@@ -1,3 +1,4 @@
+import '../../core/id_generator.dart';
 import '../../models/experiment_plan.dart';
 import '../dto/budget_dto.dart';
 import '../dto/experiment_plan_dto.dart';
@@ -25,6 +26,7 @@ class ExperimentPlanMapper {
 
   static Material _materialToDomain(MaterialDto dto) {
     return Material(
+      id: generateLocalId('mat'),
       title: dto.title,
       catalogNumber: dto.catalogNumber,
       description: dto.description,
@@ -42,6 +44,7 @@ class ExperimentPlanMapper {
 
   static Step _stepToDomain(StepDto dto) {
     return Step(
+      id: generateLocalId('step'),
       number: dto.number,
       duration: Duration(seconds: dto.durationSeconds),
       name: dto.name,

@@ -5,8 +5,8 @@ import '../../controllers/scientist_controller.dart';
 import '../../core/app_constants.dart';
 import '../../core/theme/theme_context.dart';
 import '../../models/experiment_plan.dart';
-import 'correction/plan_correction_scaffold.dart';
 import 'experiment_plan_view.dart';
+import 'review/plan_review_scaffold.dart';
 import 'widgets/workspace_step_header.dart';
 
 class PlanScreen extends StatelessWidget {
@@ -55,10 +55,10 @@ class PlanScreen extends StatelessWidget {
                     ),
                   );
                 }
-                return PlanCorrectionScaffold(
+                return PlanReviewScaffold(
                   plan: plan,
                   query: controller.currentQuery,
-                  onSavePlan: controller.applyCorrectedPlan,
+                  onLivePlanChanged: controller.applyCorrectedPlan,
                 );
               },
             ),

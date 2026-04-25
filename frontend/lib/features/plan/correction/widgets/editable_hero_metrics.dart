@@ -3,8 +3,9 @@ import 'package:provider/provider.dart';
 
 import '../../../../core/app_constants.dart';
 import '../../../../core/theme/theme_context.dart';
+import '../../../../models/experiment_plan.dart';
+import '../../review/plan_review_controller.dart';
 import '../correction_format.dart';
-import '../plan_correction_controller.dart';
 import 'hover_stepper.dart';
 import 'inline_editable_text.dart';
 
@@ -13,10 +14,11 @@ class EditableHeroMetrics extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final PlanCorrectionController controller =
-        context.watch<PlanCorrectionController>();
-    final Duration duration = controller.draft.timePlan.totalDuration;
-    final double total = controller.draft.budget.total;
+    final PlanReviewController controller =
+        context.watch<PlanReviewController>();
+    final ExperimentPlan plan = controller.draft ?? controller.livePlan;
+    final Duration duration = plan.timePlan.totalDuration;
+    final double total = plan.budget.total;
     return Row(
       mainAxisAlignment: MainAxisAlignment.center,
       children: <Widget>[

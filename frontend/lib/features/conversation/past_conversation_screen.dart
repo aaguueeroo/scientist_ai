@@ -8,7 +8,7 @@ import '../../models/experiment_plan.dart';
 import '../../models/literature_review.dart';
 import '../../ui/app_surface.dart';
 import '../literature/widgets/source_tile.dart';
-import '../plan/correction/plan_correction_scaffold.dart';
+import '../plan/review/plan_review_scaffold.dart';
 import '../plan/widgets/workspace_step_header.dart';
 
 class PastConversationScreen extends StatefulWidget {
@@ -64,7 +64,7 @@ class _PastConversationScreenState extends State<PastConversationScreen> {
                     _ExperimentPlanStepPane(
                       plan: controller.experimentPlan,
                       query: controller.currentQuery,
-                      onSavePlan: controller.applyCorrectedPlan,
+                      onLivePlanChanged: controller.applyCorrectedPlan,
                     ),
                   ],
                 ),
@@ -178,12 +178,12 @@ class _ExperimentPlanStepPane extends StatelessWidget {
   const _ExperimentPlanStepPane({
     required this.plan,
     required this.query,
-    required this.onSavePlan,
+    required this.onLivePlanChanged,
   });
 
   final ExperimentPlan? plan;
   final String? query;
-  final ValueChanged<ExperimentPlan> onSavePlan;
+  final ValueChanged<ExperimentPlan> onLivePlanChanged;
 
   @override
   Widget build(BuildContext context) {
@@ -196,10 +196,10 @@ class _ExperimentPlanStepPane extends StatelessWidget {
         ),
       );
     }
-    return PlanCorrectionScaffold(
+    return PlanReviewScaffold(
       plan: currentPlan,
       query: query,
-      onSavePlan: onSavePlan,
+      onLivePlanChanged: onLivePlanChanged,
     );
   }
 }

@@ -5,7 +5,7 @@ import '../../../core/app_constants.dart';
 import '../../../core/theme/theme_context.dart';
 import '../../../models/experiment_plan.dart';
 import '../../../ui/app_section_header.dart';
-import 'plan_correction_controller.dart';
+import '../review/plan_review_controller.dart';
 import 'widgets/editable_hero_metrics.dart';
 import 'widgets/editable_material_tile.dart';
 import 'widgets/editable_plan_timeline.dart';
@@ -22,9 +22,9 @@ class EditablePlanView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final PlanCorrectionController controller =
-        context.watch<PlanCorrectionController>();
-    final ExperimentPlan draft = controller.draft;
+    final PlanReviewController controller =
+        context.watch<PlanReviewController>();
+    final ExperimentPlan draft = controller.draft ?? controller.livePlan;
     return ListView(
       padding: EdgeInsets.zero,
       children: <Widget>[

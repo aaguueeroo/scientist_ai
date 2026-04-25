@@ -6,8 +6,8 @@ import '../../../../core/app_constants.dart';
 import '../../../../core/theme/theme_context.dart';
 import '../../../../models/experiment_plan.dart';
 import '../../../../ui/app_surface.dart';
+import '../../review/plan_review_controller.dart';
 import '../correction_format.dart';
-import '../plan_correction_controller.dart';
 import 'inline_editable_text.dart';
 
 const double _kInsertChipSize = 22;
@@ -18,9 +18,10 @@ class EditablePlanTimeline extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final PlanCorrectionController controller =
-        context.watch<PlanCorrectionController>();
-    final List<Step> steps = controller.draft.timePlan.steps;
+    final PlanReviewController controller =
+        context.watch<PlanReviewController>();
+    final ExperimentPlan plan = controller.draft ?? controller.livePlan;
+    final List<Step> steps = plan.timePlan.steps;
     if (steps.isEmpty) {
       return _EmptyEditableTimeline(onAdd: controller.appendStep);
     }
