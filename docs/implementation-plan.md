@@ -1662,6 +1662,8 @@ Steps belong to milestones M1–M6 (§6).
 - **Acceptance criteria:** three tests green.
 - **Depends on:** 33, 41.
 
+## Step 43 — green
+
 #### Step 44 — `POST /feedback endpoint`  (M5)
 
 - **What to build:** `app/api/feedback.py` route. Persists via

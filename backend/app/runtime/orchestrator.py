@@ -1,9 +1,11 @@
-"""Runtime orchestrator (Step 33).
+"""Runtime orchestrator (Steps 33 + 43).
 
-Sequences Agent 1 → novelty gate → (if not `exact_match`) Agent 3 →
-`apply_resolvers` → `refuse_if_ungrounded` → MIQE block. No Agent 2 yet
-(the orchestrator passes an empty `few_shot_examples` list to Agent 3
-until Step 43 wires it in).
+Sequences Agent 1 → novelty gate → (if not `exact_match`) Agent 2 →
+Agent 3 → `apply_resolvers` → `refuse_if_ungrounded` → MIQE block.
+
+Agent 2 is wired in only when a `feedback_repo` is supplied; if omitted
+the orchestrator behaves exactly as it did in Step 33 (empty few-shots
+into Agent 3). Production wiring always supplies the repo.
 """
 
 from __future__ import annotations
@@ -11,6 +13,7 @@ from __future__ import annotations
 from dataclasses import dataclass
 
 from app.agents.experiment_planner import ExperimentPlannerAgent
+from app.agents.feedback_relevance import FeedbackRelevanceAgent
 from app.agents.literature_qc import LiteratureQCAgent
 from app.clients.openai_client import AbstractOpenAIClient
 from app.clients.tavily_client import AbstractTavilyClient
@@ -20,7 +23,9 @@ from app.prompts.loader import prompt_versions
 from app.runtime.novelty_gate import StopWithQC, decide
 from app.runtime.pipeline_state import PipelineState
 from app.schemas.experiment_plan import GroundingSummary
+from app.schemas.feedback import FewShotExample
 from app.schemas.responses import GeneratePlanResponse
+from app.storage.feedback_repo import FeedbackRepo
 from app.verification.catalog_resolver import AbstractCatalogResolver
 from app.verification.citation_resolver import AbstractCitationResolver
 from app.verification.grounding import apply_resolvers, refuse_if_ungrounded
@@ -37,6 +42,7 @@ class Orchestrator:
     catalog_resolver: AbstractCatalogResolver
     source_tiers: SourceTiersConfig
     settings: Settings | None = None
+    feedback_repo: FeedbackRepo | None = None
 
     async def run(self, *, hypothesis: str, request_id: str) -> GeneratePlanResponse:
         cfg = self.settings or get_settings()
@@ -65,11 +71,20 @@ class Orchestrator:
                 prompt_versions=prompt_versions(),
             )
 
+        few_shots: list[FewShotExample] = []
+        if self.feedback_repo is not None:
+            agent_2 = FeedbackRelevanceAgent(openai=self.openai, settings=cfg)
+            few_shots = await agent_2.run(
+                hypothesis=hypothesis,
+                repo=self.feedback_repo,
+                request_id=request_id,
+            )
+
         state = PipelineState(
             request_id=request_id,
             hypothesis=hypothesis,
             qc_result=qc,
-            few_shot_examples=[],
+            few_shot_examples=few_shots,
         )
         planner = ExperimentPlannerAgent(openai=self.openai, settings=cfg)
         plan = await planner.run(state=state)
