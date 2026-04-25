@@ -12,6 +12,7 @@ from contextlib import asynccontextmanager
 from fastapi import FastAPI
 
 from app.api.health import router as health_router
+from app.api.middleware import RequestContextMiddleware
 from app.observability.logging import configure_logging
 
 
@@ -27,6 +28,7 @@ def create_app() -> FastAPI:
     """Build the FastAPI application."""
 
     app = FastAPI(title="AI Scientist backend", lifespan=lifespan)
+    app.add_middleware(RequestContextMiddleware)
     app.include_router(health_router)
     return app
 
