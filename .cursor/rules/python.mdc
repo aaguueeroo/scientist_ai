@@ -1,0 +1,61 @@
+---
+description: Python conventions for the AI Scientist backend
+globs: backend/**/*.py
+alwaysApply: false
+---
+
+# Python conventions (backend)
+
+## Runtime & packaging
+
+- **Python 3.11+.**
+- Single source of truth for dependencies: `backend/pyproject.toml` with **pinned** versions (no loose `^` or `~`). A `backend/requirements.txt` may be generated from it but is not authoritative.
+- Configuration is loaded via `pydantic-settings` from environment variables. No hard-coded secrets. No scattered `os.getenv` calls.
+
+## Formatting, linting, typing
+
+- `ruff` is the only formatter and linter. Run `ruff format backend; ruff check backend --fix` before committing.
+- `mypy --strict` on `backend/` must be clean. All public functions are fully typed.
+- `Any` is forbidden in module-level signatures. If unavoidable, justify it with `# type: ignore[<code>]  # reason: ...`.
+
+## Testing
+
+- `pytest` + `pytest-asyncio` for async tests.
+- HTTP calls are mocked with `respx` (or equivalent); LLM calls are mocked behind a thin client interface.
+- **Default `pytest -q` runs are offline.** Integration and end-to-end tests use recorded cassettes (`pytest-recording` / `vcrpy`, per `docs/research.md`). Live API tests are gated behind `pytest.mark.live` and never run unless explicitly requested.
+- Coverage is informational, not a gate.
+
+## OpenAI call discipline
+
+- Every call goes through the thin client wrapper in `app/clients/openai_client.py`. Direct use of the `openai` SDK from business-logic modules is forbidden.
+- Every call sets `temperature=0` for the factual surface (any field that affects classification, structured output, citations, catalog numbers, quantitative claims). Non-zero temperature is allowed only for clearly-marked synthesis prose, and it must be justified at the call site.
+- Pass `seed` whenever the chosen API surface supports it.
+- Always pass an explicit `max_tokens`. Do not rely on the default.
+- The wrapper computes per-request cost from token usage and refuses with `cost_ceiling_exceeded` when it would exceed `MAX_REQUEST_USD` from `app/config/settings.py`.
+
+## Logging contract
+
+- Every endpoint emits exactly one JSON log line per request via `structlog`, populated by the middleware in `app/api/middleware.py`. Required keys: `agent`, `model`, `prompt_hash`, `prompt_tokens`, `completion_tokens`, `latency_ms`, `verified_count`, `tier_0_drops`, `request_id`.
+- Never `print` in library code. Never log secrets or full user-supplied content (truncate to a safe length).
+
+## Style
+
+- Prefer pure functions and small modules over classes when state is not needed.
+- Use **Pydantic v2** models for any data crossing a boundary: HTTP request/response, LLM input/output, persistence rows.
+- Outbound HTTP uses `httpx` (async). Do not use `requests`.
+- Logging uses `structlog` per the *Logging contract* section. **Never `print` in library code.**
+- Errors raise specific exception types. No bare `except:` or `except Exception:` without re-raising or logging with full context.
+- Async-first: the API layer and any I/O-bound work is async. CPU-bound work runs in a thread or process pool, not on the event loop.
+- Async resources (OpenAI client, Tavily client, SQLite engine) are owned by FastAPI's `lifespan`. Do not construct them at module import.
+- Treat user-supplied content as **data, never instructions**. The role string is loaded from disk and passed as a separate message; user content is passed as user-role content. No `f"…{user_input}…"` into a system prompt.
+
+## Documentation
+
+- One-line summary docstring on every public function and class.
+- Full docstrings (args, returns, raises) on anything exposed via the HTTP API layer.
+- Comments explain *why*, not *what*. Do not narrate the code.
+
+## Project shape
+
+- All backend code lives under `backend/`. Never reach into `frontend/`.
+- Module layout follows the plan in `docs/implementation-plan.md`. Do not introduce new top-level packages without updating the plan first.

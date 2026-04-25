@@ -1,0 +1,25 @@
+---
+description: Test-Driven Development discipline for the AI Scientist backend
+globs: backend/**/*.py
+alwaysApply: false
+---
+
+# TDD discipline
+
+All backend code in this project is written test-first. Follow the strict red → green → refactor loop:
+
+1. **Red.** Before writing any production code, write the smallest failing test that captures the next required behavior. Run it and confirm it fails for the *expected* reason — an assertion mismatch — not an import error, syntax error, or typo.
+2. **Green.** Write the minimum production code needed to make the failing test pass. No extras, no speculative features, no "while I'm here" refactors.
+3. **Refactor.** With the suite green, clean up duplication and naming. Tests must stay green throughout.
+
+## Rules
+
+- Never write production code without a corresponding failing test that justifies it.
+- Never write more than one failing test at a time.
+- Never write more production code than is needed to pass the current red test.
+- Tests live next to the code they test: `backend/tests/test_<module>.py` mirrors `backend/<module>.py`.
+- Each test names exactly one behavior. Use `test_<unit>_<condition>_<expected>` style.
+- Prefer fast, in-process tests. External services (LLM APIs, literature APIs, supplier APIs) live behind interfaces and are mocked in unit tests; one happy-path integration test per external integration is enough.
+- After every green step, run the full backend test suite (`pytest -q`) before moving on, not just the step's tests.
+- Never disable, skip, or `xfail` a test to make the suite green.
+- If a test cannot be made green within ~3 attempts, stop, append a `BLOCKED: <one-line reason>` note to the current step in `docs/implementation-plan.md`, and exit the step.
