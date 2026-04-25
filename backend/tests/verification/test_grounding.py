@@ -7,8 +7,13 @@
 
 from __future__ import annotations
 
+import httpx
 import pytest
+import pytest_asyncio
+from fastapi import FastAPI
 
+from app.api.errors import GroundingFailedRefused, register_exception_handlers
+from app.schemas.errors import ErrorCode
 from app.schemas.experiment_plan import (
     ExperimentPlan,
     GroundingSummary,
@@ -23,7 +28,7 @@ from app.schemas.literature_qc import (
 )
 from app.verification.catalog_resolver import FakeCatalogResolver
 from app.verification.citation_resolver import CitationOutcome, FakeCitationResolver
-from app.verification.grounding import apply_resolvers
+from app.verification.grounding import apply_resolvers, refuse_if_ungrounded
 
 NATURE_URL = "https://www.nature.com/articles/abc"
 FAKE_DOI_URL = "https://doi.org/10.9999/FAKE-fake-fake"
@@ -188,6 +193,68 @@ async def test_grounding_pipeline_filters_or_flags_fabricated_sku() -> None:
     assert materials_by_sku["SKU-FAKE-NEVER-EXISTED"].confidence == "low"
     assert grounded.grounding_summary.verified_count == 1
     assert grounded.grounding_summary.unverified_count == 1
+
+
+def _plan_with_materials(*, total: int) -> ExperimentPlan:
+    materials = [
+        Material(
+            reagent=f"reagent-{i}",
+            tier=SourceTier.TIER_1_PEER_REVIEWED,
+        )
+        for i in range(total)
+    ]
+    return _build_plan(references=[], materials=materials)
+
+
+def test_grounding_refuses_when_zero_verified_items() -> None:
+    plan = _plan_with_materials(total=2)
+    summary = GroundingSummary(verified_count=0, unverified_count=2, tier_0_drops=0)
+
+    with pytest.raises(GroundingFailedRefused):
+        refuse_if_ungrounded(plan, summary)
+
+
+def test_grounding_refuses_when_more_than_half_materials_unverified() -> None:
+    plan = _plan_with_materials(total=4)
+    summary = GroundingSummary(verified_count=1, unverified_count=2, tier_0_drops=0)
+
+    with pytest.raises(GroundingFailedRefused):
+        refuse_if_ungrounded(plan, summary)
+
+
+def test_grounding_does_not_refuse_when_majority_verified() -> None:
+    plan = _plan_with_materials(total=4)
+    summary = GroundingSummary(verified_count=3, unverified_count=1, tier_0_drops=0)
+
+    refuse_if_ungrounded(plan, summary)
+
+
+@pytest_asyncio.fixture
+async def grounding_app() -> FastAPI:
+    app = FastAPI()
+    register_exception_handlers(app)
+
+    @app.get("/_test/grounding-refused")
+    async def grounding_refused_route() -> None:
+        raise GroundingFailedRefused(
+            details={"verified_count": 0, "unverified_count": 5},
+        )
+
+    return app
+
+
+@pytest.mark.asyncio
+async def test_grounding_failed_refused_returns_422_with_error_response(
+    grounding_app: FastAPI,
+) -> None:
+    transport = httpx.ASGITransport(app=grounding_app)
+    async with httpx.AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.get("/_test/grounding-refused")
+
+    assert response.status_code == 422
+    payload = response.json()
+    assert payload["code"] == ErrorCode.GROUNDING_FAILED_REFUSED.value
+    assert payload["details"]["verified_count"] == 0
 
 
 @pytest.mark.asyncio

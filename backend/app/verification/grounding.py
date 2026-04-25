@@ -11,6 +11,7 @@ in its per-request log line.
 
 from __future__ import annotations
 
+from app.api.errors import GroundingFailedRefused
 from app.schemas.experiment_plan import (
     ExperimentPlan,
     GroundingSummary,
@@ -23,6 +24,8 @@ from app.verification.citation_resolver import (
     AbstractCitationResolver,
     CitationOutcome,
 )
+
+_UNVERIFIED_MATERIAL_RATIO = 0.5
 
 
 async def apply_resolvers(
@@ -120,6 +123,43 @@ def _unverified_step(step: ProtocolStep) -> ProtocolStep:
             "confidence": "low",
         }
     )
+
+
+def refuse_if_ungrounded(plan: ExperimentPlan, summary: GroundingSummary) -> None:
+    """Raise `GroundingFailedRefused` when the plan has no grounding to stand on.
+
+    Two refusal conditions, both pinned by the resolved-issue list at
+    the top of `docs/implementation-plan.md`:
+
+    1. `verified_count == 0` — nothing in the plan was verifiable.
+    2. `unverified_count / max(1, total_materials) >= 0.5` — more than
+       half the materials lack a verified supplier link.
+    """
+
+    total_materials = len(plan.materials)
+    if summary.verified_count == 0:
+        raise GroundingFailedRefused(
+            details={
+                "reason": "zero_verified_items",
+                "verified_count": summary.verified_count,
+                "unverified_count": summary.unverified_count,
+                "tier_0_drops": summary.tier_0_drops,
+                "total_materials": total_materials,
+            }
+        )
+
+    ratio = summary.unverified_count / max(1, total_materials)
+    if ratio >= _UNVERIFIED_MATERIAL_RATIO:
+        raise GroundingFailedRefused(
+            details={
+                "reason": "too_many_unverified_materials",
+                "verified_count": summary.verified_count,
+                "unverified_count": summary.unverified_count,
+                "total_materials": total_materials,
+                "ratio": ratio,
+                "threshold": _UNVERIFIED_MATERIAL_RATIO,
+            }
+        )
 
 
 def _step_reference_or_none(step: ProtocolStep) -> Reference | None:
