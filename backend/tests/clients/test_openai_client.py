@@ -5,11 +5,13 @@ from __future__ import annotations
 import pytest
 from pydantic import BaseModel
 
+from app.api.errors import OpenAIUnavailable
 from app.clients.openai_client import (
     ChatMessage,
     ChatResult,
     FakeOpenAIClient,
     ParsedResult,
+    RealOpenAIClient,
     TokenUsage,
 )
 
@@ -91,3 +93,21 @@ async def test_fake_openai_client_records_call_kwargs() -> None:
     assert call["seed"] == 11
     assert call["max_tokens"] == 256
     assert call["messages"][0].role == "system"
+
+
+def test_real_openai_client_missing_key_raises_clear_error() -> None:
+    with pytest.raises(OpenAIUnavailable):
+        RealOpenAIClient(api_key="")
+
+
+@pytest.mark.asyncio
+async def test_real_openai_client_aclose_closes_underlying_async_client() -> None:
+    client = RealOpenAIClient(api_key="sk-test-not-real")
+    closed_calls: list[int] = []
+
+    async def fake_close() -> None:
+        closed_calls.append(1)
+
+    client._client.close = fake_close  # type: ignore[method-assign]  # injected stub for test
+    await client.aclose()
+    assert closed_calls == [1]

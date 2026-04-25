@@ -5,7 +5,10 @@ from __future__ import annotations
 from abc import ABC, abstractmethod
 from typing import Any, Generic, Literal, TypeVar
 
+from openai import AsyncOpenAI
 from pydantic import BaseModel, Field
+
+from app.api.errors import OpenAIUnavailable
 
 ChatRole = Literal["system", "user", "assistant"]
 
@@ -148,3 +151,38 @@ class FakeOpenAIClient(AbstractOpenAIClient):
 
     async def aclose(self) -> None:
         self.closed = True
+
+
+class RealOpenAIClient(AbstractOpenAIClient):
+    """`openai.AsyncOpenAI`-backed implementation."""
+
+    def __init__(self, *, api_key: str) -> None:
+        if not api_key:
+            raise OpenAIUnavailable("OPENAI_API_KEY is empty; configure it in the environment.")
+        self._client = AsyncOpenAI(api_key=api_key)
+
+    async def chat(
+        self,
+        *,
+        model: str,
+        messages: list[ChatMessage],
+        temperature: float,
+        seed: int,
+        max_tokens: int,
+    ) -> ChatResult:
+        raise NotImplementedError
+
+    async def parse(
+        self,
+        *,
+        model: str,
+        messages: list[ChatMessage],
+        response_format: type[T],
+        temperature: float,
+        seed: int,
+        max_tokens: int,
+    ) -> ParsedResult[T]:
+        raise NotImplementedError
+
+    async def aclose(self) -> None:
+        await self._client.close()
