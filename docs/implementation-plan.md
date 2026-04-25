@@ -1945,3 +1945,5 @@ Steps belong to milestones M1–M6 (§6).
 
 ## Step 25 — green
 
+## Step 26 — green
+
