@@ -34,10 +34,12 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     openai_client = api_deps.build_openai_client(settings)
     tavily_client = api_deps.build_tavily_client(settings, source_tiers)
     citation_resolver = api_deps.build_citation_resolver(source_tiers)
+    catalog_resolver = api_deps.build_catalog_resolver(source_tiers)
 
     app.state.openai_client = openai_client
     app.state.tavily_client = tavily_client
     app.state.citation_resolver = citation_resolver
+    app.state.catalog_resolver = catalog_resolver
     app.state.source_tiers = source_tiers
 
     try:

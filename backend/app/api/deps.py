@@ -26,6 +26,10 @@ from app.clients.openai_client import (
 from app.clients.tavily_client import AbstractTavilyClient, RealTavilyClient
 from app.config.settings import Settings
 from app.config.source_tiers import SourceTiersConfig
+from app.verification.catalog_resolver import (
+    AbstractCatalogResolver,
+    RealCatalogResolver,
+)
 from app.verification.citation_resolver import (
     AbstractCitationResolver,
     RealCitationResolver,
@@ -82,6 +86,12 @@ def build_citation_resolver(source_tiers: SourceTiersConfig) -> AbstractCitation
     return RealCitationResolver(source_tiers=source_tiers)
 
 
+def build_catalog_resolver(source_tiers: SourceTiersConfig) -> AbstractCatalogResolver:
+    """Build the catalog resolver used by the grounding pipeline."""
+
+    return RealCatalogResolver(source_tiers=source_tiers)
+
+
 async def get_openai_client(request: Request) -> AbstractOpenAIClient:
     return cast(AbstractOpenAIClient, request.app.state.openai_client)
 
@@ -92,6 +102,10 @@ async def get_tavily_client(request: Request) -> AbstractTavilyClient:
 
 async def get_citation_resolver(request: Request) -> AbstractCitationResolver:
     return cast(AbstractCitationResolver, request.app.state.citation_resolver)
+
+
+async def get_catalog_resolver(request: Request) -> AbstractCatalogResolver:
+    return cast(AbstractCatalogResolver, request.app.state.catalog_resolver)
 
 
 async def get_source_tiers(request: Request) -> SourceTiersConfig:
