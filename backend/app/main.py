@@ -21,6 +21,7 @@ from app.api.middleware import RequestContextMiddleware
 from app.config.settings import get_settings
 from app.config.source_tiers import load_source_tiers
 from app.observability.logging import configure_logging
+from app.storage import db as storage_db
 
 
 @asynccontextmanager
@@ -35,18 +36,24 @@ async def lifespan(app: FastAPI) -> AsyncIterator[None]:
     tavily_client = api_deps.build_tavily_client(settings, source_tiers)
     citation_resolver = api_deps.build_citation_resolver(source_tiers)
     catalog_resolver = api_deps.build_catalog_resolver(source_tiers)
+    db_engine = storage_db.create_engine(settings)
+    await storage_db.create_all(db_engine)
+    db_session_factory = storage_db.async_session(db_engine)
 
     app.state.openai_client = openai_client
     app.state.tavily_client = tavily_client
     app.state.citation_resolver = citation_resolver
     app.state.catalog_resolver = catalog_resolver
     app.state.source_tiers = source_tiers
+    app.state.db_engine = db_engine
+    app.state.db_session_factory = db_session_factory
 
     try:
         yield
     finally:
         await openai_client.aclose()
         await tavily_client.aclose()
+        await db_engine.dispose()
 
 
 def create_app() -> FastAPI:
