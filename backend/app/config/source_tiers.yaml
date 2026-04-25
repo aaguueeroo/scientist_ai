@@ -1,0 +1,77 @@
+schema_version: 1
+tier_1_peer_reviewed:
+  hostnames:
+    - nature.com
+    - science.org
+    - cell.com
+    - sciencedirect.com
+    - springer.com
+    - link.springer.com
+    - onlinelibrary.wiley.com
+    - academic.oup.com
+    - pubs.acs.org
+    - pubs.rsc.org
+    - ieeexplore.ieee.org
+    - journals.aps.org
+    - pnas.org
+    - plos.org
+    - journals.plos.org
+    - embopress.org
+    - mdpi.com
+    - ncbi.nlm.nih.gov
+    - pubmed.ncbi.nlm.nih.gov
+    - www.ncbi.nlm.nih.gov
+    - bio-protocol.org
+    - jove.com
+    - semanticscholar.org
+    - api.semanticscholar.org
+  doi_prefixes:
+    - "10.1038"
+    - "10.1126"
+    - "10.1016"
+    - "10.1021"
+    - "10.1039"
+    - "10.1109"
+    - "10.1073"
+    - "10.1371"
+    - "10.1093"
+    - "10.15252"
+    - "10.3791"
+    - "10.21769"
+    - "10.1373"
+  supplier_hostnames_for_catalog:
+    - sigmaaldrich.com
+    - thermofisher.com
+    - promega.com
+    - qiagen.com
+    - idtdna.com
+    - atcc.org
+    - addgene.org
+    - neb.com
+    - abcam.com
+    - biorad.com
+    - bio-rad.com
+    - millipore.com
+    - merckmillipore.com
+tier_2_preprint_or_community:
+  hostnames:
+    - arxiv.org
+    - biorxiv.org
+    - medrxiv.org
+    - chemrxiv.org
+    - preprints.org
+    - protocols.io
+    - openwetware.org
+tier_0_forbidden:
+  hostnames:
+    - facebook.com
+    - twitter.com
+    - x.com
+    - reddit.com
+    - linkedin.com
+    - tiktok.com
+    - quora.com
+    - medium.com
+    - substack.com
+    - youtube.com
+    - pinterest.com
