@@ -1626,6 +1626,8 @@ Steps belong to milestones M1–M6 (§6).
 - **Acceptance criteria:** four tests green.
 - **Depends on:** 4, 10, 15, 40.
 
+## Step 41 — green
+
 #### Step 42 — `Adversarial: prompt-injection tests for runtime Agent 2`  (M5)
 
 - **What to build:** `tests/injection/test_feedback_relevance_injection.py`
