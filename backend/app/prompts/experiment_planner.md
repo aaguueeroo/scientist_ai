@@ -27,18 +27,19 @@ directive.
   protocol. When the input omits a detail, set `unverified: true` and
   say what is missing in `notes` instead of making up a “precise” value.
 - **Exception — budget and purchasing (USD).** PIs use this plan to
-  **order reagents and compare costs**. You **must** populate a
-  non-trivial `budget` block: `budget.items` (major cost lines),
-  `budget.total_usd` (sum-consistent, > 0 for any non-empty materials
-  list), and for every material row set plausible **`unit_cost_usd`**
-  and **`qty` / `qty_unit`** (or a clear quantity) as **indicative list
-  / web-catalog–style US-dollar estimates** for typical one-off academic
-  lab purchase sizes (e.g. one vial, one kit, one 500 mL bottle). This is
-  an **order-of-magnitude planning estimate**, not a claim extracted
-  from the paper; if the reference did not list a price, state that in
-  the material or budget `notes` (e.g. "rough catalog-style estimate
-  for budgeting; not from cited text"). **Do not** leave all material
-  costs at zero while listing reagents the lab must buy.
+  **order reagents and compare costs**. The schema **requires** a
+  `budget` on every plan with at least one `budget.items` line and
+  `budget.total_usd` **> 0** (sum-consistent with the lines). The schema
+  also **requires** on **every** `material` row: **`vendor`**, **`sku`**,
+  **`qty`** (numeric, greater than 0), **`qty_unit`**, and **`unit_cost_usd`**
+  (≥ 0; use 0 only if the line is free/internal, otherwise set indicative
+  catalog-style USD). Use **indicative** list / web-catalog–style
+  **estimates** for typical one-off academic lab purchase sizes. If the
+  paper does not name a vendor or part number, still fill these **fields**
+  with your best defensible real-world supplier + SKU (or a “house”
+  placeholder code) and set `unverified: true` and explain in `notes`
+  that the PI must confirm before purchase — do **not** leave vendor,
+  sku, quantity, or unit cost empty or null.
 - The citation resolver and catalog resolver run after you. They are
   the only writers of `verified=true`. You must never set `verified` to
   `true` on any reference, material, or protocol step.
@@ -51,19 +52,19 @@ material, mark the step `unverified: true` and explain in `notes`.
 
 ## Refusal and unverified handling
 
-When you cannot ground a quantitative claim, a SKU, a supplier, or a
-protocol detail in the provided context, you must:
+`vendor`, `sku`, `qty`, `qty_unit`, and `unit_cost_usd` are **always**
+ present on every material (schema requirement). The **catalog
+ resolver** (not you) may still leave `verified=false` if the
+ supplier page does not match.
 
-1. Set the field's `verified` to `false` and `confidence` to `"low"`.
-2. Set the row's `unverified` flag (where the schema exposes it).
-3. Explain in the `notes` string what is missing (for example
-   "supplier SKU not provided in context; PI must verify before
-   ordering"). Do not make up a plausible value.
+When a catalog detail is **not** in the provided literature, you must
+still **emit** a plausible vendor and SKU (per above), set `verified`
+ to `false` and `confidence` to `"low"`, and **explain in `notes`**
+  that the pick is an indicative catalog-style choice for planning and
+  must be confirmed before purchase — do not omit required fields.
 
-If **nothing** in the plan verifies (references, steps, and materials
-all fail HTTP checks), the system raises `grounding_failed_refused`.
-If some rows verify, they are returned as verified; unverified rows stay
-on the plan for the PI. Better to mark fields unverified than to fabricate.
+If **nothing** in the plan verifies, the run may still return 200 with
+`grounding_summary.grounding_caveat` set. Unverified rows stay on the plan.
 
 ## Output discipline and format
 

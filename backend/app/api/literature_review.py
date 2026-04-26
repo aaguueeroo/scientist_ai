@@ -9,7 +9,7 @@ from collections.abc import AsyncIterator, Iterator
 from typing import Annotated, Any
 
 import structlog
-from fastapi import APIRouter, Depends, Request
+from fastapi import APIRouter, Depends, Query, Request
 from fastapi.responses import StreamingResponse
 
 from app.agents.literature_qc import LiteratureQCAgent
@@ -209,6 +209,22 @@ def _stream_review_events(
             }
         env = {"event": "review_update", "data": data_obj}
         yield f"data: {json.dumps(env, ensure_ascii=False)}\n\n".encode()
+
+
+@router.get(
+    "/literature-reviews",
+    summary="List stored literature reviews",
+    description=(
+        "Returns up to `limit` rows from the literature store (newest first). "
+        "Each item includes the search `query` and `literature_review_id` used with "
+        "`POST /experiment-plan`. Only rows with the current schema version are included."
+    ),
+)
+async def list_literature_reviews(
+    repo: Annotated[LiteratureReviewRepo, Depends(get_literature_review_repo)],
+    limit: Annotated[int, Query(ge=1, le=200, description="Max rows to return.")] = 100,
+) -> dict[str, Any]:
+    return {"literature_reviews": await repo.list_literature_reviews(limit=limit)}
 
 
 @router.post(

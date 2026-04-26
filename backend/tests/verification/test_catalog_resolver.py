@@ -36,6 +36,9 @@ async def test_catalog_resolver_known_sigma_sku_resolves_and_sets_verified_true(
         reagent="Trehalose dihydrate",
         vendor="Sigma-Aldrich",
         sku=sku,
+        qty=1.0,
+        qty_unit="g",
+        unit_cost_usd=0.5,
         tier=SourceTier.TIER_1_PEER_REVIEWED,
     )
     out = await resolver.resolve(material)
@@ -56,6 +59,9 @@ async def test_catalog_resolver_fabricated_sku_is_rejected_with_verified_false()
         reagent="Made-up reagent",
         vendor="Sigma-Aldrich",
         sku=sku,
+        qty=1.0,
+        qty_unit="each",
+        unit_cost_usd=1.0,
         tier=SourceTier.TIER_1_PEER_REVIEWED,
     )
     out = await resolver.resolve(material)
@@ -72,6 +78,9 @@ async def test_catalog_resolver_unknown_supplier_returns_unverified_low_confiden
         reagent="Some reagent",
         vendor="Unknown Vendor Ltd.",
         sku="X-1234",
+        qty=1.0,
+        qty_unit="each",
+        unit_cost_usd=10.0,
         tier=SourceTier.TIER_3_GENERAL_WEB,
     )
     out = await resolver.resolve(material)
@@ -85,6 +94,9 @@ async def test_fake_catalog_resolver_returns_canned_results() -> None:
         reagent="Trehalose dihydrate",
         vendor="Sigma-Aldrich",
         sku="T9531",
+        qty=1.0,
+        qty_unit="g",
+        unit_cost_usd=0.5,
         tier=SourceTier.TIER_1_PEER_REVIEWED,
     )
     canned = in_material.model_copy(

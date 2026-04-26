@@ -7,6 +7,8 @@
 from __future__ import annotations
 
 from app.schemas.experiment_plan import (
+    Budget,
+    BudgetLineItem,
     ExperimentPlan,
     GroundingSummary,
     Material,
@@ -34,6 +36,10 @@ def _plan(
         novelty=NoveltyLabel.SIMILAR_WORK_EXISTS,
         protocol=protocol or [],
         materials=materials or [],
+        budget=Budget(
+            items=[BudgetLineItem(label="MIQE test budget", cost_usd=1.0)],
+            total_usd=1.0,
+        ),
         validation=validation or ValidationPlan(),
         grounding_summary=GroundingSummary(verified_count=0, unverified_count=0),
     )

@@ -22,11 +22,25 @@ class Material(OpenAIStructuredModel):
     """A reagent / consumable with supplier grounding."""
 
     reagent: str = Field(min_length=1, max_length=300)
-    vendor: str | None = None
-    sku: str | None = None
-    qty: float | None = None
-    qty_unit: str | None = None
-    unit_cost_usd: float | None = None
+    vendor: str = Field(
+        min_length=1,
+        max_length=200,
+        description="Supplier name; use a placeholder note in `notes` if unknown, not an empty string.",
+    )
+    sku: str = Field(
+        min_length=1,
+        max_length=120,
+        description="Catalog or part number; use 'TBD' in `notes` if truly not yet chosen.",
+    )
+    qty: float = Field(
+        gt=0,
+        description="Order quantity in `qty_unit` (e.g. 1 vial, 500 g).",
+    )
+    qty_unit: str = Field(min_length=1, max_length=80, description="e.g. g, mL, each, vial, bottle.")
+    unit_cost_usd: float = Field(
+        ge=0.0,
+        description="List-style USD unit price for budgeting (0 only if free/internal).",
+    )
     source_url: str | None = Field(default=None, max_length=2048)
     notes: str | None = Field(default=None, max_length=2000)
     tier: SourceTier
@@ -60,8 +74,14 @@ class BudgetLineItem(OpenAIStructuredModel):
 class Budget(OpenAIStructuredModel):
     """Aggregate budget; total is exposed explicitly so the LLM can echo it."""
 
-    items: list[BudgetLineItem] = Field(default_factory=list)
-    total_usd: float = Field(ge=0.0)
+    items: list[BudgetLineItem] = Field(
+        min_length=1,
+        description="At least one line item; should align with materials when materials are listed.",
+    )
+    total_usd: float = Field(
+        gt=0.0,
+        description="Must be positive; sum-consistent with `items` and material economics where applicable.",
+    )
     currency: Literal["USD"] = "USD"
 
 
@@ -147,7 +167,7 @@ class ExperimentPlan(OpenAIStructuredModel):
     references: list[Reference] = Field(default_factory=list)
     protocol: list[ProtocolStep] = Field(default_factory=list)
     materials: list[Material] = Field(default_factory=list)
-    budget: Budget | None = None
+    budget: Budget
     timeline: list[TimelinePhase] = Field(default_factory=list)
     validation: ValidationPlan
     risks: list[Risk] = Field(default_factory=list)

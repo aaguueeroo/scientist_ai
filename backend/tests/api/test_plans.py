@@ -46,6 +46,9 @@ def _build_full_path_clients() -> tuple[
         reagent="Trehalose dihydrate",
         vendor="Sigma-Aldrich",
         sku="T9531",
+        qty=1.0,
+        qty_unit="g",
+        unit_cost_usd=0.5,
         tier=SourceTier.TIER_1_PEER_REVIEWED,
     ).model_copy(
         update={
@@ -58,6 +61,9 @@ def _build_full_path_clients() -> tuple[
         reagent="DMEM cell-culture medium",
         vendor="Thermo Fisher",
         sku="11965092",
+        qty=500.0,
+        qty_unit="mL",
+        unit_cost_usd=0.1,
         tier=SourceTier.TIER_1_PEER_REVIEWED,
     ).model_copy(
         update={
@@ -184,3 +190,47 @@ async def test_delete_plans_id_unknown_returns_404(
     assert response.status_code == 404
     body = response.json()
     assert body["code"] == ErrorCode.VALIDATION_ERROR.value
+
+
+@pytest.mark.asyncio
+async def test_get_plans_list_returns_saved_plan_and_respects_limit(
+    persisted_app: FastAPI,
+) -> None:
+    transport = ASGITransport(app=persisted_app, raise_app_exceptions=False)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        post_body = await post_literature_then_experiment_plan(client, query=SAMPLE_HYPOTHESIS)
+        plan_id = post_body["plan_id"]
+
+        listed = await client.get("/plans", params={"limit": 5})
+        assert listed.status_code == 200, listed.text
+        body = listed.json()
+    plans = body["plans"]
+    assert isinstance(plans, list)
+    assert len(plans) >= 1
+    match = next((p for p in plans if p.get("plan_id") == plan_id), None)
+    assert match is not None
+    assert match["query"] == SAMPLE_HYPOTHESIS
+    assert "created_at" in match
+    assert "request_id" in match
+    assert "schema_version" in match
+
+
+@pytest.mark.asyncio
+async def test_get_literature_reviews_list_returns_row_and_respects_limit(
+    persisted_app: FastAPI,
+) -> None:
+    transport = ASGITransport(app=persisted_app, raise_app_exceptions=False)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        await post_literature_then_experiment_plan(client, query=SAMPLE_HYPOTHESIS)
+
+        listed = await client.get("/literature-reviews", params={"limit": 5})
+        assert listed.status_code == 200, listed.text
+        body = listed.json()
+    items = body["literature_reviews"]
+    assert isinstance(items, list)
+    assert len(items) >= 1
+    assert any(SAMPLE_HYPOTHESIS in (x.get("query") or "") for x in items)
+    for row in items:
+        assert "literature_review_id" in row
+        assert "request_id" in row
+        assert "created_at" in row

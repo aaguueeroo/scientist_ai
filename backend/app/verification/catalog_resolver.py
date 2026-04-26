@@ -47,7 +47,7 @@ class RealCatalogResolver(AbstractCatalogResolver):
     timeout_s: float = 5.0
 
     async def resolve(self, material: Material) -> Material:
-        if material.sku is None or material.vendor is None:
+        if not material.vendor.strip() or not material.sku.strip():
             return _mark_unverified(material, "missing vendor or sku")
 
         vendor_key = material.vendor.strip().lower()
