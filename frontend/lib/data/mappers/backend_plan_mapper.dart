@@ -1,7 +1,10 @@
+import 'dart:math';
+
 import '../../core/id_generator.dart';
 import '../../models/experiment_plan.dart';
 import '../../models/generate_plan_result.dart';
 import '../../models/literature_qc.dart';
+import '../../models/plan_source_ref.dart';
 import '../dto/experiment_plan_nested_dto.dart'
     show
         BackendExperimentPlanDto,
@@ -40,8 +43,12 @@ class BackendPlanMapper {
             tier0Drops: dto.groundingSummary!.tier0Drops,
             groundingCaveat: dto.groundingSummary!.groundingCaveat,
           );
-    final ExperimentPlan? plan =
-        dto.plan == null ? null : backendPlanToDomain(dto.plan!);
+    final ExperimentPlan? plan = dto.plan == null
+        ? null
+        : _withMockSourceReferences(
+            plan: backendPlanToDomain(dto.plan!),
+            bibliographyCount: qc.references.length,
+          );
     return GeneratePlanResult(
       planId: dto.planId,
       requestId: dto.requestId,
@@ -217,5 +224,97 @@ class BackendPlanMapper {
       verificationUrl: m.verificationUrl,
       confidence: m.confidence,
     );
+  }
+
+  static ExperimentPlan _withMockSourceReferences({
+    required ExperimentPlan plan,
+    required int bibliographyCount,
+  }) {
+    final int seed = Object.hash(
+      plan.hypothesis,
+      plan.description,
+      plan.timePlan.steps.length,
+      plan.budget.materials.length,
+      bibliographyCount,
+    );
+    final Random random = Random(seed);
+    final List<Step> patchedSteps = plan.timePlan.steps
+        .map(
+          (Step step) => step.sourceRefs.isNotEmpty
+              ? step
+              : step.copyWith(
+                  sourceRefs: _mockRefsForPlanNode(
+                    random: random,
+                    bibliographyCount: bibliographyCount,
+                    maxLiteratureRefs: 3,
+                    previousLearningProbability: 0.25,
+                  ),
+                ),
+        )
+        .toList(growable: false);
+    final List<Material> patchedMaterials = plan.budget.materials
+        .map(
+          (Material material) => material.sourceRefs.isNotEmpty
+              ? material
+              : material.copyWith(
+                  sourceRefs: _mockRefsForPlanNode(
+                    random: random,
+                    bibliographyCount: bibliographyCount,
+                    maxLiteratureRefs: 2,
+                    previousLearningProbability: 0.20,
+                  ),
+                ),
+        )
+        .toList(growable: false);
+    final List<PlanSourceRef> patchedStepSectionRefs =
+        plan.stepsSectionSourceRefs.isNotEmpty
+            ? plan.stepsSectionSourceRefs
+            : _mockRefsForPlanNode(
+                random: random,
+                bibliographyCount: bibliographyCount,
+                maxLiteratureRefs: 2,
+                previousLearningProbability: 0.35,
+              );
+    final List<PlanSourceRef> patchedMaterialsSectionRefs =
+        plan.materialsSectionSourceRefs.isNotEmpty
+            ? plan.materialsSectionSourceRefs
+            : _mockRefsForPlanNode(
+                random: random,
+                bibliographyCount: bibliographyCount,
+                maxLiteratureRefs: 2,
+                previousLearningProbability: 0.30,
+              );
+    return plan.copyWith(
+      timePlan: plan.timePlan.copyWith(steps: patchedSteps),
+      budget: plan.budget.copyWith(materials: patchedMaterials),
+      stepsSectionSourceRefs: patchedStepSectionRefs,
+      materialsSectionSourceRefs: patchedMaterialsSectionRefs,
+    );
+  }
+
+  static List<PlanSourceRef> _mockRefsForPlanNode({
+    required Random random,
+    required int bibliographyCount,
+    required int maxLiteratureRefs,
+    required double previousLearningProbability,
+  }) {
+    final List<PlanSourceRef> refs = <PlanSourceRef>[];
+    if (bibliographyCount > 0) {
+      final int cappedMax = min(maxLiteratureRefs, bibliographyCount);
+      final int selectedCount = 1 + random.nextInt(cappedMax);
+      final List<int> pool = List<int>.generate(
+        bibliographyCount,
+        (int i) => i + 1,
+      )..shuffle(random);
+      refs.addAll(
+        pool
+            .take(selectedCount)
+            .map((int index) => LiteratureSourceRef(referenceIndex: index)),
+      );
+    }
+    if (random.nextDouble() < previousLearningProbability) {
+      refs.add(const PreviousLearningSourceRef());
+    }
+    return refs;
   }
 }
