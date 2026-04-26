@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'package:provider/single_child_widget.dart';
 import 'package:toastification/toastification.dart';
 
+import 'controllers/marie_shell_peek_controller.dart';
 import 'controllers/user_api_keys_store.dart';
 import 'controllers/projects_controller.dart';
 import 'controllers/review_store_controller.dart';
@@ -71,6 +72,9 @@ class _ScientistAppState extends State<ScientistApp> {
         ChangeNotifierProvider<ScientistController>(
           create: (BuildContext c) =>
               ScientistController(repository: c.read<ScientistRepository>()),
+        ),
+        ChangeNotifierProvider<MarieShellPeekController>(
+          create: (_) => MarieShellPeekController(),
         ),
         ChangeNotifierProvider<ReviewStoreController>(
           create: (BuildContext c) => ReviewStoreController(

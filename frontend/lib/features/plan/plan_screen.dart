@@ -5,6 +5,8 @@ import 'package:provider/provider.dart';
 import '../../controllers/scientist_controller.dart';
 import '../../core/app_constants.dart';
 import '../../core/theme/theme_context.dart';
+import '../shell/marie_shell_peek_sync.dart';
+import '../shell/marie_workspace_peek_visibility.dart';
 import '../../models/experiment_plan.dart';
 import '../../models/literature_qc.dart';
 import '../../models/literature_review.dart';
@@ -22,7 +24,10 @@ class PlanScreen extends StatelessWidget {
     final String? projectId =
         GoRouterState.of(context).uri.queryParameters['projectId'];
     if (projectId != null && projectId.isNotEmpty) {
-      return ProjectPlanScreen(projectId: projectId);
+      return MarieShellPeekSync(
+        visible: false,
+        child: ProjectPlanScreen(projectId: projectId),
+      );
     }
     return Padding(
       padding: const EdgeInsets.fromLTRB(
@@ -37,41 +42,44 @@ class PlanScreen extends StatelessWidget {
           ScientistController controller,
           Widget? child,
         ) {
-          return Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              WorkspaceStepHeader(
-                stepIndex: 2,
-                stepLabels: kWorkspaceStepLabels,
-                stepEnabled: workspaceStepEnabled(
-                  currentQuery: controller.currentQuery,
-                  isLoadingPlan: controller.isLoadingPlan,
-                  experimentPlan: controller.experimentPlan,
-                  planError: controller.planError,
-                  planFetchQc: controller.planFetchQc,
+          return MarieShellPeekSync(
+            visible: mariePeekShowPlanBody(controller),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                WorkspaceStepHeader(
+                  stepIndex: 2,
+                  stepLabels: kWorkspaceStepLabels,
+                  stepEnabled: workspaceStepEnabled(
+                    currentQuery: controller.currentQuery,
+                    isLoadingPlan: controller.isLoadingPlan,
+                    experimentPlan: controller.experimentPlan,
+                    planError: controller.planError,
+                    planFetchQc: controller.planFetchQc,
+                  ),
+                  onSelect: (int i) => navigateToWorkspaceStep(context, i),
                 ),
-                onSelect: (int i) => navigateToWorkspaceStep(context, i),
-              ),
-              const SizedBox(height: kSpace32),
-              Expanded(
-                child: _PlanBody(
-                  isLoadingPlan: controller.isLoadingPlan,
-                  planError: controller.planError,
-                  planErrorRequestId: controller.planErrorRequestId,
-                  plan: controller.experimentPlan,
-                  planFetchQc: controller.planFetchQc,
-                  currentQuery: controller.currentQuery,
-                  conversationId: controller.currentConversationId,
-                  usedPriorFeedback: controller.usedPriorFeedback,
-                  planGroundingCaveat: controller.planGroundingCaveat,
-                  literatureReview: controller.literatureReview,
-                  isLoadingLiterature: controller.isLoadingLiterature,
-                  onRequestExperimentPlan: controller.loadExperimentPlan,
-                  onRetry: controller.loadExperimentPlan,
-                  onLivePlanChanged: controller.applyCorrectedPlan,
+                const SizedBox(height: kSpace32),
+                Expanded(
+                  child: _PlanBody(
+                    isLoadingPlan: controller.isLoadingPlan,
+                    planError: controller.planError,
+                    planErrorRequestId: controller.planErrorRequestId,
+                    plan: controller.experimentPlan,
+                    planFetchQc: controller.planFetchQc,
+                    currentQuery: controller.currentQuery,
+                    conversationId: controller.currentConversationId,
+                    usedPriorFeedback: controller.usedPriorFeedback,
+                    planGroundingCaveat: controller.planGroundingCaveat,
+                    literatureReview: controller.literatureReview,
+                    isLoadingLiterature: controller.isLoadingLiterature,
+                    onRequestExperimentPlan: controller.loadExperimentPlan,
+                    onRetry: controller.loadExperimentPlan,
+                    onLivePlanChanged: controller.applyCorrectedPlan,
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           );
         },
       ),

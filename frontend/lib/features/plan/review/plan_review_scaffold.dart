@@ -183,6 +183,7 @@ class _ReviewScaffoldShell extends StatelessWidget {
     return PlanSourcesNavigatorScope(
       literatureReview: literatureReview,
       child: Stack(
+        clipBehavior: Clip.none,
         children: <Widget>[
           Positioned.fill(
             child: Padding(

@@ -8,6 +8,8 @@ import '../../core/theme/theme_context.dart';
 import '../../core/app_routes.dart';
 import '../../models/literature_review.dart';
 import '../plan/widgets/workspace_step_header.dart';
+import '../shell/marie_shell_peek_sync.dart';
+import '../shell/marie_workspace_peek_visibility.dart';
 import '../../ui/app_surface.dart';
 import 'widgets/literature_empty.dart';
 import 'widgets/literature_loading.dart';
@@ -29,14 +31,16 @@ class LiteratureScreen extends StatelessWidget {
         final String headline = review != null && review.doesSimilarWorkExist
             ? '${review.totalSources} papers found'
             : 'Literature Review';
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(
-            kSpace40,
-            kSpace32,
-            kSpace40,
-            kSpace24,
-          ),
-          child: Column(
+        return MarieShellPeekSync(
+          visible: mariePeekShowLiteratureBody(controller),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              kSpace40,
+              kSpace32,
+              kSpace40,
+              kSpace24,
+            ),
+            child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
               WorkspaceStepHeader(
@@ -70,29 +74,10 @@ class LiteratureScreen extends StatelessWidget {
                 const SizedBox(height: kSpace16),
               ],
               Expanded(
-                child: controller.isLoadingLiterature && review == null
-                    ? const LiteratureLoading()
-                    : review == null
-                        ? const SizedBox.shrink()
-                        : review.sources.isEmpty
-                            ? const LiteratureEmpty()
-                            : ListView.builder(
-                                itemCount: review.sources.length,
-                                itemBuilder:
-                                    (BuildContext context, int index) {
-                                  return Padding(
-                                    padding: EdgeInsets.only(
-                                      bottom: index ==
-                                              review.sources.length - 1
-                                          ? 0
-                                          : kSpace12,
-                                    ),
-                                    child: SourceTile(
-                                      source: review.sources[index],
-                                    ),
-                                  );
-                                },
-                              ),
+                child: _LiteratureExpandedBody(
+                  controller: controller,
+                  review: review,
+                ),
               ),
               if (!controller.isLoadingLiterature) ...<Widget>[
                 const SizedBox(height: kSpace24),
@@ -114,6 +99,44 @@ class LiteratureScreen extends StatelessWidget {
                 ),
               ],
             ],
+            ),
+          ),
+        );
+      },
+    );
+  }
+}
+
+class _LiteratureExpandedBody extends StatelessWidget {
+  const _LiteratureExpandedBody({
+    required this.controller,
+    required this.review,
+  });
+
+  final ScientistController controller;
+  final LiteratureReview? review;
+
+  @override
+  Widget build(BuildContext context) {
+    if (controller.isLoadingLiterature && review == null) {
+      return const LiteratureLoading();
+    }
+    if (review == null) {
+      return const SizedBox.shrink();
+    }
+    final LiteratureReview loadedReview = review!;
+    if (loadedReview.sources.isEmpty) {
+      return const LiteratureEmpty();
+    }
+    return ListView.builder(
+      itemCount: loadedReview.sources.length,
+      itemBuilder: (BuildContext context, int index) {
+        return Padding(
+          padding: EdgeInsets.only(
+            bottom: index == loadedReview.sources.length - 1 ? 0 : kSpace12,
+          ),
+          child: SourceTile(
+            source: loadedReview.sources[index],
           ),
         );
       },

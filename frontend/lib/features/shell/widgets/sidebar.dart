@@ -7,7 +7,6 @@ import '../../../controllers/review_store_controller.dart';
 import '../../../controllers/role_controller.dart';
 import '../../../controllers/scientist_controller.dart';
 import '../../../core/app_constants.dart';
-import '../../../core/app_router.dart';
 import '../../../core/app_routes.dart';
 import '../../../core/app_toasts.dart';
 import '../../../core/conversation_query_key.dart';
@@ -15,6 +14,7 @@ import '../../../core/theme/theme_context.dart';
 import '../../../models/project.dart';
 import '../../../models/user_role.dart';
 import '../../review/widgets/review_list_pane.dart';
+import '../../settings/user_api_keys_manage_panel.dart';
 import 'ongoing_project_tile.dart';
 import 'past_conversation_tile.dart';
 import 'sidebar_nav_link.dart';
@@ -100,7 +100,6 @@ class Sidebar extends StatelessWidget {
     if (currentBranch == kBranchReviewer) {
       return _ReviewerSidebar(
         navigationShell: navigationShell,
-        textTheme: textTheme,
         scheme: scheme,
       );
     }
@@ -127,9 +126,14 @@ class Sidebar extends StatelessWidget {
                   kSpace24,
                   kSpace16,
                 ),
-                child: Text(
-                  'Marie Query',
-                  style: textTheme.titleLarge,
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Image.asset(
+                    kSidebarLogoAsset,
+                    height: kSidebarLogoHeight,
+                    fit: BoxFit.contain,
+                    semanticLabel: 'Marie Query',
+                  ),
                 ),
               ),
               Padding(
@@ -281,7 +285,7 @@ class Sidebar extends StatelessWidget {
                   roleController.setRole(next);
                 },
                 onOpenSettings: () => _showSettingsPlaceholder(context),
-                onOpenApiKeys: () => context.go(kRouteOpenAiApiKeys),
+                onOpenApiKeys: () => showManageUserApiKeysDialog(context),
               ),
             ],
           );
@@ -294,12 +298,10 @@ class Sidebar extends StatelessWidget {
 class _ReviewerSidebar extends StatelessWidget {
   const _ReviewerSidebar({
     required this.navigationShell,
-    required this.textTheme,
     required this.scheme,
   });
 
   final StatefulNavigationShell navigationShell;
-  final TextTheme textTheme;
   final ColorScheme scheme;
 
   @override
@@ -327,9 +329,14 @@ class _ReviewerSidebar extends StatelessWidget {
                   kSpace24,
                   kSpace16,
                 ),
-                child: Text(
-                  'Marie Query',
-                  style: textTheme.titleLarge,
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: Image.asset(
+                    kSidebarLogoAsset,
+                    height: kSidebarLogoHeight,
+                    fit: BoxFit.contain,
+                    semanticLabel: 'Marie Query',
+                  ),
                 ),
               ),
               Padding(
@@ -378,7 +385,7 @@ class _ReviewerSidebar extends StatelessWidget {
                     autoCloseDuration: const Duration(seconds: 2),
                   );
                 },
-                onOpenApiKeys: () => context.go(kRouteOpenAiApiKeys),
+                onOpenApiKeys: () => showManageUserApiKeysDialog(context),
               ),
             ],
           );

@@ -16,6 +16,32 @@ import 'user_api_keys_navigation.dart';
 /// Root [NavigatorState] for native desktop menus and imperative navigation.
 final GlobalKey<NavigatorState> appRootNavigatorKey = GlobalKey<NavigatorState>();
 
+/// Mirrors go_router’s default indexed shell container, but uses
+/// [IndexedStack.clipBehavior] of [Clip.none] so route content (e.g. workspace
+/// decorations) can paint past the stack bounds into the shell gutters.
+Widget _conversationBranchIndexedStack(
+  BuildContext context,
+  StatefulNavigationShell navigationShell,
+  List<Widget> children,
+) {
+  final int currentIndex = navigationShell.currentIndex;
+  final List<Widget> stackItems = <Widget>[
+    for (int i = 0; i < children.length; i++)
+      Offstage(
+        offstage: currentIndex != i,
+        child: TickerMode(
+          enabled: currentIndex == i,
+          child: children[i],
+        ),
+      ),
+  ];
+  return IndexedStack(
+    index: currentIndex,
+    clipBehavior: Clip.none,
+    children: stackItems,
+  );
+}
+
 GoRouter createAppRouter({
   required UserApiKeysStore userApiKeysStore,
 }) {
@@ -36,7 +62,8 @@ GoRouter createAppRouter({
           return const UserApiKeysScreen();
         },
       ),
-      StatefulShellRoute.indexedStack(
+      StatefulShellRoute(
+        navigatorContainerBuilder: _conversationBranchIndexedStack,
         builder: (
           BuildContext context,
           GoRouterState state,
@@ -104,7 +131,3 @@ GoRouter createAppRouter({
     ],
   );
 }
-
-/// Branch indices for [StatefulNavigationShell.goBranch].
-const int kBranchConversation = 0;
-const int kBranchReviewer = 1;

@@ -4,6 +4,8 @@ import 'package:provider/provider.dart';
 import '../../controllers/scientist_controller.dart';
 import '../../core/app_constants.dart';
 import '../../core/theme/theme_context.dart';
+import '../shell/marie_shell_peek_sync.dart';
+import '../shell/marie_workspace_peek_visibility.dart';
 import '../../models/experiment_plan.dart';
 import '../../models/literature_review.dart';
 import '../literature/widgets/literature_loading.dart';
@@ -38,33 +40,36 @@ class _PastConversationScreenState extends State<PastConversationScreen> {
         ScientistController controller,
         Widget? child,
       ) {
-        return Padding(
-          padding: const EdgeInsets.fromLTRB(
-            kSpace40,
-            kSpace32,
-            kSpace40,
-            kSpace40,
-          ),
-          child: Column(
-            crossAxisAlignment: CrossAxisAlignment.stretch,
-            children: <Widget>[
-              WorkspaceStepHeader(
-                stepIndex: _stepIndex,
-                stepLabels: kWorkspaceStepLabels,
-                stepEnabled: workspaceStepEnabled(
-                  currentQuery: controller.currentQuery,
-                  isLoadingPlan: controller.isLoadingPlan,
-                  experimentPlan: controller.experimentPlan,
-                  planError: controller.planError,
-                  planFetchQc: controller.planFetchQc,
+        return MarieShellPeekSync(
+          visible: mariePeekShowPastConversation(controller, _stepIndex),
+          child: Padding(
+            padding: const EdgeInsets.fromLTRB(
+              kSpace40,
+              kSpace32,
+              kSpace40,
+              kSpace40,
+            ),
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.stretch,
+              children: <Widget>[
+                WorkspaceStepHeader(
+                  stepIndex: _stepIndex,
+                  stepLabels: kWorkspaceStepLabels,
+                  stepEnabled: workspaceStepEnabled(
+                    currentQuery: controller.currentQuery,
+                    isLoadingPlan: controller.isLoadingPlan,
+                    experimentPlan: controller.experimentPlan,
+                    planError: controller.planError,
+                    planFetchQc: controller.planFetchQc,
+                  ),
+                  onSelect: _goToStep,
                 ),
-                onSelect: _goToStep,
-              ),
-              const SizedBox(height: kSpace32),
-              Expanded(
-                child: IndexedStack(
-                  index: _stepIndex,
-                  children: <Widget>[
+                const SizedBox(height: kSpace32),
+                Expanded(
+                  child: IndexedStack(
+                    clipBehavior: Clip.none,
+                    index: _stepIndex,
+                    children: <Widget>[
                     BlackboardPromptView(query: controller.currentQuery),
                     _LiteraturePane(
                       review: controller.literatureReview,
@@ -82,10 +87,11 @@ class _PastConversationScreenState extends State<PastConversationScreen> {
                       onRequestExperimentPlan: controller.loadExperimentPlan,
                       onLivePlanChanged: controller.applyCorrectedPlan,
                     ),
-                  ],
+                    ],
+                  ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         );
       },
@@ -193,7 +199,9 @@ class _LiteraturePane extends StatelessWidget {
                             ? 0
                             : kSpace12,
                       ),
-                      child: SourceTile(source: currentReview.sources[index]),
+                      child: SourceTile(
+                        source: currentReview.sources[index],
+                      ),
                     );
                   },
                 ),
