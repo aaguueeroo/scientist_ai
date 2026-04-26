@@ -56,7 +56,11 @@ class PlanReviewController extends ChangeNotifier {
         const <ReviewSection, SectionFeedback>{},
     List<SuggestionBatch> initialAcceptedBatches =
         const <SuggestionBatch>[],
-  })  : _original = source,
+    List<PlanVersion>? initialVersions,
+    String? initialViewingVersionId,
+  })  : _original = initialVersions != null && initialVersions.isNotEmpty
+            ? deepCopyExperimentPlan(initialVersions.first.snapshot)
+            : source,
         _onLivePlanChanged = onLivePlanChanged,
         _palette = palette ?? BatchColorPalette(),
         _localAuthorId = localAuthorId,
@@ -67,16 +71,31 @@ class PlanReviewController extends ChangeNotifier {
         _focusedSection = focusedSection,
         _focusedPolarity = focusedPolarity,
         _isReadOnlyFocus = isReadOnlyFocus {
-    _versions.add(
-      PlanVersion(
-        id: generateLocalId('ver'),
-        snapshot: source,
-        batchId: null,
-        authorId: _baselineAuthorId,
-        at: DateTime.now(),
-        changeCount: 0,
-      ),
-    );
+    if (initialVersions != null && initialVersions.isNotEmpty) {
+      for (final PlanVersion v in initialVersions) {
+        _versions.add(
+          PlanVersion(
+            id: v.id,
+            snapshot: deepCopyExperimentPlan(v.snapshot),
+            batchId: v.batchId,
+            authorId: v.authorId,
+            at: v.at,
+            changeCount: v.changeCount,
+          ),
+        );
+      }
+    } else {
+      _versions.add(
+        PlanVersion(
+          id: generateLocalId('ver'),
+          snapshot: source,
+          batchId: null,
+          authorId: _baselineAuthorId,
+          at: DateTime.now(),
+          changeCount: 0,
+        ),
+      );
+    }
     if (initialComments.isNotEmpty) {
       _comments.addAll(initialComments);
     }
@@ -85,6 +104,12 @@ class PlanReviewController extends ChangeNotifier {
     }
     if (initialAcceptedBatches.isNotEmpty) {
       _acceptedBatches.addAll(initialAcceptedBatches);
+    }
+    if (initialViewingVersionId != null) {
+      final bool known = _versions.any(
+        (PlanVersion v) => v.id == initialViewingVersionId,
+      );
+      _viewingVersionId = known ? initialViewingVersionId : null;
     }
   }
 
@@ -332,27 +357,92 @@ class PlanReviewController extends ChangeNotifier {
     notifyListeners();
   }
 
-  /// Builds one [global_review.CorrectionReview] per [FieldChange] in
-  /// [batch] and forwards them to [_onReviewsEmitted]. Insert/remove
-  /// changes are not currently surfaced as standalone review rows in v1.
+  /// Builds one [global_review.CorrectionReview] per [PlanChange] in
+  /// [batch] and forwards them to [_onReviewsEmitted]. Field changes,
+  /// step/material insertions and removals are all surfaced.
   void _emitCorrectionReviews(SuggestionBatch batch) {
     final ReviewsEmittedCallback? cb = _onReviewsEmitted;
     if (cb == null) return;
     final List<global_review.Review> emitted = <global_review.Review>[];
     for (final PlanChange change in batch.changes) {
-      if (change is! FieldChange) continue;
-      emitted.add(
-        global_review.CorrectionReview(
-          id: generateLocalId('review'),
-          conversationId: _conversationId,
-          query: _query,
-          originalPlan: _original,
-          createdAt: DateTime.now(),
-          target: change.target,
-          before: change.before,
-          after: change.after,
-        ),
-      );
+      if (change is FieldChange) {
+        emitted.add(
+          global_review.CorrectionReview(
+            id: generateLocalId('review'),
+            conversationId: _conversationId,
+            query: _query,
+            originalPlan: _original,
+            createdAt: DateTime.now(),
+            target: change.target,
+            before: change.before,
+            after: change.after,
+          ),
+        );
+      } else if (change is StepInserted) {
+        emitted.add(
+          global_review.CorrectionReview(
+            id: generateLocalId('review'),
+            conversationId: _conversationId,
+            query: _query,
+            originalPlan: _original,
+            createdAt: DateTime.now(),
+            target: StepFieldTarget(
+              stepId: change.step.id,
+              field: StepField.name,
+            ),
+            before: null,
+            after: change.step,
+          ),
+        );
+      } else if (change is StepRemoved) {
+        emitted.add(
+          global_review.CorrectionReview(
+            id: generateLocalId('review'),
+            conversationId: _conversationId,
+            query: _query,
+            originalPlan: _original,
+            createdAt: DateTime.now(),
+            target: StepFieldTarget(
+              stepId: change.step.id,
+              field: StepField.name,
+            ),
+            before: change.step,
+            after: null,
+          ),
+        );
+      } else if (change is MaterialInserted) {
+        emitted.add(
+          global_review.CorrectionReview(
+            id: generateLocalId('review'),
+            conversationId: _conversationId,
+            query: _query,
+            originalPlan: _original,
+            createdAt: DateTime.now(),
+            target: MaterialFieldTarget(
+              materialId: change.material.id,
+              field: MaterialField.title,
+            ),
+            before: null,
+            after: change.material,
+          ),
+        );
+      } else if (change is MaterialRemoved) {
+        emitted.add(
+          global_review.CorrectionReview(
+            id: generateLocalId('review'),
+            conversationId: _conversationId,
+            query: _query,
+            originalPlan: _original,
+            createdAt: DateTime.now(),
+            target: MaterialFieldTarget(
+              materialId: change.material.id,
+              field: MaterialField.title,
+            ),
+            before: change.material,
+            after: null,
+          ),
+        );
+      }
     }
     if (emitted.isEmpty) return;
     cb(emitted);
@@ -502,6 +592,137 @@ class PlanReviewController extends ChangeNotifier {
     if (_viewingVersionId == null) return;
     _viewingVersionId = null;
     notifyListeners();
+  }
+
+  /// Reverts the live plan to the snapshot stored in [versionId] by
+  /// committing the inverse diff as a fresh accepted batch. Keeps the
+  /// version list strictly forward-only so the user can always navigate
+  /// back to any previous state via the history drawer. No-op when the
+  /// requested version already matches the live plan, when the user is
+  /// editing, or when the id is unknown.
+  void restoreVersion(String versionId) {
+    if (_mode == ReviewMode.editing) return;
+    final int idx = _versions.indexWhere((PlanVersion v) => v.id == versionId);
+    if (idx < 0) return;
+    final ExperimentPlan target = _versions[idx].snapshot;
+    final List<PlanChange> changes =
+        diffPlans(before: livePlan, after: target);
+    if (changes.isEmpty) {
+      _viewingVersionId = null;
+      notifyListeners();
+      return;
+    }
+    final int batchIndex = _acceptedBatches.length;
+    final SuggestionBatch restored = SuggestionBatch(
+      id: generateLocalId('batch'),
+      authorId: _localAuthorId,
+      createdAt: DateTime.now(),
+      color: _palette.colorAt(batchIndex),
+      status: BatchStatus.accepted,
+      changes: changes,
+    );
+    _acceptedBatches.add(restored);
+    final ExperimentPlan nextLive = livePlan;
+    _versions.add(
+      PlanVersion(
+        id: generateLocalId('ver'),
+        snapshot: nextLive,
+        batchId: restored.id,
+        authorId: restored.authorId,
+        at: DateTime.now(),
+        changeCount: restored.changes.length,
+      ),
+    );
+    _viewingVersionId = null;
+    _reanchorComments(nextLive);
+    _emitCorrectionReviews(restored);
+    _onLivePlanChanged(nextLive);
+    notifyListeners();
+  }
+
+  /// Accepted batch that introduced the version currently being viewed
+  /// (null when not in historical view, or when viewing the v0 baseline).
+  SuggestionBatch? get _viewedVersionBatch {
+    final String? id = _viewingVersionId;
+    if (id == null) return null;
+    final int idx = _versions.indexWhere((PlanVersion v) => v.id == id);
+    if (idx < 0) return null;
+    final String? batchId = _versions[idx].batchId;
+    if (batchId == null) return null;
+    for (final SuggestionBatch b in _acceptedBatches) {
+      if (b.id == batchId) return b;
+    }
+    return null;
+  }
+
+  /// Snapshot of the version immediately preceding the one being viewed
+  /// (null on the v0 baseline or outside historical view). Used as the
+  /// "before" reference when surfacing per-revision originals.
+  ExperimentPlan? get _previousVersionSnapshot {
+    final String? id = _viewingVersionId;
+    if (id == null) return null;
+    final int idx = _versions.indexWhere((PlanVersion v) => v.id == id);
+    if (idx <= 0) return null;
+    return _versions[idx - 1].snapshot;
+  }
+
+  /// Color to tint [target] with in the body. In historical view, only
+  /// fields touched by the viewed revision's batch get the highlight, so
+  /// the user sees exactly what changed in that revision. Otherwise this
+  /// delegates to the cumulative [colorForTarget].
+  Color? effectiveColorForTarget(ChangeTarget target) {
+    if (!isHistoricalView) return colorForTarget(target);
+    final SuggestionBatch? batch = _viewedVersionBatch;
+    if (batch == null) return null;
+    final bool touches =
+        batch.changes.any((PlanChange c) => _changeTouches(c, target));
+    return touches ? batch.color : null;
+  }
+
+  /// True when [target] received a [FieldChange] in the relevant scope:
+  /// the viewed revision in historical view, the cumulative baseline diff
+  /// otherwise. Drives the inline "original value" caret.
+  bool effectiveHasFieldEdit(ChangeTarget target) {
+    if (!isHistoricalView) return hasFieldEditFromBaseline(target);
+    final SuggestionBatch? batch = _viewedVersionBatch;
+    if (batch == null) return false;
+    return batch.changes
+        .any((PlanChange c) => c is FieldChange && c.target == target);
+  }
+
+  /// Label shown in the "original" tooltip for [target]. In historical
+  /// view it reads from the previous version's snapshot so the tooltip
+  /// reflects the value as it was before this revision; otherwise it
+  /// delegates to [originalLabelFor] (v0 baseline).
+  String? effectiveOriginalLabelFor(ChangeTarget target) {
+    if (!isHistoricalView) return originalLabelFor(target);
+    if (!effectiveHasFieldEdit(target)) return null;
+    final ExperimentPlan? prev = _previousVersionSnapshot;
+    if (prev == null) return null;
+    return _formatTargetValue(target, prev);
+  }
+
+  String? _formatTargetValue(ChangeTarget target, ExperimentPlan plan) {
+    if (target is PlanDescriptionTarget) {
+      return _formatStringValue(plan.description);
+    }
+    if (target is BudgetTotalTarget) {
+      return formatBudgetLabel(plan.budget.total);
+    }
+    if (target is TotalDurationTarget) {
+      return formatExperimentPlanTotalDuration(plan.timePlan.totalDuration);
+    }
+    if (target is StepFieldTarget) {
+      final Step? step = _findStep(plan, target.stepId);
+      if (step == null) return null;
+      return _formatStepFieldValue(step, target.field);
+    }
+    if (target is MaterialFieldTarget) {
+      final Material? mat = _findMaterial(plan, target.materialId);
+      if (mat == null) return null;
+      return _formatMaterialFieldValue(mat, target.field);
+    }
+    return null;
   }
 
   String authorLabel(String authorId) {

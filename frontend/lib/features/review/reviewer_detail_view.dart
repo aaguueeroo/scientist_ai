@@ -2,7 +2,7 @@ import 'package:flutter/material.dart' hide Material, Step;
 import 'package:provider/provider.dart';
 
 import '../../core/app_constants.dart';
-import '../../models/experiment_plan.dart' show ExperimentPlan;
+import '../../models/experiment_plan.dart' show ExperimentPlan, Material, Step;
 import '../plan/review/models/batch_status.dart';
 import '../plan/review/models/change_target.dart';
 import '../plan/review/models/comment_anchor.dart';
@@ -66,6 +66,24 @@ class _ReviewerDetailViewState extends State<ReviewerDetailView> {
     super.dispose();
   }
 
+  /// Returns the [PlanChange] that best represents a structural correction
+  /// (step/material insertion or removal). Returns null for regular field
+  /// corrections, which are handled as [FieldChange].
+  PlanChange? _structuralChangeForReview(CorrectionReview review) {
+    final Object? after = review.after;
+    final Object? before = review.before;
+    if (before == null && after is Step) {
+      final int insertIndex = (after.number - 1)
+          .clamp(0, review.originalPlan.timePlan.steps.length);
+      return StepInserted(index: insertIndex, step: after);
+    }
+    if (before == null && after is Material) {
+      final int insertIndex = review.originalPlan.budget.materials.length;
+      return MaterialInserted(index: insertIndex, material: after);
+    }
+    return null;
+  }
+
   PlanReviewController _buildController(Review review) {
     ChangeTarget? focusedTarget;
     ReviewSection? focusedSection;
@@ -78,22 +96,37 @@ class _ReviewerDetailViewState extends State<ReviewerDetailView> {
 
     if (review is CorrectionReview) {
       focusedTarget = review.target;
-      initialAcceptedBatches = <SuggestionBatch>[
-        SuggestionBatch(
-          id: 'review-${review.id}',
-          authorId: PlanReviewController.kLocalAuthorId,
-          createdAt: review.createdAt,
-          color: BatchColorPalette(sessionSeed: 0).colorAt(0),
-          status: BatchStatus.accepted,
-          changes: <PlanChange>[
-            FieldChange(
-              target: review.target,
-              before: review.before,
-              after: review.after,
-            ),
-          ],
-        ),
-      ];
+      final PlanChange? structuralChange =
+          _structuralChangeForReview(review);
+      if (structuralChange != null) {
+        initialAcceptedBatches = <SuggestionBatch>[
+          SuggestionBatch(
+            id: 'review-${review.id}',
+            authorId: PlanReviewController.kLocalAuthorId,
+            createdAt: review.createdAt,
+            color: BatchColorPalette(sessionSeed: 0).colorAt(0),
+            status: BatchStatus.accepted,
+            changes: <PlanChange>[structuralChange],
+          ),
+        ];
+      } else if (review.before != null || review.after != null) {
+        initialAcceptedBatches = <SuggestionBatch>[
+          SuggestionBatch(
+            id: 'review-${review.id}',
+            authorId: PlanReviewController.kLocalAuthorId,
+            createdAt: review.createdAt,
+            color: BatchColorPalette(sessionSeed: 0).colorAt(0),
+            status: BatchStatus.accepted,
+            changes: <PlanChange>[
+              FieldChange(
+                target: review.target,
+                before: review.before,
+                after: review.after,
+              ),
+            ],
+          ),
+        ];
+      }
     } else if (review is CommentReview) {
       focusedTarget = review.target;
       initialComments = <PlanComment>[

@@ -55,6 +55,7 @@ class PlanScreen extends StatelessWidget {
                   planError: controller.planError,
                   plan: controller.experimentPlan,
                   currentQuery: controller.currentQuery,
+                  conversationId: controller.currentConversationId,
                   onRetry: controller.loadExperimentPlan,
                   onLivePlanChanged: controller.applyCorrectedPlan,
                 ),
@@ -73,6 +74,7 @@ class _PlanBody extends StatelessWidget {
     required this.planError,
     required this.plan,
     required this.currentQuery,
+    required this.conversationId,
     required this.onRetry,
     required this.onLivePlanChanged,
   });
@@ -81,6 +83,7 @@ class _PlanBody extends StatelessWidget {
   final String? planError;
   final ExperimentPlan? plan;
   final String? currentQuery;
+  final String? conversationId;
   final VoidCallback onRetry;
   final void Function(ExperimentPlan) onLivePlanChanged;
 
@@ -106,7 +109,7 @@ class _PlanBody extends StatelessWidget {
     return PlanReviewScaffold(
       plan: plan!,
       query: currentQuery,
-      conversationId: currentQuery ?? '',
+      conversationId: conversationId ?? currentQuery ?? '',
       onLivePlanChanged: onLivePlanChanged,
     );
   }

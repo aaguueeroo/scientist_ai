@@ -75,7 +75,7 @@ class _ReviewMaterialTile extends StatelessWidget {
     final bool isInsertedFromBaseline = !controller.original.budget.materials
         .any((Material m) => m.id == material.id);
     final Color? insertTint = isInsertedFromBaseline
-        ? controller.colorForTarget(
+        ? controller.effectiveColorForTarget(
             MaterialFieldTarget(
               materialId: material.id,
               field: MaterialField.title,
@@ -124,7 +124,7 @@ class _ReviewMaterialFull extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                SuggestionAwareText(
+                SelectablePlanText(
                   target: MaterialFieldTarget(
                     materialId: material.id,
                     field: MaterialField.title,
@@ -221,7 +221,7 @@ class _ReviewMaterialCompact extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
-                SuggestionAwareText(
+                SelectablePlanText(
                   target: MaterialFieldTarget(
                     materialId: material.id,
                     field: MaterialField.title,
@@ -306,7 +306,7 @@ class _ReviewMaterialStacked extends StatelessWidget {
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: <Widget>[
-          SuggestionAwareText(
+          SelectablePlanText(
             target: MaterialFieldTarget(
               materialId: material.id,
               field: MaterialField.title,

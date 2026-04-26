@@ -27,3 +27,10 @@ const double kPlanMaterialsLayoutCompactMinWidth = 260;
 const double kBudgetIncrementLow = 10;
 const double kBudgetIncrementHigh = 100;
 const double kBudgetIncrementThreshold = 1000;
+
+/// Plan material editor: [InlineEditableText] + stepper amount delta.
+const int kMaterialAmountStep = 1;
+
+/// Plan material editor: price stepper delta (dollars). Inline typing still
+/// allows any decimal.
+const double kMaterialPriceStep = 1;

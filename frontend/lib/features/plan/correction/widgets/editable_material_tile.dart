@@ -155,8 +155,20 @@ class _EditableMaterialTileState extends State<EditableMaterialTile> {
               vertical: kSpace4,
             ),
       child: MouseRegion(
-        onEnter: (_) => setState(() => _isHovered = true),
-        onExit: (_) => setState(() => _isHovered = false),
+        onEnter: (_) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              setState(() => _isHovered = true);
+            }
+          });
+        },
+        onExit: (_) {
+          WidgetsBinding.instance.addPostFrameCallback((_) {
+            if (mounted) {
+              setState(() => _isHovered = false);
+            }
+          });
+        },
         child: AnimatedContainer(
           duration: const Duration(milliseconds: 120),
           decoration: BoxDecoration(
@@ -409,13 +421,15 @@ class _EditableMaterialCompact extends StatelessWidget {
                 Row(
                   children: <Widget>[
                     Text('\$', style: textTheme.labelSmall),
-                    _PriceField(
-                      material: material,
-                      onChanged: onChanged,
-                      style: textTheme.labelSmall ?? numericStyle,
-                      align: TextAlign.left,
-                      isChanged:
-                          changedFields.contains(MaterialField.price),
+                    Expanded(
+                      child: _PriceField(
+                        material: material,
+                        onChanged: onChanged,
+                        style: textTheme.labelSmall ?? numericStyle,
+                        align: TextAlign.left,
+                        isChanged:
+                            changedFields.contains(MaterialField.price),
+                      ),
                     ),
                     Text(' each', style: textTheme.labelSmall),
                   ],
@@ -545,14 +559,17 @@ class _EditableMaterialStacked extends StatelessWidget {
                         color: context.appColorScheme.onSurfaceVariant,
                       ),
                     ),
-                    _PriceField(
-                      material: material,
-                      onChanged: onChanged,
-                      style: numericStyle.copyWith(
-                        color: context.appColorScheme.onSurfaceVariant,
+                    Expanded(
+                      child: _PriceField(
+                        material: material,
+                        onChanged: onChanged,
+                        style: numericStyle.copyWith(
+                          color: context.appColorScheme.onSurfaceVariant,
+                        ),
+                        align: TextAlign.left,
+                        isChanged:
+                            changedFields.contains(MaterialField.price),
                       ),
-                      align: TextAlign.left,
-                      isChanged: changedFields.contains(MaterialField.price),
                     ),
                   ],
                 ),
@@ -569,6 +586,68 @@ class _EditableMaterialStacked extends StatelessWidget {
           ),
         ],
       ),
+    );
+  }
+}
+
+class _StepperInlineField extends StatelessWidget {
+  const _StepperInlineField({
+    required this.decrementTooltip,
+    required this.incrementTooltip,
+    required this.canDecrement,
+    required this.onDecrement,
+    required this.onIncrement,
+    required this.child,
+  });
+
+  final String decrementTooltip;
+  final String incrementTooltip;
+  final bool canDecrement;
+  final VoidCallback onDecrement;
+  final VoidCallback onIncrement;
+  final Widget child;
+
+  @override
+  Widget build(BuildContext context) {
+    final ColorScheme scheme = context.appColorScheme;
+    return Row(
+      children: <Widget>[
+        Tooltip(
+          message: decrementTooltip,
+          child: IconButton(
+            onPressed: canDecrement ? onDecrement : null,
+            icon: Icon(
+              Icons.remove_rounded,
+              size: 18,
+              color: scheme.onSurfaceVariant,
+            ),
+            style: IconButton.styleFrom(
+              padding: const EdgeInsets.all(kSpace4),
+              minimumSize: const Size(28, 28),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              visualDensity: VisualDensity.compact,
+            ),
+          ),
+        ),
+        Expanded(child: child),
+        Tooltip(
+          message: incrementTooltip,
+          child: IconButton(
+            onPressed: onIncrement,
+            icon: Icon(
+              Icons.add_rounded,
+              size: 18,
+              color: scheme.onSurfaceVariant,
+            ),
+            style: IconButton.styleFrom(
+              padding: const EdgeInsets.all(kSpace4),
+              minimumSize: const Size(28, 28),
+              tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+              visualDensity: VisualDensity.compact,
+            ),
+          ),
+        ),
+      ],
     );
   }
 }
@@ -590,23 +669,42 @@ class _AmountField extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    return InlineEditableText(
-      value: material.amount.toString(),
-      expandHorizontally: true,
-      style: editedTextStyle(style, isChanged: isChanged),
-      textAlign: align,
-      maxLines: 1,
-      hintText: '0',
-      keyboardType: TextInputType.number,
-      inputFormatters: <TextInputFormatter>[
-        FilteringTextInputFormatter.digitsOnly,
-      ],
-      onSubmitted: (String text) {
-        final int? parsed = int.tryParse(text.trim());
-        if (parsed != null && parsed >= 0) {
-          onChanged(material.copyWith(amount: parsed));
-        }
+    return _StepperInlineField(
+      decrementTooltip: 'Decrease amount',
+      incrementTooltip: 'Increase amount',
+      canDecrement: material.amount > 0,
+      onDecrement: () {
+        onChanged(
+          material.copyWith(
+            amount: material.amount - kMaterialAmountStep,
+          ),
+        );
       },
+      onIncrement: () {
+        onChanged(
+          material.copyWith(
+            amount: material.amount + kMaterialAmountStep,
+          ),
+        );
+      },
+      child: InlineEditableText(
+        value: material.amount.toString(),
+        expandHorizontally: true,
+        style: editedTextStyle(style, isChanged: isChanged),
+        textAlign: align,
+        maxLines: 1,
+        hintText: '0',
+        keyboardType: TextInputType.number,
+        inputFormatters: <TextInputFormatter>[
+          FilteringTextInputFormatter.digitsOnly,
+        ],
+        onSubmitted: (String text) {
+          final int? parsed = int.tryParse(text.trim());
+          if (parsed != null && parsed >= 0) {
+            onChanged(material.copyWith(amount: parsed));
+          }
+        },
+      ),
     );
   }
 }
@@ -626,25 +724,48 @@ class _PriceField extends StatelessWidget {
   final TextAlign align;
   final bool isChanged;
 
+  static double _round2(double v) {
+    return double.parse(v.toStringAsFixed(2));
+  }
+
   @override
   Widget build(BuildContext context) {
-    return InlineEditableText(
-      value: material.price.toStringAsFixed(2),
-      expandHorizontally: true,
-      style: editedTextStyle(style, isChanged: isChanged),
-      textAlign: align,
-      maxLines: 1,
-      hintText: '0.00',
-      keyboardType: const TextInputType.numberWithOptions(decimal: true),
-      inputFormatters: <TextInputFormatter>[
-        FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
-      ],
-      onSubmitted: (String text) {
-        final double? parsed = double.tryParse(text.trim());
-        if (parsed != null && parsed >= 0) {
-          onChanged(material.copyWith(price: parsed));
-        }
+    final bool canDecrementPrice = material.price > 0;
+    return _StepperInlineField(
+      decrementTooltip: 'Decrease price by \$$kMaterialPriceStep',
+      incrementTooltip: 'Increase price by \$$kMaterialPriceStep',
+      canDecrement: canDecrementPrice,
+      onDecrement: () {
+        final double next = _round2(
+          (material.price - kMaterialPriceStep).clamp(0, double.infinity),
+        );
+        onChanged(material.copyWith(price: next));
       },
+      onIncrement: () {
+        onChanged(
+          material.copyWith(
+            price: _round2(material.price + kMaterialPriceStep),
+          ),
+        );
+      },
+      child: InlineEditableText(
+        value: material.price.toStringAsFixed(2),
+        expandHorizontally: true,
+        style: editedTextStyle(style, isChanged: isChanged),
+        textAlign: align,
+        maxLines: 1,
+        hintText: '0.00',
+        keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        inputFormatters: <TextInputFormatter>[
+          FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
+        ],
+        onSubmitted: (String text) {
+          final double? parsed = double.tryParse(text.trim());
+          if (parsed != null && parsed >= 0) {
+            onChanged(material.copyWith(price: parsed));
+          }
+        },
+      ),
     );
   }
 }

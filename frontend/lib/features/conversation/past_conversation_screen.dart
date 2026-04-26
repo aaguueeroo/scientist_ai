@@ -69,6 +69,7 @@ class _PastConversationScreenState extends State<PastConversationScreen> {
                     _ExperimentPlanStepPane(
                       plan: controller.experimentPlan,
                       query: controller.currentQuery,
+                      conversationId: controller.currentConversationId,
                       onLivePlanChanged: controller.applyCorrectedPlan,
                     ),
                   ],
@@ -207,11 +208,13 @@ class _ExperimentPlanStepPane extends StatelessWidget {
   const _ExperimentPlanStepPane({
     required this.plan,
     required this.query,
+    required this.conversationId,
     required this.onLivePlanChanged,
   });
 
   final ExperimentPlan? plan;
   final String? query;
+  final String? conversationId;
   final ValueChanged<ExperimentPlan> onLivePlanChanged;
 
   @override
@@ -228,7 +231,7 @@ class _ExperimentPlanStepPane extends StatelessWidget {
     return PlanReviewScaffold(
       plan: currentPlan,
       query: query,
-      conversationId: query ?? '',
+      conversationId: conversationId ?? query ?? '',
       onLivePlanChanged: onLivePlanChanged,
     );
   }

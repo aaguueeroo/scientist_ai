@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart' hide Material, Step;
 import 'package:provider/provider.dart';
 
+import '../../../controllers/plan_review_session_snapshot.dart';
 import '../../../controllers/review_store_controller.dart';
+import '../../../controllers/scientist_controller.dart';
 import '../../../core/app_constants.dart';
 import '../../../models/experiment_plan.dart';
 import '../../review/models/review.dart' as global_review;
@@ -33,16 +35,34 @@ class PlanReviewScaffold extends StatefulWidget {
 }
 
 class _PlanReviewScaffoldState extends State<PlanReviewScaffold> {
+  late ScientistController _scientist;
   late PlanReviewController _controller;
   bool _historyOpen = false;
 
   @override
   void initState() {
     super.initState();
-    _controller = _buildController();
+    _scientist = context.read<ScientistController>();
+    final PlanReviewSessionSnapshot? cached =
+        _scientist.planReviewSessionFor(widget.conversationId);
+    _controller = _buildController(cached: cached);
   }
 
-  PlanReviewController _buildController() {
+  PlanReviewController _buildController({PlanReviewSessionSnapshot? cached}) {
+    if (cached != null) {
+      return PlanReviewController(
+        source: cached.originalPlan,
+        onLivePlanChanged: widget.onLivePlanChanged,
+        conversationId: widget.conversationId,
+        query: widget.query ?? '',
+        onReviewsEmitted: _forwardReviewsToStore,
+        initialComments: cached.comments,
+        initialSectionFeedback: cached.sectionFeedback,
+        initialAcceptedBatches: cached.acceptedBatches,
+        initialVersions: cached.versions,
+        initialViewingVersionId: cached.viewingVersionId,
+      );
+    }
     return PlanReviewController(
       source: widget.plan,
       onLivePlanChanged: widget.onLivePlanChanged,
@@ -53,27 +73,44 @@ class _PlanReviewScaffoldState extends State<PlanReviewScaffold> {
   }
 
   void _forwardReviewsToStore(List<global_review.Review> reviews) {
-    final ReviewStoreController? store =
-        context.read<ReviewStoreController?>();
-    if (store == null) return;
+    final ReviewStoreController store =
+        context.read<ReviewStoreController>();
     store.submitReviews(reviews);
   }
 
   @override
   void didUpdateWidget(covariant PlanReviewScaffold oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (!identical(oldWidget.plan, widget.plan) ||
+    final bool conversationChanged =
         oldWidget.conversationId != widget.conversationId ||
-        oldWidget.query != widget.query) {
-      // Plan or conversation context changes from outside (e.g. fresh
-      // literature review). Recreate controller to keep state coherent.
+        oldWidget.query != widget.query;
+    if (conversationChanged) {
+      if (oldWidget.conversationId.isNotEmpty) {
+        _scientist.savePlanReviewSession(
+          oldWidget.conversationId,
+          PlanReviewSessionSnapshot.fromController(_controller),
+        );
+      }
       _controller.dispose();
-      _controller = _buildController();
+      final PlanReviewSessionSnapshot? cached =
+          _scientist.planReviewSessionFor(widget.conversationId);
+      _controller = _buildController(cached: cached);
+      return;
     }
+    // The plan reference can also change because we just emitted an
+    // updated live plan via _onLivePlanChanged → ScientistController
+    // → Consumer rebuild. Those self-induced updates must NOT wipe
+    // version history, so we ignore plan-identity changes here.
   }
 
   @override
   void dispose() {
+    if (widget.conversationId.isNotEmpty) {
+      _scientist.savePlanReviewSession(
+        widget.conversationId,
+        PlanReviewSessionSnapshot.fromController(_controller),
+      );
+    }
     _controller.dispose();
     super.dispose();
   }

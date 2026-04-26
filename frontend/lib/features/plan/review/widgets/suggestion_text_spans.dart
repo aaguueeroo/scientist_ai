@@ -22,9 +22,9 @@ TextSpan buildSuggestionAwareSpan({
   required TextStyle baseStyle,
   GestureRecognizerFactoryProvider? recognizerFactory,
 }) {
-  final Color? batchColor = controller.colorForTarget(target);
+  final Color? batchColor = controller.effectiveColorForTarget(target);
   final bool hasEditFromBaseline =
-      batchColor != null && controller.hasFieldEditFromBaseline(target);
+      batchColor != null && controller.effectiveHasFieldEdit(target);
   final Color? highlightColor =
       hasEditFromBaseline ? batchColor.withValues(alpha: 0.16) : null;
   final TextSpan baseSpan = _buildBaseSpan(
@@ -36,7 +36,8 @@ TextSpan buildSuggestionAwareSpan({
   if (!hasEditFromBaseline) {
     return baseSpan;
   }
-  final String originalLabel = controller.originalLabelFor(target) ?? '';
+  final String originalLabel =
+      controller.effectiveOriginalLabelFor(target) ?? '';
   final double caretHeight = (baseStyle.fontSize ?? 14) * 0.9;
   return TextSpan(
     children: <InlineSpan>[

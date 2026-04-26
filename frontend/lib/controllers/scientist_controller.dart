@@ -2,9 +2,11 @@ import 'dart:async';
 
 import 'package:flutter/foundation.dart';
 
+import '../core/id_generator.dart';
 import '../models/experiment_plan.dart';
 import '../models/literature_review.dart';
 import '../repositories/scientist_repository.dart';
+import 'plan_review_session_snapshot.dart';
 
 // Seed list shown in the sidebar before any past-conversations endpoint exists.
 // Replace with `GET /conversations` once the BE provides one.
@@ -24,8 +26,13 @@ class ScientistController extends ChangeNotifier {
   final ScientistRepository _repository;
   StreamSubscription<LiteratureReview>? _literatureSubscription;
   final List<String> pastConversations;
+  final Map<String, PlanReviewSessionSnapshot> _planReviewSessions =
+      <String, PlanReviewSessionSnapshot>{};
+  final Map<String, String> _conversationIdByPastQuery =
+      <String, String>{};
 
   String? currentQuery;
+  String? currentConversationId;
   LiteratureReview? literatureReview;
   bool isLoadingLiterature = false;
   String? literatureError;
@@ -39,6 +46,7 @@ class ScientistController extends ChangeNotifier {
       return;
     }
     currentQuery = normalizedQuery;
+    currentConversationId = generateLocalId('conv');
     if (!pastConversations.contains(normalizedQuery)) {
       pastConversations.insert(0, normalizedQuery);
     }
@@ -81,6 +89,10 @@ class ScientistController extends ChangeNotifier {
     await _literatureSubscription?.cancel();
     _literatureSubscription = null;
     currentQuery = normalizedTitle;
+    currentConversationId = _conversationIdByPastQuery.putIfAbsent(
+      normalizedTitle,
+      () => generateLocalId('conv'),
+    );
     if (!pastConversations.contains(normalizedTitle)) {
       pastConversations.insert(0, normalizedTitle);
     }
@@ -117,8 +129,28 @@ class ScientistController extends ChangeNotifier {
     notifyListeners();
   }
 
+  /// Cached plan-review UI state (version history, comments, feedback) for
+  /// the lifetime of the app. Keyed by [currentConversationId].
+  PlanReviewSessionSnapshot? planReviewSessionFor(String conversationId) {
+    if (conversationId.isEmpty) {
+      return null;
+    }
+    return _planReviewSessions[conversationId];
+  }
+
+  void savePlanReviewSession(
+    String conversationId,
+    PlanReviewSessionSnapshot snapshot,
+  ) {
+    if (conversationId.isEmpty) {
+      return;
+    }
+    _planReviewSessions[conversationId] = snapshot;
+  }
+
   void reset() {
     currentQuery = null;
+    currentConversationId = null;
     literatureReview = null;
     isLoadingLiterature = false;
     literatureError = null;
@@ -127,6 +159,8 @@ class ScientistController extends ChangeNotifier {
     planError = null;
     _literatureSubscription?.cancel();
     _literatureSubscription = null;
+    _planReviewSessions.clear();
+    _conversationIdByPastQuery.clear();
     notifyListeners();
   }
 

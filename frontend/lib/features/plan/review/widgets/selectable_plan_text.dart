@@ -45,6 +45,9 @@ class _SelectablePlanTextState extends State<SelectablePlanText> {
   final OverlayPortalController _popoverController = OverlayPortalController();
   TextSelection? _selection;
   Offset? _pointerLocal;
+  // Snapshot of pointer position taken when selection first appears. Kept
+  // frozen so the chip does not jump while the user extends the selection.
+  Offset? _chipAnchorPointer;
   Offset? _popoverGlobal;
   PlanComment? _editingComment;
   bool _isCreatingComment = false;
@@ -60,12 +63,17 @@ class _SelectablePlanTextState extends State<SelectablePlanText> {
     TextSelection selection,
     SelectionChangedCause? cause,
   ) {
+    final bool wasEmpty = _selection == null;
     final bool hasSelection =
         !selection.isCollapsed && selection.start != selection.end;
     setState(() => _selection = hasSelection ? selection : null);
     if (hasSelection) {
+      if (wasEmpty) {
+        _chipAnchorPointer = _pointerLocal;
+      }
       _showCommentChip();
     } else {
+      _chipAnchorPointer = null;
       _hideCommentChip();
     }
   }
@@ -80,6 +88,15 @@ class _SelectablePlanTextState extends State<SelectablePlanText> {
     if (_commentChipController.isShowing) {
       _commentChipController.hide();
     }
+  }
+
+  void _dismissChip() {
+    if (_selection == null && !_commentChipController.isShowing) return;
+    setState(() {
+      _selection = null;
+      _chipAnchorPointer = null;
+    });
+    _hideCommentChip();
   }
 
   void _openCreateCommentPopover() {
@@ -153,11 +170,15 @@ class _SelectablePlanTextState extends State<SelectablePlanText> {
           KeyedSubtree(
             key: _textKey,
             child: selectableEnabled
-                ? SelectableText.rich(
-                    span,
-                    maxLines: widget.maxLines,
-                    textAlign: widget.textAlign ?? TextAlign.start,
-                    onSelectionChanged: _handleSelectionChanged,
+                ? TapRegion(
+                    groupId: this,
+                    onTapOutside: (_) => _dismissChip(),
+                    child: SelectableText.rich(
+                      span,
+                      maxLines: widget.maxLines,
+                      textAlign: widget.textAlign ?? TextAlign.start,
+                      onSelectionChanged: _handleSelectionChanged,
+                    ),
                   )
                 : Text.rich(
                     span,
@@ -178,11 +199,13 @@ class _SelectablePlanTextState extends State<SelectablePlanText> {
             ),
           OverlayPortal(
             controller: _commentChipController,
-            overlayChildBuilder: (BuildContext ctx) =>
-                _CommentChipOverlay(
-              anchorKey: _textKey,
-              pointer: _pointerLocal,
-              onPressed: _openCreateCommentPopover,
+            overlayChildBuilder: (BuildContext ctx) => TapRegion(
+              groupId: this,
+              child: _CommentChipOverlay(
+                anchorKey: _textKey,
+                pointer: _chipAnchorPointer,
+                onPressed: _openCreateCommentPopover,
+              ),
             ),
           ),
           OverlayPortal(

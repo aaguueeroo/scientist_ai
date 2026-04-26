@@ -41,7 +41,7 @@ class _ReviewStepTileState extends State<ReviewStepTile> {
     final bool isInsertedFromBaseline = !controller.original.timePlan.steps
         .any((Step s) => s.id == widget.step.id);
     final Color? insertTint = isInsertedFromBaseline
-        ? controller.colorForTarget(
+        ? controller.effectiveColorForTarget(
             StepFieldTarget(stepId: widget.step.id, field: StepField.name),
           )
         : null;
@@ -70,7 +70,7 @@ class _ReviewStepTileState extends State<ReviewStepTile> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  SuggestionAwareText(
+                  SelectablePlanText(
                     target: StepFieldTarget(
                       stepId: widget.step.id,
                       field: StepField.name,

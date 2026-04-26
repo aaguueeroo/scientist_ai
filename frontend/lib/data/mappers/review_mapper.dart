@@ -6,6 +6,7 @@ import '../../features/plan/review/models/step_field.dart';
 import '../../features/review/models/change_target_codec.dart';
 import '../../features/review/models/review.dart';
 import '../../features/review/models/review_kind.dart';
+import '../../models/experiment_plan.dart';
 import '../dto/review_dto.dart';
 import 'experiment_plan_mapper.dart';
 
@@ -129,26 +130,37 @@ class ReviewMapper {
   }
 
   /// Encodes runtime values to JSON-friendly primitives. Durations become
-  /// integer seconds; everything else passes through.
+  /// integer seconds; [Step] and [Material] objects become maps for
+  /// structural correction reviews (insertions/removals). Everything else
+  /// passes through.
   static Object? _encodeFieldValue(ChangeTarget target, Object? value) {
     if (value == null) return null;
     if (value is Duration) return value.inSeconds;
+    if (value is Step) return _encodeStep(value);
+    if (value is Material) return _encodeMaterial(value);
     return value;
   }
 
-  /// Inverse of [_encodeFieldValue]. Uses [target] to decide whether the
-  /// JSON value should be coerced back to a [Duration].
+  /// Inverse of [_encodeFieldValue]. Uses [target] to decide the coercion:
+  /// Durations from seconds, and Step/Material objects from their map
+  /// representations (used for insertion/removal correction reviews).
   static Object? _decodeFieldValue(ChangeTarget target, Object? raw) {
     if (raw == null) return null;
     if (target is TotalDurationTarget && raw is num) {
       return Duration(seconds: raw.toInt());
     }
-    if (target is StepFieldTarget &&
-        target.field == StepField.duration &&
-        raw is num) {
-      return Duration(seconds: raw.toInt());
+    if (target is StepFieldTarget) {
+      if (target.field == StepField.duration && raw is num) {
+        return Duration(seconds: raw.toInt());
+      }
+      if (raw is Map) {
+        return _decodeStep(Map<String, dynamic>.from(raw));
+      }
     }
     if (target is MaterialFieldTarget) {
+      if (raw is Map) {
+        return _decodeMaterial(Map<String, dynamic>.from(raw));
+      }
       switch (target.field) {
         case MaterialField.amount:
           if (raw is num) return raw.toInt();
@@ -166,6 +178,50 @@ class ReviewMapper {
       return raw.toDouble();
     }
     return raw;
+  }
+
+  static Map<String, dynamic> _encodeStep(Step step) {
+    return <String, dynamic>{
+      'id': step.id,
+      'number': step.number,
+      'duration_seconds': step.duration.inSeconds,
+      'name': step.name,
+      'description': step.description,
+      'milestone': step.milestone,
+    };
+  }
+
+  static Step _decodeStep(Map<String, dynamic> raw) {
+    return Step(
+      id: raw['id'] as String,
+      number: (raw['number'] as num).toInt(),
+      duration: Duration(seconds: (raw['duration_seconds'] as num).toInt()),
+      name: raw['name'] as String,
+      description: raw['description'] as String,
+      milestone: raw['milestone'] as String?,
+    );
+  }
+
+  static Map<String, dynamic> _encodeMaterial(Material material) {
+    return <String, dynamic>{
+      'id': material.id,
+      'title': material.title,
+      'catalog_number': material.catalogNumber,
+      'description': material.description,
+      'amount': material.amount,
+      'price': material.price,
+    };
+  }
+
+  static Material _decodeMaterial(Map<String, dynamic> raw) {
+    return Material(
+      id: raw['id'] as String,
+      title: raw['title'] as String,
+      catalogNumber: raw['catalog_number'] as String,
+      description: raw['description'] as String,
+      amount: (raw['amount'] as num).toInt(),
+      price: (raw['price'] as num).toDouble(),
+    );
   }
 
   static ReviewKind _kindFromString(String raw) {

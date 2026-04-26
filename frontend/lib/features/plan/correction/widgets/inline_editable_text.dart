@@ -40,6 +40,12 @@ class _InlineEditableTextState extends State<InlineEditableText> {
   late TextEditingController _controller;
   late FocusNode _focusNode;
   bool _isEditing = false;
+  bool _openEditScheduled = false;
+  /// Shown in the label after commit while [widget.value] has not yet caught
+  /// up from the parent (commit callback is not synchronous).
+  String? _pendingCommittedLabel;
+  /// Label (or last pending) the user had when the current edit session started.
+  late String _editSessionBaseline;
 
   @override
   void initState() {
@@ -51,8 +57,17 @@ class _InlineEditableTextState extends State<InlineEditableText> {
   @override
   void didUpdateWidget(covariant InlineEditableText oldWidget) {
     super.didUpdateWidget(oldWidget);
+    if (_pendingCommittedLabel != null) {
+      if (widget.value == _pendingCommittedLabel) {
+        _pendingCommittedLabel = null;
+      } else if (oldWidget.value != widget.value) {
+        _pendingCommittedLabel = null;
+      }
+    }
     if (!_isEditing && oldWidget.value != widget.value) {
-      _controller.text = widget.value;
+      if (_pendingCommittedLabel == null) {
+        _controller.text = widget.value;
+      }
     }
   }
 
@@ -71,36 +86,65 @@ class _InlineEditableTextState extends State<InlineEditableText> {
   }
 
   void _enterEditing() {
-    if (_isEditing) {
+    if (_isEditing || _openEditScheduled) {
       return;
     }
-    setState(() {
-      _isEditing = true;
-      _controller.text = widget.value;
-      _controller.selection = TextSelection(
-        baseOffset: 0,
-        extentOffset: _controller.text.length,
-      );
-    });
+    _openEditScheduled = true;
+    // Defer so setState and focus are not run during the same pointer /
+    // mouse-tracker pass as the label tap (avoids
+    // !_debugDuringDeviceUpdate on desktop/web).
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (mounted) {
-        _focusNode.requestFocus();
+      _openEditScheduled = false;
+      if (!mounted || _isEditing) {
+        return;
       }
+      setState(() {
+        _editSessionBaseline = _pendingCommittedLabel ?? widget.value;
+        _isEditing = true;
+        _controller.text = _editSessionBaseline;
+        _controller.selection = TextSelection(
+          baseOffset: 0,
+          extentOffset: _controller.text.length,
+        );
+      });
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (mounted) {
+          _focusNode.requestFocus();
+        }
+      });
     });
   }
 
   void _commit() {
     final String next = _controller.text;
-    setState(() => _isEditing = false);
     if (next != widget.value) {
-      widget.onSubmitted(next);
+      setState(() {
+        _isEditing = false;
+        _pendingCommittedLabel = next;
+      });
+      final String submitted = next;
+      // Not synchronous with focus/pointer, but before next frame; avoids
+      // mouse-tracker re-entrance. Optimistic [ _pendingCommittedLabel ] keeps
+      // the label correct until the parent rebuilds.
+      Future.microtask(() {
+        if (mounted) {
+          widget.onSubmitted(submitted);
+        }
+      });
+    } else {
+      setState(() => _isEditing = false);
     }
   }
 
   void _cancel() {
     setState(() {
       _isEditing = false;
-      _controller.text = widget.value;
+      _controller.text = _editSessionBaseline;
+      if (_editSessionBaseline == widget.value) {
+        _pendingCommittedLabel = null;
+      } else {
+        _pendingCommittedLabel = _editSessionBaseline;
+      }
     });
     _focusNode.unfocus();
   }
@@ -116,10 +160,11 @@ class _InlineEditableTextState extends State<InlineEditableText> {
   Widget _buildLabel(BuildContext context) {
     final TextStyle effectiveStyle =
         widget.style ?? Theme.of(context).textTheme.bodyMedium!;
-    final bool isEmpty = widget.value.trim().isEmpty;
+    final String valueForLabel = _pendingCommittedLabel ?? widget.value;
+    final bool isEmpty = valueForLabel.trim().isEmpty;
     final String shown = isEmpty
         ? (widget.placeholderWhenEmpty ?? widget.hintText ?? '')
-        : widget.value;
+        : valueForLabel;
     final TextStyle shownStyle = isEmpty
         ? effectiveStyle.copyWith(color: context.scientist.onSurfaceFaint)
         : effectiveStyle;

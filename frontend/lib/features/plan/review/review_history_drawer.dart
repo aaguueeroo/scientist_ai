@@ -116,6 +116,8 @@ class _DrawerContent extends StatelessWidget {
                       !controller.isHistoricalView;
                   final bool isViewing =
                       controller.viewingVersionId == version.id;
+                  final bool canRestore =
+                      isViewing && !isCurrent && !version.isOriginal;
                   return _VersionTile(
                     version: version,
                     versionLabel: 'v${versions.length - 1 - index}',
@@ -132,6 +134,9 @@ class _DrawerContent extends StatelessWidget {
                         controller.viewVersion(version.id);
                       }
                     },
+                    onRestore: canRestore
+                        ? () => controller.restoreVersion(version.id)
+                        : null,
                   );
                 },
               ),
@@ -164,6 +169,7 @@ class _VersionTile extends StatelessWidget {
     required this.isCurrent,
     required this.isViewing,
     required this.onTap,
+    this.onRestore,
   });
 
   final PlanVersion version;
@@ -173,6 +179,7 @@ class _VersionTile extends StatelessWidget {
   final bool isCurrent;
   final bool isViewing;
   final VoidCallback onTap;
+  final VoidCallback? onRestore;
 
   String _formatRelative(DateTime at) {
     final Duration delta = DateTime.now().difference(at);
@@ -242,6 +249,29 @@ class _VersionTile extends StatelessWidget {
                       color: context.scientist.onSurfaceFaint,
                     ),
                   ),
+                  if (onRestore != null) ...<Widget>[
+                    const SizedBox(height: kSpace8),
+                    Align(
+                      alignment: Alignment.centerLeft,
+                      child: FilledButton.tonalIcon(
+                        onPressed: onRestore,
+                        icon: const Icon(
+                          Icons.restore_rounded,
+                          size: 14,
+                        ),
+                        label: const Text('Restore this version'),
+                        style: FilledButton.styleFrom(
+                          padding: const EdgeInsets.symmetric(
+                            horizontal: kSpace12,
+                            vertical: kSpace8,
+                          ),
+                          textStyle: textTheme.labelSmall,
+                          minimumSize: Size.zero,
+                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                        ),
+                      ),
+                    ),
+                  ],
                 ],
               ),
             ),

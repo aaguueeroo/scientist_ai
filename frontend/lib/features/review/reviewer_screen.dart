@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../controllers/review_store_controller.dart';
 import '../../core/app_constants.dart';
 import '../../core/theme/theme_context.dart';
+import '../../models/experiment_plan.dart';
 import '../plan/review/models/feedback_polarity.dart';
 import 'models/review.dart';
 import 'reviewer_detail_view.dart';
@@ -191,6 +192,20 @@ class _DetailEmptyPlaceholder extends StatelessWidget {
 /// Helper used by both the list tile and the detail header.
 String describeReview(Review review) {
   if (review is CorrectionReview) {
+    final Object? after = review.after;
+    final Object? before = review.before;
+    if (before == null && after is Step) {
+      return 'Added step "${after.name}"';
+    }
+    if (before is Step && after == null) {
+      return 'Removed step "${before.name}"';
+    }
+    if (before == null && after is Material) {
+      return 'Added material "${after.title}"';
+    }
+    if (before is Material && after == null) {
+      return 'Removed material "${before.title}"';
+    }
     return 'Edited ${_describeTarget(review.target.toString())}';
   }
   if (review is CommentReview) {

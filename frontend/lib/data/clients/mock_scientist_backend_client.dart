@@ -6,12 +6,13 @@ import 'scientist_backend_client.dart';
 
 const Duration _kStreamStepInterval = Duration(milliseconds: 600);
 const Duration _kErrorPreEmitDelay = Duration(milliseconds: 900);
-const Duration _kPlanLatency = Duration(milliseconds: 2500);
 const Duration _kReviewLatency = Duration(milliseconds: 200);
 
 class MockScientistBackendClient implements ScientistBackendClient {
-  MockScientistBackendClient()
-      : _reviews = List<Map<String, dynamic>>.from(kMockSeedReviews);
+  MockScientistBackendClient({bool seedReviews = false})
+      : _reviews = seedReviews
+            ? List<Map<String, dynamic>>.from(kMockSeedReviews)
+            : <Map<String, dynamic>>[];
 
   final List<Map<String, dynamic>> _reviews;
 
@@ -64,7 +65,6 @@ class MockScientistBackendClient implements ScientistBackendClient {
     Map<String, dynamic> requestBody,
   ) async {
     final String query = (requestBody['query'] as String? ?? '').trim();
-    await Future<void>.delayed(_kPlanLatency);
     if (_isErrorQuery(query)) {
       throw const ScientistTransportException(
         code: 'internal_error',
