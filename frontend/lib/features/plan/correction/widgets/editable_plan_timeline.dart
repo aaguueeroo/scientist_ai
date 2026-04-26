@@ -67,6 +67,12 @@ class EditablePlanTimeline extends StatelessWidget {
                       baseStyle,
                       isChanged: isNameChanged,
                     ),
+                    onLiveChanged: (String text) {
+                      controller.updateStep(
+                        index,
+                        step.copyWith(name: text),
+                      );
+                    },
                     onSubmitted: (String text) {
                       controller.updateStep(index, step.copyWith(name: text));
                     },
@@ -178,6 +184,12 @@ class _EditableTimelineDurationLabel extends StatelessWidget {
       textAlign: TextAlign.center,
       maxLines: 1,
       hintText: '0 h',
+      onLiveChanged: (String text) {
+        final Duration? parsed = parseDurationLabel(text);
+        if (parsed != null) {
+          onChanged(parsed);
+        }
+      },
       onSubmitted: (String text) {
         final Duration? parsed = parseDurationLabel(text);
         if (parsed != null) {

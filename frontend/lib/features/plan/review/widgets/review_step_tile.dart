@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../../core/app_constants.dart';
 import '../../../../core/theme/theme_context.dart';
 import '../../../../models/experiment_plan.dart';
+import '../../../../ui/plan_source_badges.dart';
 import '../../correction/correction_format.dart';
 import '../models/change_target.dart';
 import '../models/step_field.dart';
@@ -13,10 +14,9 @@ import 'suggestion_aware_text.dart';
 
 /// Read-only step tile used in the review body. Renders the step number,
 /// name, description and duration with suggestion-aware text. The tile
-/// keeps a coloured left border only when the step was *inserted* by an
-/// accepted batch (i.e. it does not exist in the original v0 plan); for
-/// steps that were merely edited, the per-field inline highlight in
-/// [SuggestionAwareText] communicates the version on its own.
+/// uses a tinted background when the step is new to the v0 plan or has
+/// field-level edits, together with [SelectablePlanText] /
+/// [SuggestionAwareText] field highlights.
 class ReviewStepTile extends StatefulWidget {
   const ReviewStepTile({
     super.key,
@@ -38,13 +38,8 @@ class _ReviewStepTileState extends State<ReviewStepTile> {
     final ColorScheme scheme = context.appColorScheme;
     final PlanReviewController controller =
         context.watch<PlanReviewController>();
-    final bool isInsertedFromBaseline = !controller.original.timePlan.steps
-        .any((Step s) => s.id == widget.step.id);
-    final Color? insertTint = isInsertedFromBaseline
-        ? controller.effectiveColorForTarget(
-            StepFieldTarget(stepId: widget.step.id, field: StepField.name),
-          )
-        : null;
+    final Color? changeAccent = controller
+        .reviewContainerAccentForStep(widget.step.id);
     return MouseRegion(
       onEnter: (_) => setState(() => _isHovered = true),
       onExit: (_) => setState(() => _isHovered = false),
@@ -53,13 +48,12 @@ class _ReviewStepTileState extends State<ReviewStepTile> {
         curve: Curves.easeOut,
         padding: const EdgeInsets.all(kSpace16),
         decoration: BoxDecoration(
-          color: _isHovered ? scheme.primaryContainer : scheme.surface,
+          color: _reviewStepRowColor(
+            scheme: scheme,
+            changeAccent: changeAccent,
+            isHovered: _isHovered,
+          ),
           borderRadius: BorderRadius.circular(kRadius),
-          border: insertTint != null
-              ? Border(
-                  left: BorderSide(color: insertTint, width: 2),
-                )
-              : null,
         ),
         child: Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -89,6 +83,10 @@ class _ReviewStepTileState extends State<ReviewStepTile> {
                       style: context.scientist.bodySecondary,
                     ),
                   ],
+                  if (widget.step.sourceRefs.isNotEmpty) ...<Widget>[
+                    const SizedBox(height: kSpace8),
+                    PlanSourceBadges(refs: widget.step.sourceRefs),
+                  ],
                 ],
               ),
             ),
@@ -109,6 +107,23 @@ class _ReviewStepTileState extends State<ReviewStepTile> {
       ),
     );
   }
+}
+
+const double _kReviewRowChangeAlpha = 0.12;
+
+Color _reviewStepRowColor({
+  required ColorScheme scheme,
+  required Color? changeAccent,
+  required bool isHovered,
+}) {
+  final Color base = isHovered ? scheme.primaryContainer : scheme.surface;
+  if (changeAccent == null) {
+    return base;
+  }
+  return Color.alphaBlend(
+    changeAccent.withValues(alpha: _kReviewRowChangeAlpha),
+    base,
+  );
 }
 
 class _StepNumberBadge extends StatelessWidget {

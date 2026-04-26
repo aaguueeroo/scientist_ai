@@ -6,6 +6,7 @@ import '../../../../core/app_constants.dart';
 import '../../../../core/theme/theme_context.dart';
 import '../../../../models/experiment_plan.dart';
 import '../../../../ui/app_surface.dart';
+import '../../../../ui/plan_source_badges.dart';
 import '../../review/models/material_field.dart';
 import '../../review/models/removed_draft_slot.dart';
 import '../../review/plan_review_controller.dart';
@@ -262,6 +263,8 @@ class _EditableMaterialFull extends StatelessWidget {
                   ),
                   maxLines: 2,
                   hintText: 'Material name',
+                  onLiveChanged: (String text) =>
+                      onChanged(material.copyWith(title: text)),
                   onSubmitted: (String text) =>
                       onChanged(material.copyWith(title: text)),
                 ),
@@ -278,9 +281,15 @@ class _EditableMaterialFull extends StatelessWidget {
                   minLines: 1,
                   hintText: 'Description',
                   placeholderWhenEmpty: 'Add description',
+                  onLiveChanged: (String text) =>
+                      onChanged(material.copyWith(description: text)),
                   onSubmitted: (String text) =>
                       onChanged(material.copyWith(description: text)),
                 ),
+                if (material.sourceRefs.isNotEmpty) ...<Widget>[
+                  const SizedBox(height: kSpace8),
+                  PlanSourceBadges(refs: material.sourceRefs),
+                ],
               ],
             ),
           ),
@@ -297,6 +306,8 @@ class _EditableMaterialFull extends StatelessWidget {
               maxLines: 1,
               hintText: 'Catalog #',
               placeholderWhenEmpty: 'Catalog #',
+              onLiveChanged: (String text) =>
+                  onChanged(material.copyWith(catalogNumber: text)),
               onSubmitted: (String text) =>
                   onChanged(material.copyWith(catalogNumber: text)),
             ),
@@ -382,6 +393,8 @@ class _EditableMaterialCompact extends StatelessWidget {
                   ),
                   maxLines: 2,
                   hintText: 'Material name',
+                  onLiveChanged: (String text) =>
+                      onChanged(material.copyWith(title: text)),
                   onSubmitted: (String text) =>
                       onChanged(material.copyWith(title: text)),
                 ),
@@ -398,6 +411,8 @@ class _EditableMaterialCompact extends StatelessWidget {
                   minLines: 1,
                   hintText: 'Description',
                   placeholderWhenEmpty: 'Add description',
+                  onLiveChanged: (String text) =>
+                      onChanged(material.copyWith(description: text)),
                   onSubmitted: (String text) =>
                       onChanged(material.copyWith(description: text)),
                 ),
@@ -414,6 +429,8 @@ class _EditableMaterialCompact extends StatelessWidget {
                   maxLines: 1,
                   hintText: 'Catalog #',
                   placeholderWhenEmpty: 'Catalog #',
+                  onLiveChanged: (String text) =>
+                      onChanged(material.copyWith(catalogNumber: text)),
                   onSubmitted: (String text) =>
                       onChanged(material.copyWith(catalogNumber: text)),
                 ),
@@ -434,6 +451,10 @@ class _EditableMaterialCompact extends StatelessWidget {
                     Text(' each', style: textTheme.labelSmall),
                   ],
                 ),
+                if (material.sourceRefs.isNotEmpty) ...<Widget>[
+                  const SizedBox(height: kSpace8),
+                  PlanSourceBadges(refs: material.sourceRefs),
+                ],
               ],
             ),
           ),
@@ -504,6 +525,8 @@ class _EditableMaterialStacked extends StatelessWidget {
               ),
               maxLines: 2,
               hintText: 'Material name',
+              onLiveChanged: (String text) =>
+                  onChanged(material.copyWith(title: text)),
               onSubmitted: (String text) =>
                   onChanged(material.copyWith(title: text)),
             ),
@@ -520,6 +543,8 @@ class _EditableMaterialStacked extends StatelessWidget {
             minLines: 1,
             hintText: 'Description',
             placeholderWhenEmpty: 'Add description',
+            onLiveChanged: (String text) =>
+                onChanged(material.copyWith(description: text)),
             onSubmitted: (String text) =>
                 onChanged(material.copyWith(description: text)),
           ),
@@ -534,9 +559,15 @@ class _EditableMaterialStacked extends StatelessWidget {
             maxLines: 1,
             hintText: 'Catalog #',
             placeholderWhenEmpty: 'Catalog #',
+            onLiveChanged: (String text) =>
+                onChanged(material.copyWith(catalogNumber: text)),
             onSubmitted: (String text) =>
                 onChanged(material.copyWith(catalogNumber: text)),
           ),
+          if (material.sourceRefs.isNotEmpty) ...<Widget>[
+            const SizedBox(height: kSpace8),
+            PlanSourceBadges(refs: material.sourceRefs),
+          ],
           const SizedBox(height: kSpace8),
           Row(
             children: <Widget>[
@@ -698,6 +729,12 @@ class _AmountField extends StatelessWidget {
         inputFormatters: <TextInputFormatter>[
           FilteringTextInputFormatter.digitsOnly,
         ],
+        onLiveChanged: (String text) {
+          final int? parsed = int.tryParse(text.trim());
+          if (parsed != null && parsed >= 0) {
+            onChanged(material.copyWith(amount: parsed));
+          }
+        },
         onSubmitted: (String text) {
           final int? parsed = int.tryParse(text.trim());
           if (parsed != null && parsed >= 0) {
@@ -759,6 +796,12 @@ class _PriceField extends StatelessWidget {
         inputFormatters: <TextInputFormatter>[
           FilteringTextInputFormatter.allow(RegExp(r'[0-9.]')),
         ],
+        onLiveChanged: (String text) {
+          final double? parsed = double.tryParse(text.trim());
+          if (parsed != null && parsed >= 0) {
+            onChanged(material.copyWith(price: parsed));
+          }
+        },
         onSubmitted: (String text) {
           final double? parsed = double.tryParse(text.trim());
           if (parsed != null && parsed >= 0) {

@@ -19,24 +19,25 @@ class AppSectionHeader extends StatelessWidget {
     final TextTheme textTheme = Theme.of(context).textTheme;
     return Padding(
       padding: const EdgeInsets.only(bottom: kSpace12),
-      child: Row(
-        crossAxisAlignment: CrossAxisAlignment.end,
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
         children: <Widget>[
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: <Widget>[
-                Text(title, style: textTheme.titleLarge),
-                ?subtitle == null
-                    ? null
-                    : Padding(
-                        padding: const EdgeInsets.only(top: kSpace4),
-                        child: Text(subtitle!, style: textTheme.bodySmall),
-                      ),
+          Row(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Text(title, style: textTheme.titleLarge),
+              if (trailing != null) ...<Widget>[
+                const SizedBox(width: kSpace8),
+                trailing!,
               ],
-            ),
+            ],
           ),
-          ?trailing,
+          if (subtitle != null)
+            Padding(
+              padding: const EdgeInsets.only(top: kSpace4),
+              child: Text(subtitle!, style: textTheme.bodySmall),
+            ),
         ],
       ),
     );

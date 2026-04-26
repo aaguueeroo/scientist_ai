@@ -56,6 +56,15 @@ const Map<String, dynamic> kMockExperimentPlanJson = <String, dynamic>{
       'A controlled T-cell expansion assay evaluating cytokine concentration '
           'ranges in serum-free medium, with pilot validation and dose-response '
           'optimization across triplicate conditions.',
+  // Steps section is backed by papers 1 and 2 as a whole.
+  'steps_section_source_refs': <Map<String, dynamic>>[
+    <String, dynamic>{'kind': 'literature', 'reference_index': 1},
+    <String, dynamic>{'kind': 'literature', 'reference_index': 2},
+  ],
+  // Materials section is informed by a previous learning.
+  'materials_section_source_refs': <Map<String, dynamic>>[
+    <String, dynamic>{'kind': 'previous_learning'},
+  ],
   'budget': <String, dynamic>{
     'total': 5870.50,
     'currency': 'USD',
@@ -66,6 +75,9 @@ const Map<String, dynamic> kMockExperimentPlanJson = <String, dynamic>{
         'description': 'Cytokine blend for controlled expansion.',
         'amount': 2,
         'price': 480.00,
+        'source_refs': <Map<String, dynamic>>[
+          <String, dynamic>{'kind': 'literature', 'reference_index': 1},
+        ],
       },
       <String, dynamic>{
         'title': 'Serum-Free Medium',
@@ -73,6 +85,10 @@ const Map<String, dynamic> kMockExperimentPlanJson = <String, dynamic>{
         'description': 'Defined medium for immune cell assays.',
         'amount': 6,
         'price': 145.00,
+        'source_refs': <Map<String, dynamic>>[
+          <String, dynamic>{'kind': 'literature', 'reference_index': 2},
+          <String, dynamic>{'kind': 'previous_learning'},
+        ],
       },
       <String, dynamic>{
         'title': 'Assay Plates 96-well',
@@ -87,6 +103,9 @@ const Map<String, dynamic> kMockExperimentPlanJson = <String, dynamic>{
         'description': 'Eight-color validation panel.',
         'amount': 3,
         'price': 620.00,
+        'source_refs': <Map<String, dynamic>>[
+          <String, dynamic>{'kind': 'literature', 'reference_index': 3},
+        ],
       },
       <String, dynamic>{
         'title': 'Pipette Tip Rack',
@@ -101,6 +120,10 @@ const Map<String, dynamic> kMockExperimentPlanJson = <String, dynamic>{
         'description': 'Positive and negative assay controls.',
         'amount': 1,
         'price': 1720.00,
+        'source_refs': <Map<String, dynamic>>[
+          <String, dynamic>{'kind': 'literature', 'reference_index': 4},
+          <String, dynamic>{'kind': 'previous_learning'},
+        ],
       },
     ],
   },
@@ -117,6 +140,9 @@ const Map<String, dynamic> kMockExperimentPlanJson = <String, dynamic>{
             'Review query constraints, acceptance criteria, and define assay success '
                 'metrics with the requesting scientist.',
         'milestone': 'Protocol approved',
+        'source_refs': <Map<String, dynamic>>[
+          <String, dynamic>{'kind': 'literature', 'reference_index': 1},
+        ],
       },
       <String, dynamic>{
         'number': 2,
@@ -127,6 +153,9 @@ const Map<String, dynamic> kMockExperimentPlanJson = <String, dynamic>{
             'Order all consumables and reagents, verify catalog substitutions, and '
                 'confirm delivery windows with suppliers.',
         'milestone': null,
+        'source_refs': <Map<String, dynamic>>[
+          <String, dynamic>{'kind': 'previous_learning'},
+        ],
       },
       <String, dynamic>{
         'number': 3,
@@ -137,6 +166,10 @@ const Map<String, dynamic> kMockExperimentPlanJson = <String, dynamic>{
             'Execute pilot assay with baseline concentrations and collect first-pass '
                 'quality and viability readouts.',
         'milestone': 'Pilot data collected',
+        'source_refs': <Map<String, dynamic>>[
+          <String, dynamic>{'kind': 'literature', 'reference_index': 1},
+          <String, dynamic>{'kind': 'literature', 'reference_index': 2},
+        ],
       },
       <String, dynamic>{
         'number': 4,
@@ -147,6 +180,10 @@ const Map<String, dynamic> kMockExperimentPlanJson = <String, dynamic>{
             'Tune dosage windows based on pilot results and run confirmation repeats '
                 'for shortlisted conditions.',
         'milestone': null,
+        'source_refs': <Map<String, dynamic>>[
+          <String, dynamic>{'kind': 'literature', 'reference_index': 3},
+          <String, dynamic>{'kind': 'literature', 'reference_index': 5},
+        ],
       },
       <String, dynamic>{
         'number': 5,
@@ -160,4 +197,24 @@ const Map<String, dynamic> kMockExperimentPlanJson = <String, dynamic>{
       },
     ],
   },
+  'risks': <Map<String, dynamic>>[
+    <String, dynamic>{
+      'description':
+          'Cytokine lot variability may shift baseline expansion rates, '
+              'invalidating concentration thresholds established in the pilot.',
+      'likelihood': 'medium',
+      'mitigation':
+          'Reserve one vial from each lot for inter-lot control runs; '
+              'repeat baseline measurement if CV across replicates exceeds 15%.',
+    },
+    <String, dynamic>{
+      'description':
+          'Supplier lead times for Recombinant Cytokine Kit (CYT-4902) '
+              'could delay the pilot by up to five business days.',
+      'likelihood': 'low',
+      'mitigation':
+          'Place order at least two weeks before the scheduled pilot start '
+              'and identify one pre-qualified alternate vendor.',
+    },
+  ],
 };

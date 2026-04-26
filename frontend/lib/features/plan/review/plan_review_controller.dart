@@ -690,6 +690,77 @@ class PlanReviewController extends ChangeNotifier {
         .any((PlanChange c) => c is FieldChange && c.target == target);
   }
 
+  /// Drives [buildSuggestionAwareSpan] (bold + background). True for v0
+  /// field edits and for every field of a step or material that does not
+  /// appear in the original plan.
+  bool shouldHighlightFieldContent(ChangeTarget target) {
+    final Color? c = effectiveColorForTarget(target);
+    if (c == null) {
+      return false;
+    }
+    if (target is StepFieldTarget) {
+      final bool isNew = !_original.timePlan.steps
+          .any((Step s) => s.id == target.stepId);
+      if (isNew) {
+        return true;
+      }
+      return effectiveHasFieldEdit(target);
+    }
+    if (target is MaterialFieldTarget) {
+      final bool isNew = !_original.budget.materials
+          .any((Material m) => m.id == target.materialId);
+      if (isNew) {
+        return true;
+      }
+      return effectiveHasFieldEdit(target);
+    }
+    return effectiveHasFieldEdit(target);
+  }
+
+  /// Blends a tinted read-only step row when the step is new to the
+  /// baseline or has field edits. Otherwise returns null.
+  Color? reviewContainerAccentForStep(String stepId) {
+    if (!_original.timePlan.steps.any((Step s) => s.id == stepId)) {
+      return effectiveColorForTarget(
+        StepFieldTarget(stepId: stepId, field: StepField.name),
+      );
+    }
+    for (final StepField field in StepField.values) {
+      final StepFieldTarget t = StepFieldTarget(
+        stepId: stepId,
+        field: field,
+      );
+      if (effectiveHasFieldEdit(t)) {
+        return effectiveColorForTarget(t);
+      }
+    }
+    return null;
+  }
+
+  /// Blends a tinted read-only material row when the material is new to the
+  /// baseline or has field edits. Otherwise returns null.
+  Color? reviewContainerAccentForMaterial(String materialId) {
+    if (!_original.budget.materials
+        .any((Material m) => m.id == materialId)) {
+      return effectiveColorForTarget(
+        MaterialFieldTarget(
+          materialId: materialId,
+          field: MaterialField.title,
+        ),
+      );
+    }
+    for (final MaterialField field in MaterialField.values) {
+      final MaterialFieldTarget t = MaterialFieldTarget(
+        materialId: materialId,
+        field: field,
+      );
+      if (effectiveHasFieldEdit(t)) {
+        return effectiveColorForTarget(t);
+      }
+    }
+    return null;
+  }
+
   /// Label shown in the "original" tooltip for [target]. In historical
   /// view it reads from the previous version's snapshot so the tooltip
   /// reflects the value as it was before this revision; otherwise it

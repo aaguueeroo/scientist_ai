@@ -118,6 +118,12 @@ class _TimeMetric extends StatelessWidget {
         textAlign: TextAlign.center,
         maxLines: 1,
         hintText: '0 d 0 h',
+        onLiveChanged: (String text) {
+          final Duration? parsed = parseDurationLabel(text);
+          if (parsed != null) {
+            onChanged(parsed);
+          }
+        },
         onSubmitted: (String text) {
           final Duration? parsed = parseDurationLabel(text);
           if (parsed != null) {
@@ -161,6 +167,12 @@ class _BudgetMetric extends StatelessWidget {
         maxLines: 1,
         hintText: '\$0.00',
         keyboardType: const TextInputType.numberWithOptions(decimal: true),
+        onLiveChanged: (String text) {
+          final double? parsed = parseBudgetLabel(text);
+          if (parsed != null) {
+            onChanged(parsed);
+          }
+        },
         onSubmitted: (String text) {
           final double? parsed = parseBudgetLabel(text);
           if (parsed != null) {

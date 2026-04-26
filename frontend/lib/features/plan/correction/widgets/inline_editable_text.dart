@@ -3,6 +3,7 @@ import 'package:flutter/material.dart' as m show Material;
 import 'package:flutter/services.dart';
 
 import '../../../../core/theme/theme_context.dart';
+import 'edit_highlight.dart';
 
 class InlineEditableText extends StatefulWidget {
   const InlineEditableText({
@@ -18,10 +19,16 @@ class InlineEditableText extends StatefulWidget {
     this.inputFormatters,
     this.placeholderWhenEmpty,
     this.expandHorizontally = false,
+    this.onLiveChanged,
   });
 
   final String value;
   final ValueChanged<String> onSubmitted;
+  /// Fires on every keystroke while the field is in edit mode. Use to keep
+  /// the draft in sync for immediate section highlights. [onSubmitted] is
+  /// still called on blur. Callers should also invoke this with the
+  /// [value] on cancel to revert the draft.
+  final ValueChanged<String>? onLiveChanged;
   final TextStyle? style;
   final TextAlign textAlign;
   final int? maxLines;
@@ -40,7 +47,6 @@ class _InlineEditableTextState extends State<InlineEditableText> {
   late TextEditingController _controller;
   late FocusNode _focusNode;
   bool _isEditing = false;
-  bool _openEditScheduled = false;
   /// [widget.value] when the user last opened the editor; used to undo on cancel.
   late String _editSessionBaseline;
 
@@ -76,33 +82,23 @@ class _InlineEditableTextState extends State<InlineEditableText> {
   }
 
   void _enterEditing() {
-    if (_isEditing || _openEditScheduled) {
+    if (_isEditing) {
       return;
     }
-    _openEditScheduled = true;
-    // Defer so setState and focus are not run during the same pointer /
-    // mouse-tracker pass as the label tap (avoids
-    // !_debugDuringDeviceUpdate on desktop/web).
+    setState(() {
+      // Label display uses [_controller] when not editing, so the buffer is
+      // the visible string at tap time (and matches [widget.value] when in sync).
+      _editSessionBaseline = _controller.text;
+      _isEditing = true;
+      _controller.selection = TextSelection(
+        baseOffset: 0,
+        extentOffset: _controller.text.length,
+      );
+    });
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      _openEditScheduled = false;
-      if (!mounted || _isEditing) {
-        return;
+      if (mounted) {
+        _focusNode.requestFocus();
       }
-      setState(() {
-        // Label display uses [_controller] when not editing, so the buffer is
-        // the visible string at tap time (and matches [widget.value] when in sync).
-        _editSessionBaseline = _controller.text;
-        _isEditing = true;
-        _controller.selection = TextSelection(
-          baseOffset: 0,
-          extentOffset: _controller.text.length,
-        );
-      });
-      WidgetsBinding.instance.addPostFrameCallback((_) {
-        if (mounted) {
-          _focusNode.requestFocus();
-        }
-      });
     });
   }
 
@@ -132,6 +128,7 @@ class _InlineEditableTextState extends State<InlineEditableText> {
       _isEditing = false;
       _controller.text = _editSessionBaseline;
     });
+    widget.onLiveChanged?.call(_editSessionBaseline);
     _focusNode.unfocus();
   }
 
@@ -175,8 +172,10 @@ class _InlineEditableTextState extends State<InlineEditableText> {
   }
 
   Widget _buildEditor(BuildContext context) {
-    final TextStyle effectiveStyle =
+    final TextStyle baseStyle =
         widget.style ?? Theme.of(context).textTheme.bodyMedium!;
+    final TextStyle effectiveStyle =
+        editingTextHighlight(baseStyle) ?? baseStyle;
     final Widget editor = Shortcuts(
       shortcuts: const <ShortcutActivator, Intent>{
         SingleActivator(LogicalKeyboardKey.escape): _CancelIntent(),
@@ -204,10 +203,14 @@ class _InlineEditableTextState extends State<InlineEditableText> {
             cursorColor: Theme.of(context).colorScheme.primary,
             decoration: InputDecoration.collapsed(
               hintText: widget.hintText,
-              hintStyle: effectiveStyle.copyWith(
+              hintStyle: baseStyle.copyWith(
                 color: context.scientist.onSurfaceFaint,
+                backgroundColor: Colors.transparent,
               ),
             ),
+            onChanged: (String s) {
+              widget.onLiveChanged?.call(s);
+            },
             onSubmitted: (_) => _commit(),
           ),
         ),

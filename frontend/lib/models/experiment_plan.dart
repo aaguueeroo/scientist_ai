@@ -1,25 +1,82 @@
 import '../core/id_generator.dart';
+import 'plan_source_ref.dart';
+
+enum PlanRiskLikelihood { low, medium, high }
+
+class PlanRisk {
+  const PlanRisk({
+    required this.id,
+    required this.description,
+    required this.likelihood,
+    required this.mitigation,
+    this.complianceNote,
+  });
+
+  final String id;
+  final String description;
+  final PlanRiskLikelihood likelihood;
+  final String mitigation;
+  final String? complianceNote;
+
+  PlanRisk copyWith({
+    String? id,
+    String? description,
+    PlanRiskLikelihood? likelihood,
+    String? mitigation,
+    String? complianceNote,
+    bool clearComplianceNote = false,
+  }) {
+    return PlanRisk(
+      id: id ?? this.id,
+      description: description ?? this.description,
+      likelihood: likelihood ?? this.likelihood,
+      mitigation: mitigation ?? this.mitigation,
+      complianceNote:
+          clearComplianceNote ? null : (complianceNote ?? this.complianceNote),
+    );
+  }
+}
 
 class ExperimentPlan {
   const ExperimentPlan({
     required this.description,
     required this.budget,
     required this.timePlan,
+    this.stepsSectionSourceRefs = const <PlanSourceRef>[],
+    this.materialsSectionSourceRefs = const <PlanSourceRef>[],
+    this.risks = const <PlanRisk>[],
   });
 
   final String description;
   final Budget budget;
   final TimePlan timePlan;
 
+  /// Source references for the Steps section header as a whole.
+  final List<PlanSourceRef> stepsSectionSourceRefs;
+
+  /// Source references for the Materials section header as a whole.
+  final List<PlanSourceRef> materialsSectionSourceRefs;
+
+  /// Risks associated with this plan.
+  final List<PlanRisk> risks;
+
   ExperimentPlan copyWith({
     String? description,
     Budget? budget,
     TimePlan? timePlan,
+    List<PlanSourceRef>? stepsSectionSourceRefs,
+    List<PlanSourceRef>? materialsSectionSourceRefs,
+    List<PlanRisk>? risks,
   }) {
     return ExperimentPlan(
       description: description ?? this.description,
       budget: budget ?? this.budget,
       timePlan: timePlan ?? this.timePlan,
+      stepsSectionSourceRefs:
+          stepsSectionSourceRefs ?? this.stepsSectionSourceRefs,
+      materialsSectionSourceRefs:
+          materialsSectionSourceRefs ?? this.materialsSectionSourceRefs,
+      risks: risks ?? this.risks,
     );
   }
 }
@@ -28,6 +85,13 @@ class ExperimentPlan {
 ExperimentPlan deepCopyExperimentPlan(ExperimentPlan plan) {
   return ExperimentPlan(
     description: plan.description,
+    stepsSectionSourceRefs:
+        List<PlanSourceRef>.from(plan.stepsSectionSourceRefs),
+    materialsSectionSourceRefs:
+        List<PlanSourceRef>.from(plan.materialsSectionSourceRefs),
+    risks: <PlanRisk>[
+      for (final PlanRisk r in plan.risks) r.copyWith(),
+    ],
     budget: Budget(
       total: plan.budget.total,
       materials: <Material>[
@@ -71,6 +135,7 @@ class Material {
     required this.description,
     required this.amount,
     required this.price,
+    this.sourceRefs = const <PlanSourceRef>[],
   });
 
   factory Material.blank() {
@@ -90,6 +155,7 @@ class Material {
   final String description;
   final int amount;
   final double price;
+  final List<PlanSourceRef> sourceRefs;
 
   Material copyWith({
     String? id,
@@ -98,6 +164,7 @@ class Material {
     String? description,
     int? amount,
     double? price,
+    List<PlanSourceRef>? sourceRefs,
   }) {
     return Material(
       id: id ?? this.id,
@@ -106,6 +173,7 @@ class Material {
       description: description ?? this.description,
       amount: amount ?? this.amount,
       price: price ?? this.price,
+      sourceRefs: sourceRefs ?? this.sourceRefs,
     );
   }
 }
@@ -138,6 +206,7 @@ class Step {
     required this.name,
     required this.description,
     this.milestone,
+    this.sourceRefs = const <PlanSourceRef>[],
   });
 
   factory Step.blank({required int number}) {
@@ -156,6 +225,7 @@ class Step {
   final String name;
   final String description;
   final String? milestone;
+  final List<PlanSourceRef> sourceRefs;
 
   bool get isMilestone => milestone != null;
 
@@ -167,6 +237,7 @@ class Step {
     String? description,
     String? milestone,
     bool clearMilestone = false,
+    List<PlanSourceRef>? sourceRefs,
   }) {
     return Step(
       id: id ?? this.id,
@@ -175,6 +246,17 @@ class Step {
       name: name ?? this.name,
       description: description ?? this.description,
       milestone: clearMilestone ? null : (milestone ?? this.milestone),
+      sourceRefs: sourceRefs ?? this.sourceRefs,
     );
   }
+}
+
+/// Returns true if any source ref in the plan is a [PreviousLearningSourceRef].
+bool planHasPreviousLearning(ExperimentPlan plan) {
+  bool hasRef(List<PlanSourceRef> refs) =>
+      refs.any((PlanSourceRef r) => r is PreviousLearningSourceRef);
+  return hasRef(plan.stepsSectionSourceRefs) ||
+      hasRef(plan.materialsSectionSourceRefs) ||
+      plan.timePlan.steps.any((Step s) => hasRef(s.sourceRefs)) ||
+      plan.budget.materials.any((Material m) => hasRef(m.sourceRefs));
 }

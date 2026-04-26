@@ -6,6 +6,7 @@ class MaterialDto {
     required this.amount,
     required this.price,
     this.id,
+    this.sourceRefs = const <Map<String, dynamic>>[],
   });
 
   factory MaterialDto.fromJson(Map<String, dynamic> json) {
@@ -16,6 +17,9 @@ class MaterialDto {
       amount: (json['amount'] as num).toInt(),
       price: (json['price'] as num).toDouble(),
       id: json['id'] as String?,
+      sourceRefs: (json['source_refs'] as List<dynamic>?)
+              ?.cast<Map<String, dynamic>>() ??
+          const <Map<String, dynamic>>[],
     );
   }
 
@@ -30,6 +34,9 @@ class MaterialDto {
   /// `/experiment-plan` endpoint omits it.
   final String? id;
 
+  /// Source references backing this material. Omitted by old API clients.
+  final List<Map<String, dynamic>> sourceRefs;
+
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
       'title': title,
@@ -38,6 +45,7 @@ class MaterialDto {
       'amount': amount,
       'price': price,
       if (id != null) 'id': id,
+      if (sourceRefs.isNotEmpty) 'source_refs': sourceRefs,
     };
   }
 }

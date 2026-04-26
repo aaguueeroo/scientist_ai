@@ -23,17 +23,20 @@ TextSpan buildSuggestionAwareSpan({
   GestureRecognizerFactoryProvider? recognizerFactory,
 }) {
   final Color? batchColor = controller.effectiveColorForTarget(target);
-  final bool hasEditFromBaseline =
-      batchColor != null && controller.effectiveHasFieldEdit(target);
-  final Color? highlightColor =
-      hasEditFromBaseline ? batchColor.withValues(alpha: 0.16) : null;
+  final bool shouldHighlight = controller.shouldHighlightFieldContent(target);
+  final Color? highlightColor = shouldHighlight
+      ? batchColor?.withValues(alpha: 0.2)
+      : null;
   final TextSpan baseSpan = _buildBaseSpan(
     text: text,
     style: baseStyle,
     comments: controller.commentsForTarget(target, text),
     backgroundColor: highlightColor,
   );
-  if (!hasEditFromBaseline) {
+  if (!shouldHighlight) {
+    return baseSpan;
+  }
+  if (!controller.effectiveHasFieldEdit(target)) {
     return baseSpan;
   }
   final String originalLabel =
@@ -45,7 +48,7 @@ TextSpan buildSuggestionAwareSpan({
       WidgetSpan(
         alignment: PlaceholderAlignment.middle,
         child: _OriginalValueCaret(
-          color: batchColor,
+          color: batchColor ?? const Color(0xFFE6B56B),
           height: caretHeight,
           originalLabel: originalLabel,
         ),
@@ -61,7 +64,10 @@ TextSpan _buildBaseSpan({
   Color? backgroundColor,
 }) {
   final TextStyle effectiveStyle = backgroundColor != null
-      ? style.copyWith(background: Paint()..color = backgroundColor)
+      ? style.copyWith(
+          backgroundColor: backgroundColor,
+          fontWeight: FontWeight.w700,
+        )
       : style;
   if (comments.isEmpty) {
     return TextSpan(text: text, style: effectiveStyle);

@@ -1,4 +1,6 @@
-import 'dart:ui' as ui show BoxHeightStyle;
+import 'dart:math' as math;
+
+import 'dart:ui' as ui show BoxHeightStyle, Rect;
 
 import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart' hide Material;
@@ -12,6 +14,48 @@ import '../plan_review_controller.dart';
 import '../review_color_palette.dart';
 import 'comment_popover.dart';
 import 'suggestion_text_spans.dart';
+
+/// Places the top-left of the popover so it stays within the safe viewport,
+/// shifting left or above the selection when needed.
+Offset _clampPopoverToViewport({
+  required Offset unclamped,
+  required Size popoverSize,
+  required ui.Rect? selectionRect,
+  required double safeLeft,
+  required double safeTop,
+  required double safeRight,
+  required double safeBottom,
+}) {
+  double x = unclamped.dx;
+  double y = unclamped.dy;
+  final double w = popoverSize.width;
+  final double h = popoverSize.height;
+  if (y + h > safeBottom) {
+    if (selectionRect != null) {
+      final double aboveY = selectionRect.top - h - 8;
+      if (aboveY >= safeTop) {
+        y = aboveY;
+      } else {
+        y = math.max(safeTop, safeBottom - h);
+      }
+    } else {
+      y = math.max(safeTop, safeBottom - h);
+    }
+  }
+  if (y < safeTop) {
+    y = safeTop;
+  }
+  if (x + w > safeRight) {
+    x = safeRight - w;
+  }
+  if (x < safeLeft) {
+    x = safeLeft;
+  }
+  if (x + w > safeRight) {
+    x = math.max(safeLeft, safeRight - w);
+  }
+  return Offset(x, y);
+}
 
 /// Text widget that lets users select any portion of plan content and
 /// attach a comment via a floating chip. Existing comments anchored to
@@ -45,9 +89,8 @@ class _SelectablePlanTextState extends State<SelectablePlanText> {
   final OverlayPortalController _popoverController = OverlayPortalController();
   TextSelection? _selection;
   Offset? _pointerLocal;
-  // Snapshot of pointer position taken when selection first appears. Kept
-  // frozen so the chip does not jump while the user extends the selection.
-  Offset? _chipAnchorPointer;
+  /// Global bounds of the active selection, used to anchor the chip and popover.
+  ui.Rect? _selectionRectGlobal;
   Offset? _popoverGlobal;
   PlanComment? _editingComment;
   bool _isCreatingComment = false;
@@ -71,17 +114,27 @@ class _SelectablePlanTextState extends State<SelectablePlanText> {
     TextSelection selection,
     SelectionChangedCause? cause,
   ) {
-    final bool wasEmpty = _selection == null;
     final bool hasSelection =
         !selection.isCollapsed && selection.start != selection.end;
-    setState(() => _selection = hasSelection ? selection : null);
-    if (hasSelection) {
-      if (wasEmpty) {
-        _chipAnchorPointer = _pointerLocal;
+    setState(() {
+      _selection = hasSelection ? selection : null;
+      if (hasSelection) {
+        _updateSelectionLayoutFromTextPainter();
+      } else {
+        _selectionRectGlobal = null;
       }
+    });
+    if (hasSelection) {
       _showCommentChip();
+      if (_selectionRectGlobal == null) {
+        WidgetsBinding.instance.addPostFrameCallback((_) {
+          if (!mounted || _selection == null) {
+            return;
+          }
+          setState(_updateSelectionLayoutFromTextPainter);
+        });
+      }
     } else {
-      _chipAnchorPointer = null;
       _hideCommentChip();
     }
   }
@@ -102,7 +155,7 @@ class _SelectablePlanTextState extends State<SelectablePlanText> {
     if (_selection == null && !_commentChipController.isShowing) return;
     setState(() {
       _selection = null;
-      _chipAnchorPointer = null;
+      _selectionRectGlobal = null;
     });
     _hideCommentChip();
   }
@@ -121,7 +174,8 @@ class _SelectablePlanTextState extends State<SelectablePlanText> {
       _isEditingOpenComment = false;
       _pendingCreateStart = s;
       _pendingCreateEnd = e;
-      _popoverGlobal = _resolveAnchorPosition();
+      _updateSelectionLayoutFromTextPainter();
+      _popoverGlobal = _resolvePopoverUnclampedAnchor();
     });
     _hideCommentChip();
     if (!_popoverController.isShowing) _popoverController.show();
@@ -146,6 +200,7 @@ class _SelectablePlanTextState extends State<SelectablePlanText> {
       _isEditingOpenComment = false;
       _pendingCreateStart = null;
       _pendingCreateEnd = null;
+      _popoverGlobal = null;
     });
     if (_popoverController.isShowing) _popoverController.hide();
   }
@@ -172,10 +227,81 @@ class _SelectablePlanTextState extends State<SelectablePlanText> {
     return PlanReviewController.kLocalAuthorId;
   }
 
-  Offset? _resolveAnchorPosition() {
+  void _updateSelectionLayoutFromTextPainter() {
+    _selectionRectGlobal = null;
+    if (_selection == null || _selection!.isCollapsed) {
+      return;
+    }
+    final RenderBox? textBox =
+        _textKey.currentContext?.findRenderObject() as RenderBox?;
+    if (textBox == null || !textBox.hasSize) {
+      return;
+    }
+    final TextStyle baseStyle =
+        widget.style ?? DefaultTextStyle.of(context).style;
+    final int len = widget.text.length;
+    final int s0 = _selection!.start.clamp(0, len);
+    final int e0 = _selection!.end.clamp(0, len);
+    if (s0 >= e0) {
+      return;
+    }
+    final TextSpan span = TextSpan(
+      text: widget.text,
+      style: baseStyle,
+    );
+    final TextPainter painter = TextPainter(
+      text: span,
+      textDirection: TextDirection.ltr,
+      textScaler: MediaQuery.textScalerOf(context),
+      maxLines: widget.maxLines,
+    )..layout(
+        maxWidth: textBox.size.width,
+        minWidth: 0,
+      );
+    final List<TextBox> boxes = painter.getBoxesForSelection(
+      TextSelection(baseOffset: s0, extentOffset: e0),
+    );
+    if (boxes.isEmpty) {
+      return;
+    }
+    double minL = double.infinity;
+    double maxR = 0.0;
+    double minT = double.infinity;
+    double maxB = 0.0;
+    for (final TextBox b in boxes) {
+      minL = math.min(minL, b.left);
+      maxR = math.max(maxR, b.right);
+      minT = math.min(minT, b.top);
+      maxB = math.max(maxB, b.bottom);
+    }
+    final Offset topLeft = textBox.localToGlobal(Offset(minL, minT));
+    _selectionRectGlobal = ui.Rect.fromLTRB(
+      topLeft.dx,
+      topLeft.dy,
+      topLeft.dx + (maxR - minL),
+      topLeft.dy + (maxB - minT),
+    );
+  }
+
+  /// Top-left of the popover, directly under the selected text, before
+  /// [CommentPopover] viewport fitting.
+  Offset? _resolvePopoverUnclampedAnchor() {
+    if (_selectionRectGlobal != null) {
+      return Offset(
+        _selectionRectGlobal!.left,
+        _selectionRectGlobal!.bottom + 6,
+      );
+    }
+    return _resolveAnchorPositionFallback();
+  }
+
+  /// Used when layout metrics are not ready yet.
+  Offset? _resolveAnchorPositionFallback() {
     final RenderBox? box =
         _textKey.currentContext?.findRenderObject() as RenderBox?;
-    if (box == null) return null;
+    if (box == null) {
+      return null;
+    }
     final Offset origin = box.localToGlobal(Offset.zero);
     if (_pointerLocal != null) {
       return origin + _pointerLocal! + const Offset(0, 12);
@@ -234,6 +360,7 @@ class _SelectablePlanTextState extends State<SelectablePlanText> {
           if (commentsHere.isNotEmpty)
             Positioned.fill(
               child: _CommentHitOverlay(
+                textBoxKey: _textKey,
                 target: widget.target,
                 text: widget.text,
                 comments: commentsHere,
@@ -247,8 +374,7 @@ class _SelectablePlanTextState extends State<SelectablePlanText> {
             overlayChildBuilder: (BuildContext ctx) => TapRegion(
               groupId: this,
               child: _CommentChipOverlay(
-                anchorKey: _textKey,
-                pointer: _chipAnchorPointer,
+                positionGlobal: _commentChipOffset(),
                 onPressed: _openCreateCommentPopover,
               ),
             ),
@@ -308,11 +434,23 @@ class _SelectablePlanTextState extends State<SelectablePlanText> {
                 onLeaveEdit: _returnCommentToViewMode,
                 authorDisplayName: controller.authorDisplayName(authorId),
                 authorImageUrl: controller.authorAvatarUrl(authorId),
+                selectionRectGlobal: _selectionRectGlobal,
               );
             },
           ),
         ],
       ),
+    );
+  }
+
+  /// Global top-left to place the "Comment" chip just under the selection.
+  Offset? _commentChipOffset() {
+    if (_selectionRectGlobal == null) {
+      return null;
+    }
+    return Offset(
+      _selectionRectGlobal!.left,
+      _selectionRectGlobal!.bottom + 4,
     );
   }
 
@@ -328,29 +466,20 @@ class _SelectablePlanTextState extends State<SelectablePlanText> {
 
 class _CommentChipOverlay extends StatelessWidget {
   const _CommentChipOverlay({
-    required this.anchorKey,
-    required this.pointer,
+    required this.positionGlobal,
     required this.onPressed,
   });
 
-  final GlobalKey anchorKey;
-  final Offset? pointer;
+  /// Top-left in global coordinates, usually just below the selected text.
+  final Offset? positionGlobal;
   final VoidCallback onPressed;
-
-  Offset _resolvePosition() {
-    final RenderBox? box =
-        anchorKey.currentContext?.findRenderObject() as RenderBox?;
-    if (box == null) return Offset.zero;
-    final Offset origin = box.localToGlobal(Offset.zero);
-    if (pointer != null) {
-      return origin + pointer! + const Offset(8, -32);
-    }
-    return origin + const Offset(0, -32);
-  }
 
   @override
   Widget build(BuildContext context) {
-    final Offset pos = _resolvePosition();
+    if (positionGlobal == null) {
+      return const SizedBox.shrink();
+    }
+    final Offset pos = positionGlobal!;
     final ColorScheme scheme = Theme.of(context).colorScheme;
     return Stack(
       children: <Widget>[
@@ -423,6 +552,7 @@ class _CommentPopoverOverlay extends StatelessWidget {
     required this.onLeaveEdit,
     required this.authorDisplayName,
     required this.authorImageUrl,
+    this.selectionRectGlobal,
   });
 
   final Offset? anchorGlobal;
@@ -438,13 +568,35 @@ class _CommentPopoverOverlay extends StatelessWidget {
   final VoidCallback onLeaveEdit;
   final String authorDisplayName;
   final String authorImageUrl;
+  final ui.Rect? selectionRectGlobal;
 
   @override
   Widget build(BuildContext context) {
-    final Size screen = MediaQuery.of(context).size;
-    final Offset anchor = anchorGlobal ?? Offset.zero;
-    final double left = anchor.dx.clamp(kSpace16, screen.width - 320);
-    final double top = anchor.dy.clamp(kSpace16, screen.height - 360);
+    final MediaQueryData mq = MediaQuery.of(context);
+    final double safeLeft = kSpace16 + mq.padding.left;
+    final double safeTop = kSpace16 + mq.padding.top;
+    final double safeRight = mq.size.width - kSpace16 - mq.padding.right;
+    final double safeBottom = mq.size.height - kSpace16 - mq.padding.bottom;
+    final Size estSize;
+    if (isCreating) {
+      estSize = const Size(300, 340);
+    } else if (comment != null && !isEditingOpenComment) {
+      estSize = const Size(320, 300);
+    } else {
+      estSize = const Size(300, 340);
+    }
+    final Offset unclamped = anchorGlobal ?? Offset(safeLeft, safeTop);
+    final Offset pos = _clampPopoverToViewport(
+      unclamped: unclamped,
+      popoverSize: estSize,
+      selectionRect: selectionRectGlobal,
+      safeLeft: safeLeft,
+      safeTop: safeTop,
+      safeRight: safeRight,
+      safeBottom: safeBottom,
+    );
+    final double left = pos.dx;
+    final double top = pos.dy;
     final Widget popoverChild;
     if (isCreating) {
       popoverChild = CommentPopover(
@@ -498,6 +650,7 @@ class _CommentPopoverOverlay extends StatelessWidget {
 /// surfaces them as a click on the corresponding comment marker.
 class _CommentHitOverlay extends StatelessWidget {
   const _CommentHitOverlay({
+    required this.textBoxKey,
     required this.target,
     required this.text,
     required this.comments,
@@ -505,6 +658,7 @@ class _CommentHitOverlay extends StatelessWidget {
     required this.onCommentTapped,
   });
 
+  final GlobalKey textBoxKey;
   final ChangeTarget target;
   final String text;
   final List<PlanComment> comments;
@@ -518,7 +672,7 @@ class _CommentHitOverlay extends StatelessWidget {
         return Stack(
           children: <Widget>[
             for (final PlanComment c in comments)
-              ..._buildHitRects(c, constraints, context),
+              ..._buildHitRects(c, constraints),
           ],
         );
       },
@@ -528,7 +682,6 @@ class _CommentHitOverlay extends StatelessWidget {
   List<Widget> _buildHitRects(
     PlanComment comment,
     BoxConstraints constraints,
-    BuildContext context,
   ) {
     final TextPainter painter = TextPainter(
       text: TextSpan(text: text, style: style),
@@ -554,16 +707,11 @@ class _CommentHitOverlay extends StatelessWidget {
             child: GestureDetector(
               behavior: HitTestBehavior.translucent,
               onTap: () {
-                final RenderBox? overlay =
-                    Overlay.of(context).context.findRenderObject() as RenderBox?;
-                final RenderBox? local =
-                    context.findRenderObject() as RenderBox?;
-                final Offset global = (local != null)
-                    ? local.localToGlobal(
-                        Offset(tb.left, tb.bottom + 4),
-                        ancestor: overlay,
-                      )
-                    : Offset(tb.left, tb.bottom);
+                final RenderBox? textBox = textBoxKey.currentContext
+                    ?.findRenderObject() as RenderBox?;
+                final Offset global = (textBox != null)
+                    ? textBox.localToGlobal(Offset(tb.left, tb.bottom + 4))
+                    : Offset.zero;
                 onCommentTapped(comment, global);
               },
             ),

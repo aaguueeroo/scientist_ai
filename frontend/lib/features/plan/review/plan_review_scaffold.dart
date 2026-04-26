@@ -7,7 +7,9 @@ import '../../../controllers/scientist_controller.dart';
 import '../../../core/app_constants.dart';
 import '../../../core/theme/theme_context.dart';
 import '../../../models/experiment_plan.dart';
+import '../../../models/literature_review.dart';
 import '../../review/models/review.dart' as global_review;
+import '../widgets/plan_sources_navigator.dart';
 import 'editable_review_body.dart';
 import 'plan_review_controller.dart';
 import 'read_only_review_body.dart';
@@ -161,42 +163,47 @@ class _ReviewScaffoldShell extends StatelessWidget {
   Widget build(BuildContext context) {
     final PlanReviewController controller =
         context.watch<PlanReviewController>();
+    final LiteratureReview? literatureReview =
+        context.watch<ScientistController>().literatureReview;
     final Color schemeSurface = context.appColorScheme.surface;
-    return Stack(
-      children: <Widget>[
-        Positioned.fill(
-          child: Padding(
-            padding: const EdgeInsets.only(top: 56),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(kRadius),
-              child: ColoredBox(
-                color: schemeSurface,
-                child: Column(
-                  children: <Widget>[
-                    if (controller.isHistoricalView)
-                      _HistoricalBanner(
-                        onReturn: controller.returnToCurrentVersion,
-                      ),
-                    Expanded(child: _bodyForMode(controller)),
-                    SendPlanToLabBar(query: query),
-                  ],
+    return PlanSourcesNavigatorScope(
+      literatureReview: literatureReview,
+      child: Stack(
+        children: <Widget>[
+          Positioned.fill(
+            child: Padding(
+              padding: const EdgeInsets.only(top: 56),
+              child: ClipRRect(
+                borderRadius: BorderRadius.circular(kRadius),
+                child: ColoredBox(
+                  color: schemeSurface,
+                  child: Column(
+                    children: <Widget>[
+                      if (controller.isHistoricalView)
+                        _HistoricalBanner(
+                          onReturn: controller.returnToCurrentVersion,
+                        ),
+                      Expanded(child: _bodyForMode(controller)),
+                      SendPlanToLabBar(query: query),
+                    ],
+                  ),
                 ),
               ),
             ),
           ),
-        ),
-        Positioned(
-          top: 0,
-          right: 0,
-          child: ReviewActionBar(onToggleHistory: onToggleHistory),
-        ),
-        if (historyOpen)
-          Positioned.fill(
-            child: ReviewHistoryDrawer(
-              onClose: onCloseHistory,
-            ),
+          Positioned(
+            top: 0,
+            right: 0,
+            child: ReviewActionBar(onToggleHistory: onToggleHistory),
           ),
-      ],
+          if (historyOpen)
+            Positioned.fill(
+              child: ReviewHistoryDrawer(
+                onClose: onCloseHistory,
+              ),
+            ),
+        ],
+      ),
     );
   }
 }

@@ -462,6 +462,8 @@ Top-level response body for `POST /experiment-plan`.
 | `description` | string | yes | Human-readable summary of the plan. |
 | `budget` | [`Budget`](#43-budget) | yes |  |
 | `time_plan` | [`TimePlan`](#45-timeplan) | yes |  |
+| `steps_section_source_refs` | array of [`PlanSourceRef`](#49-plansourceref) | no | Source citations for the Steps section header. Omit or use `[]` when none. |
+| `materials_section_source_refs` | array of [`PlanSourceRef`](#49-plansourceref) | no | Source citations for the Materials section header. Omit or use `[]` when none. |
 
 ### 4.3 `Budget`
 
@@ -480,6 +482,7 @@ Top-level response body for `POST /experiment-plan`.
 | `description` | string | yes | Free-form description. |
 | `amount` | int | yes | Number of units to purchase. Must be ≥ 0. |
 | `price` | number | yes | **Unit** price expressed in `budget.currency`. |
+| `source_refs` | array of [`PlanSourceRef`](#49-plansourceref) | no | Source citations for this material. Omit or use `[]` when none. |
 
 ### 4.5 `TimePlan`
 
@@ -497,6 +500,22 @@ Top-level response body for `POST /experiment-plan`.
 | `name` | string | yes | Short label (e.g. `"Procure materials"`). |
 | `description` | string | yes | Free-form details. |
 | `milestone` | string \| null | no | Non-null marks this step as a milestone in the timeline UI. The string is the milestone label (e.g. `"Pilot data collected"`). Use `null` (not omission) when not a milestone. |
+| `source_refs` | array of [`PlanSourceRef`](#49-plansourceref) | no | Source citations for this step. Omit or use `[]` when none. |
+
+### 4.9 `PlanSourceRef`
+
+A citation linking part of the experiment plan to a source.
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `kind` | string | yes | One of `"literature"` or `"previous_learning"`. |
+| `reference_index` | int | when `kind == "literature"` | 1-based index into the `sources` array returned by `POST /literature-review` for the same query. FE validates the index against the loaded review; out-of-range refs are silently skipped. |
+
+**Example — literature ref:** `{ "kind": "literature", "reference_index": 2 }`
+
+**Example — previous learning:** `{ "kind": "previous_learning" }`
+
+Literature badges display the `reference_index` numeral in a circle; previous-learning badges display a light-bulb icon. Both are tappable and scroll the plan to the References panel at the bottom, where numbered literature entries (matching the badges) and a single "previous learning" explanation row are shown.
 
 ### 4.7 `ApiError`
 

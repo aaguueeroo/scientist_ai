@@ -18,10 +18,10 @@ class EditHighlightTokens {
   /// session". Distinct from [editedAccent] so insertions read as new.
   static const Color insertedAccent = Color(0xFFB7D86A);
 
-  static const double tintAlpha = 0.06;
-  static const double borderAlpha = 0.55;
-  static const double borderWidth = 1.2;
+  static const double tintAlpha = 0.12;
   static const double cornerRadius = kRadius;
+  /// In-field highlight while the user is typing in the inline editor.
+  static const double activeEditTextBackgroundAlpha = 0.2;
 }
 
 /// Whether an edit-mode container is unchanged, edited, or freshly added.
@@ -42,6 +42,17 @@ TextStyle? editedTextStyle(TextStyle? base, {required bool isChanged}) {
   return resolved.copyWith(
     color: EditHighlightTokens.editedAccent,
     fontWeight: FontWeight.w700,
+  );
+}
+
+/// Soft background for text while the inline field is in edit mode. Distinct
+/// from the committed [editedTextStyle] (amber) treatment.
+TextStyle? editingTextHighlight(TextStyle? base) {
+  final TextStyle resolved = base ?? const TextStyle();
+  return resolved.copyWith(
+    backgroundColor: EditHighlightTokens.editedAccent.withValues(
+      alpha: EditHighlightTokens.activeEditTextBackgroundAlpha,
+    ),
   );
 }
 
@@ -83,11 +94,6 @@ class EditedContainerHighlight extends StatelessWidget {
             curve: Curves.easeOut,
             decoration: BoxDecoration(
               color: accent.withValues(alpha: EditHighlightTokens.tintAlpha),
-              border: Border.all(
-                color:
-                    accent.withValues(alpha: EditHighlightTokens.borderAlpha),
-                width: EditHighlightTokens.borderWidth,
-              ),
               borderRadius: radius,
             ),
             child: child,
@@ -123,7 +129,6 @@ class _EditChangeBadge extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final Color accent = EditedContainerHighlight.colorForKind(kind);
-    final ColorScheme scheme = context.appColorScheme;
     final String label = kind == EditChangeKind.inserted ? 'Added' : 'Edited';
     final IconData icon = kind == EditChangeKind.inserted
         ? Icons.add_rounded
@@ -134,8 +139,7 @@ class _EditChangeBadge extends StatelessWidget {
         vertical: 2,
       ),
       decoration: BoxDecoration(
-        color: scheme.surfaceContainerHighest,
-        border: Border.all(color: accent, width: 1),
+        color: accent.withValues(alpha: 0.2),
         borderRadius: BorderRadius.circular(999),
       ),
       child: Row(
@@ -221,14 +225,10 @@ class _RemovedDraftSlotState extends State<RemovedDraftSlot> {
             padding: widget.padding,
             decoration: BoxDecoration(
               color: _isHovered || _isExpanded
-                  ? accent.withValues(alpha: 0.16)
-                  : accent.withValues(alpha: 0.10),
+                  ? accent.withValues(alpha: 0.2)
+                  : accent.withValues(alpha: 0.12),
               borderRadius:
                   BorderRadius.circular(EditHighlightTokens.cornerRadius),
-              border: Border.all(
-                color: accent.withValues(alpha: _isHovered ? 0.85 : 0.55),
-                width: 1,
-              ),
             ),
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,

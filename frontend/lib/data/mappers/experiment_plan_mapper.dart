@@ -3,6 +3,8 @@ import '../../models/experiment_plan.dart';
 import '../dto/budget_dto.dart';
 import '../dto/experiment_plan_dto.dart';
 import '../dto/material_dto.dart';
+import '../dto/plan_source_ref_dto.dart';
+import '../dto/risk_dto.dart';
 import '../dto/step_dto.dart';
 import '../dto/time_plan_dto.dart';
 
@@ -14,6 +16,11 @@ class ExperimentPlanMapper {
       description: dto.description,
       budget: _budgetToDomain(dto.budget),
       timePlan: _timePlanToDomain(dto.timePlan),
+      stepsSectionSourceRefs:
+          PlanSourceRefDto.listFromJson(dto.stepsSectionSourceRefs),
+      materialsSectionSourceRefs:
+          PlanSourceRefDto.listFromJson(dto.materialsSectionSourceRefs),
+      risks: dto.risks.map(_riskToDomain).toList(),
     );
   }
 
@@ -35,6 +42,11 @@ class ExperimentPlanMapper {
         totalDurationSeconds: plan.timePlan.totalDuration.inSeconds,
         steps: plan.timePlan.steps.map(_stepFromDomain).toList(),
       ),
+      stepsSectionSourceRefs:
+          PlanSourceRefDto.listToJson(plan.stepsSectionSourceRefs),
+      materialsSectionSourceRefs:
+          PlanSourceRefDto.listToJson(plan.materialsSectionSourceRefs),
+      risks: plan.risks.map(_riskFromDomain).toList(),
     );
   }
 
@@ -53,6 +65,7 @@ class ExperimentPlanMapper {
       description: dto.description,
       amount: dto.amount,
       price: dto.price,
+      sourceRefs: PlanSourceRefDto.listFromJson(dto.sourceRefs),
     );
   }
 
@@ -64,6 +77,7 @@ class ExperimentPlanMapper {
       description: material.description,
       amount: material.amount,
       price: material.price,
+      sourceRefs: PlanSourceRefDto.listToJson(material.sourceRefs),
     );
   }
 
@@ -82,6 +96,7 @@ class ExperimentPlanMapper {
       name: dto.name,
       description: dto.description,
       milestone: dto.milestone,
+      sourceRefs: PlanSourceRefDto.listFromJson(dto.sourceRefs),
     );
   }
 
@@ -93,6 +108,38 @@ class ExperimentPlanMapper {
       name: step.name,
       description: step.description,
       milestone: step.milestone,
+      sourceRefs: PlanSourceRefDto.listToJson(step.sourceRefs),
     );
+  }
+
+  static PlanRisk _riskToDomain(RiskDto dto) {
+    return PlanRisk(
+      id: generateLocalId('risk'),
+      description: dto.description,
+      likelihood: _likelihoodToDomain(dto.likelihood),
+      mitigation: dto.mitigation,
+      complianceNote: dto.complianceNote,
+    );
+  }
+
+  static RiskDto _riskFromDomain(PlanRisk risk) {
+    return RiskDto(
+      description: risk.description,
+      likelihood: risk.likelihood.name,
+      mitigation: risk.mitigation,
+      complianceNote: risk.complianceNote,
+    );
+  }
+
+  static PlanRiskLikelihood _likelihoodToDomain(String raw) {
+    switch (raw) {
+      case 'low':
+        return PlanRiskLikelihood.low;
+      case 'high':
+        return PlanRiskLikelihood.high;
+      case 'medium':
+      default:
+        return PlanRiskLikelihood.medium;
+    }
   }
 }

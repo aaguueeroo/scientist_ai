@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import '../../../../core/app_constants.dart';
 import '../../../../core/theme/theme_context.dart';
 import '../../../../models/experiment_plan.dart';
+import '../../../../ui/plan_source_badges.dart';
 import '../../review/models/step_field.dart';
 import '../../review/plan_review_controller.dart';
 import '../correction_format.dart';
@@ -83,6 +84,9 @@ class _EditableStepTileState extends State<EditableStepTile> {
                       ),
                       maxLines: 2,
                       hintText: 'Step name',
+                      onLiveChanged: (String text) {
+                        widget.onChanged(widget.step.copyWith(name: text));
+                      },
                       onSubmitted: (String text) {
                         widget.onChanged(widget.step.copyWith(name: text));
                       },
@@ -99,12 +103,21 @@ class _EditableStepTileState extends State<EditableStepTile> {
                       minLines: 1,
                       hintText: 'Step description',
                       placeholderWhenEmpty: 'Add a description',
+                      onLiveChanged: (String text) {
+                        widget.onChanged(
+                          widget.step.copyWith(description: text),
+                        );
+                      },
                       onSubmitted: (String text) {
                         widget.onChanged(
                           widget.step.copyWith(description: text),
                         );
                       },
                     ),
+                    if (widget.step.sourceRefs.isNotEmpty) ...<Widget>[
+                      const SizedBox(height: kSpace8),
+                      PlanSourceBadges(refs: widget.step.sourceRefs),
+                    ],
                   ],
                 ),
               ),
@@ -123,6 +136,14 @@ class _EditableStepTileState extends State<EditableStepTile> {
                     textAlign: TextAlign.right,
                     maxLines: 1,
                     hintText: '0 h',
+                    onLiveChanged: (String text) {
+                      final Duration? parsed = parseDurationLabel(text);
+                      if (parsed != null) {
+                        widget.onChanged(
+                          widget.step.copyWith(duration: parsed),
+                        );
+                      }
+                    },
                     onSubmitted: (String text) {
                       final Duration? parsed = parseDurationLabel(text);
                       if (parsed != null) {
@@ -254,15 +275,10 @@ class _AddStepTileState extends State<AddStepTile> {
             vertical: kSpace16,
           ),
           decoration: BoxDecoration(
-            color:
-                _isHovered ? scheme.primaryContainer : Colors.transparent,
+            color: _isHovered
+                ? scheme.primaryContainer
+                : Colors.transparent,
             borderRadius: BorderRadius.circular(kRadius),
-            border: Border.all(
-              color: _isHovered
-                  ? scheme.primary.withValues(alpha: 0.4)
-                  : context.scientist.timelineConnector,
-              width: 1,
-            ),
           ),
           child: Row(
             mainAxisAlignment: MainAxisAlignment.center,

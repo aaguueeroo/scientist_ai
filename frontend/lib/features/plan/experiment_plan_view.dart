@@ -8,6 +8,7 @@ import '../../ui/app_surface.dart';
 import '../../ui/skeleton_bar.dart';
 import 'widgets/material_tile.dart';
 import 'widgets/plan_hero_metrics.dart';
+import 'widgets/plan_risks_section.dart';
 import 'widgets/plan_timeline.dart';
 import 'widgets/step_tile.dart';
 
@@ -98,6 +99,8 @@ class ExperimentPlanView extends StatelessWidget {
             ),
           ],
         ),
+        const SizedBox(height: kSpace32),
+        PlanRisksSection(risks: plan.risks),
       ],
     );
   }

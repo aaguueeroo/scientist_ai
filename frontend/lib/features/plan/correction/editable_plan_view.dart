@@ -4,9 +4,13 @@ import 'package:provider/provider.dart';
 import '../../../core/app_constants.dart';
 import '../../../core/theme/theme_context.dart';
 import '../../../models/experiment_plan.dart';
+import '../../../models/plan_source_ref.dart';
 import '../../../ui/app_section_header.dart';
+import '../../../ui/plan_source_badges.dart';
 import '../review/models/removed_draft_slot.dart';
 import '../review/plan_review_controller.dart';
+import '../widgets/plan_references_panel.dart';
+import '../widgets/plan_risks_section.dart';
 import 'correction_format.dart';
 import 'widgets/edit_highlight.dart';
 import 'widgets/editable_hero_metrics.dart';
@@ -62,6 +66,7 @@ class EditablePlanView extends StatelessWidget {
               child: _EditableStepsColumn(
                 steps: draft.timePlan.steps,
                 removedSlots: removedSteps,
+                sectionSourceRefs: draft.stepsSectionSourceRefs,
                 onStepChanged: controller.updateStep,
                 onStepRemoved: controller.removeStep,
                 onAddStep: controller.appendStep,
@@ -73,7 +78,15 @@ class EditablePlanView extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  const AppSectionHeader(title: 'Materials'),
+                  AppSectionHeader(
+                    title: 'Materials',
+                    trailing:
+                        draft.materialsSectionSourceRefs.isNotEmpty
+                            ? PlanSourceBadges(
+                                refs: draft.materialsSectionSourceRefs,
+                              )
+                            : null,
+                  ),
                   EditablePlanMaterialsList(
                     materials: draft.budget.materials,
                     removedSlots: removedMaterials,
@@ -86,6 +99,10 @@ class EditablePlanView extends StatelessWidget {
             ),
           ],
         ),
+        const SizedBox(height: kSpace32),
+        PlanRisksSection(risks: draft.risks),
+        PlanReferencesPanel(plan: draft),
+        const SizedBox(height: kSpace32),
       ],
     );
   }
@@ -95,6 +112,7 @@ class _EditableStepsColumn extends StatelessWidget {
   const _EditableStepsColumn({
     required this.steps,
     required this.removedSlots,
+    required this.sectionSourceRefs,
     required this.onStepChanged,
     required this.onStepRemoved,
     required this.onAddStep,
@@ -103,6 +121,7 @@ class _EditableStepsColumn extends StatelessWidget {
 
   final List<Step> steps;
   final List<RemovedStepSlot> removedSlots;
+  final List<PlanSourceRef> sectionSourceRefs;
   final void Function(int index, Step step) onStepChanged;
   final ValueChanged<int> onStepRemoved;
   final VoidCallback onAddStep;
@@ -113,7 +132,12 @@ class _EditableStepsColumn extends StatelessWidget {
     return Column(
       crossAxisAlignment: CrossAxisAlignment.start,
       children: <Widget>[
-        const AppSectionHeader(title: 'Steps'),
+        AppSectionHeader(
+          title: 'Steps',
+          trailing: sectionSourceRefs.isNotEmpty
+              ? PlanSourceBadges(refs: sectionSourceRefs)
+              : null,
+        ),
         ..._buildTiles(),
         if (steps.isNotEmpty || removedSlots.isNotEmpty)
           const SizedBox(height: kSpace12),

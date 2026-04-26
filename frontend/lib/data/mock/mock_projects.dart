@@ -125,6 +125,28 @@ ExperimentPlan _buildPlanA() {
         'Five freeze-thaw cycles applied to encapsulated mRNA, with potency '
         'and integrity readouts at each cycle to characterise stability '
         'under realistic cold-chain stress.',
+    risks: <PlanRisk>[
+      PlanRisk(
+        id: generateLocalId('risk'),
+        description:
+            'mRNA degradation during freeze-thaw cycling if cold-chain '
+            'temperatures deviate by more than ±2 °C.',
+        likelihood: PlanRiskLikelihood.medium,
+        mitigation:
+            'Deploy continuous loggers at each freezer; abort and restart '
+            'the cycle if any excursion is detected.',
+      ),
+      PlanRisk(
+        id: generateLocalId('risk'),
+        description:
+            'LNP encapsulation efficiency may fall below 80% for some lots, '
+            'compromising potency readings.',
+        likelihood: PlanRiskLikelihood.low,
+        mitigation:
+            'Pre-screen each lot with a rapid encapsulation QC assay before '
+            'use and replace non-conforming lots.',
+      ),
+    ],
     budget: Budget(
       total: 7480.0,
       materials: <Material>[
@@ -206,6 +228,18 @@ ExperimentPlan _buildPlanB() {
     description:
         'Optimisation of CRISPR Cas9 delivery efficiency in primary '
         'hepatocyte cultures, comparing lipid and electroporation routes.',
+    risks: <PlanRisk>[
+      PlanRisk(
+        id: generateLocalId('risk'),
+        description:
+            'Primary hepatocyte viability may drop below 70% after thawing, '
+            'leading to unreliable delivery readouts.',
+        likelihood: PlanRiskLikelihood.medium,
+        mitigation:
+            'Assess viability immediately post-thaw; replace the lot if '
+            'viability is below 75% before plating.',
+      ),
+    ],
     budget: Budget(
       total: 6320.0,
       materials: <Material>[
@@ -278,6 +312,18 @@ ExperimentPlan _buildPlanC() {
     description:
         'Fluorescence-based folding assay to characterise a candidate '
         'enzyme variant across temperature and pH gradients.',
+    risks: <PlanRisk>[
+      PlanRisk(
+        id: generateLocalId('risk'),
+        description:
+            'Plate reader drift across long gradient sweeps could introduce '
+            'systematic error into folding curve comparisons.',
+        likelihood: PlanRiskLikelihood.low,
+        mitigation:
+            'Include a calibration reference well in every plate and '
+            'normalise readings before analysis.',
+      ),
+    ],
     budget: Budget(
       total: 4980.0,
       materials: <Material>[

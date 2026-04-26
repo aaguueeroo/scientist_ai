@@ -4,8 +4,11 @@ import '../../../core/app_constants.dart';
 import '../../../core/theme/theme_context.dart';
 import '../../../models/experiment_plan.dart';
 import '../../../ui/app_section_header.dart';
+import '../../../ui/plan_source_badges.dart';
 import '../../review/widgets/focus_highlight_container.dart';
 import '../experiment_plan_view.dart' show formatExperimentPlanTotalDuration;
+import '../widgets/plan_references_panel.dart';
+import '../widgets/plan_risks_section.dart';
 import 'models/change_target.dart';
 import 'models/review_section.dart';
 import 'models/step_field.dart';
@@ -79,7 +82,14 @@ class ReadOnlyReviewBody extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    const AppSectionHeader(title: 'Steps'),
+                    AppSectionHeader(
+                      title: 'Steps',
+                      trailing: plan.stepsSectionSourceRefs.isNotEmpty
+                          ? PlanSourceBadges(
+                              refs: plan.stepsSectionSourceRefs,
+                            )
+                          : null,
+                    ),
                     for (int i = 0;
                         i < plan.timePlan.steps.length;
                         i++) ...<Widget>[
@@ -104,15 +114,36 @@ class ReadOnlyReviewBody extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    const AppSectionHeader(title: 'Materials'),
+                    AppSectionHeader(
+                      title: 'Materials',
+                      trailing: plan.materialsSectionSourceRefs.isNotEmpty
+                          ? PlanSourceBadges(
+                              refs: plan.materialsSectionSourceRefs,
+                            )
+                          : null,
+                    ),
                     ReviewMaterialsList(materials: plan.budget.materials),
-                    const SectionFeedbackBar(section: ReviewSection.materials),
+                    const SectionFeedbackBar(
+                        section: ReviewSection.materials),
                   ],
                 ),
               ),
             ),
           ],
         ),
+        const SizedBox(height: kSpace32),
+        FocusHighlightContainer(
+          section: ReviewSection.risks,
+          child: Column(
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              PlanRisksSection(risks: plan.risks),
+              const SectionFeedbackBar(section: ReviewSection.risks),
+            ],
+          ),
+        ),
+        PlanReferencesPanel(plan: plan),
+        const SizedBox(height: kSpace32),
       ],
     );
   }

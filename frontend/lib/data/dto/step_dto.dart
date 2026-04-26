@@ -6,6 +6,7 @@ class StepDto {
     required this.description,
     this.milestone,
     this.id,
+    this.sourceRefs = const <Map<String, dynamic>>[],
   });
 
   factory StepDto.fromJson(Map<String, dynamic> json) {
@@ -16,6 +17,9 @@ class StepDto {
       description: json['description'] as String,
       milestone: json['milestone'] as String?,
       id: json['id'] as String?,
+      sourceRefs: (json['source_refs'] as List<dynamic>?)
+              ?.cast<Map<String, dynamic>>() ??
+          const <Map<String, dynamic>>[],
     );
   }
 
@@ -30,6 +34,9 @@ class StepDto {
   /// `/experiment-plan` endpoint omits it.
   final String? id;
 
+  /// Source references backing this step. Omitted by old API clients.
+  final List<Map<String, dynamic>> sourceRefs;
+
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
       'number': number,
@@ -38,6 +45,7 @@ class StepDto {
       'description': description,
       'milestone': milestone,
       if (id != null) 'id': id,
+      if (sourceRefs.isNotEmpty) 'source_refs': sourceRefs,
     };
   }
 }
