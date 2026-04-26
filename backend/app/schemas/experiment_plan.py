@@ -12,12 +12,13 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Literal
 
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import Field
 
 from app.schemas.literature_qc import NoveltyLabel, Reference, SourceTier
+from app.schemas.openai_structured_model import OpenAIStructuredModel
 
 
-class Material(BaseModel):
+class Material(OpenAIStructuredModel):
     """A reagent / consumable with supplier grounding."""
 
     reagent: str = Field(min_length=1, max_length=300)
@@ -26,37 +27,37 @@ class Material(BaseModel):
     qty: float | None = None
     qty_unit: str | None = None
     unit_cost_usd: float | None = None
-    source_url: HttpUrl | None = None
+    source_url: str | None = Field(default=None, max_length=2048)
     notes: str | None = Field(default=None, max_length=2000)
     tier: SourceTier
     verified: bool = False
-    verification_url: HttpUrl | None = None
+    verification_url: str | None = Field(default=None, max_length=2048)
     confidence: Literal["high", "medium", "low"] = "low"
 
 
-class ProtocolStep(BaseModel):
+class ProtocolStep(OpenAIStructuredModel):
     """One ordered step in the experiment protocol."""
 
     order: int = Field(ge=1)
     technique: str = Field(min_length=1, max_length=120)
     description: str = Field(default="", max_length=4000)
     source_doi: str | None = None
-    source_url: HttpUrl | None = None
+    source_url: str | None = Field(default=None, max_length=2048)
     tier: SourceTier
     verified: bool = False
-    verification_url: HttpUrl | None = None
+    verification_url: str | None = Field(default=None, max_length=2048)
     confidence: Literal["high", "medium", "low"] = "low"
     notes: str | None = Field(default=None, max_length=2000)
 
 
-class BudgetLineItem(BaseModel):
+class BudgetLineItem(OpenAIStructuredModel):
     """One line of the experiment budget."""
 
     label: str = Field(min_length=1, max_length=200)
     cost_usd: float = Field(ge=0.0)
 
 
-class Budget(BaseModel):
+class Budget(OpenAIStructuredModel):
     """Aggregate budget; total is exposed explicitly so the LLM can echo it."""
 
     items: list[BudgetLineItem] = Field(default_factory=list)
@@ -64,7 +65,7 @@ class Budget(BaseModel):
     currency: Literal["USD"] = "USD"
 
 
-class TimelinePhase(BaseModel):
+class TimelinePhase(OpenAIStructuredModel):
     """One phase of the timeline plan."""
 
     phase: str = Field(min_length=1, max_length=200)
@@ -80,14 +81,14 @@ class MIQECategoryStatus(StrEnum):
     MISSING = "missing"
 
 
-class MIQECategory(BaseModel):
+class MIQECategory(OpenAIStructuredModel):
     """One MIQE checklist category with status + free-text notes."""
 
     status: MIQECategoryStatus
     notes: str = Field(default="", max_length=2000)
 
 
-class MIQECompliance(BaseModel):
+class MIQECompliance(OpenAIStructuredModel):
     """The nine MIQE checklist categories, one entry per category.
 
     Source: Bustin S.A. et al. (2009) — DOI 10.1373/clinchem.2008.112797.
@@ -104,7 +105,7 @@ class MIQECompliance(BaseModel):
     methodological_details: MIQECategory
 
 
-class ValidationPlan(BaseModel):
+class ValidationPlan(OpenAIStructuredModel):
     """How the experiment will be validated; MIQE block only when qPCR is used."""
 
     success_metrics: list[str] = Field(default_factory=list)
@@ -112,7 +113,7 @@ class ValidationPlan(BaseModel):
     miqe_compliance: MIQECompliance | None = None
 
 
-class Risk(BaseModel):
+class Risk(OpenAIStructuredModel):
     """A risk + mitigation entry."""
 
     description: str = Field(min_length=1, max_length=2000)
@@ -121,7 +122,7 @@ class Risk(BaseModel):
     compliance_note: str | None = Field(default=None, max_length=2000)
 
 
-class GroundingSummary(BaseModel):
+class GroundingSummary(OpenAIStructuredModel):
     """Aggregate grounding result reported alongside the plan."""
 
     verified_count: int = Field(ge=0)
@@ -129,7 +130,7 @@ class GroundingSummary(BaseModel):
     tier_0_drops: int = Field(default=0, ge=0)
 
 
-class ExperimentPlan(BaseModel):
+class ExperimentPlan(OpenAIStructuredModel):
     """Top-level experiment plan emitted by runtime Agent 3."""
 
     plan_id: str = Field(min_length=1, max_length=200)

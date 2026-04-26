@@ -2,9 +2,15 @@
 
 An AI that creates an experiment plan for a theory to be proved.
 
-## Getting Started
+**Monorepo layout**
 
-This project is a starting point for a Flutter application.
+- **`backend/`** — FastAPI service (`POST /literature-review`, `POST /experiment-plan`, …). See [`backend/README.md`](backend/README.md) and `GET /openapi.json` when the server is running.
+- **`docs/api_contract.md`** — API contract summary (v1.1+).
+- **`FRONTEND_TODO.md`** — what to change in **Flutter** to match the current backend.
+
+## Getting Started (Flutter)
+
+This project includes a Flutter application under `frontend/`.
 
 A few resources to get you started if this is your first Flutter project:
 

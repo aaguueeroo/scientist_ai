@@ -8,13 +8,29 @@ reuse existing codes.
 
 from __future__ import annotations
 
+import traceback
 from typing import Any
 
+import structlog
 from fastapi import FastAPI, Request
 from fastapi.exceptions import RequestValidationError
 from fastapi.responses import JSONResponse
 
 from app.schemas.errors import ErrorCode, ErrorResponse
+
+_MAX_ERROR_TRACE_CHARS = 12_000
+
+_log = structlog.get_logger("app.errors")
+
+
+def _safe_trace(exc: BaseException) -> str:
+    """Format a traceback for JSON logs; truncate to avoid huge lines."""
+
+    lines = traceback.format_exception(type(exc), exc, exc.__traceback__)
+    text = "".join(lines)
+    if len(text) <= _MAX_ERROR_TRACE_CHARS:
+        return text
+    return text[:_MAX_ERROR_TRACE_CHARS] + "\n... (truncated)"
 
 
 class DomainError(Exception):
@@ -129,6 +145,16 @@ async def _domain_error_handler(request: Request, exc: Exception) -> JSONRespons
             message=InternalError.default_message,
         )
     status_override = exc.http_status if exc.http_status != http_status_for(exc.code) else None
+    http = exc.http_status
+    log = _log.warning if http < 500 else _log.error
+    log(
+        "app.http.domain_error",
+        code=exc.code.value,
+        message=exc.message,
+        http_status=http,
+        request_id=_request_id(request),
+        details=exc.details if exc.details else {},
+    )
     return _render(
         request,
         code=exc.code,
@@ -145,15 +171,29 @@ async def _validation_handler(request: Request, exc: Exception) -> JSONResponse:
             code=ErrorCode.INTERNAL_ERROR,
             message=InternalError.default_message,
         )
+    errors = exc.errors()
+    _log.warning(
+        "app.http.validation_error",
+        request_id=_request_id(request),
+        error_count=len(errors),
+        first_loc=errors[0]["loc"] if errors else (),
+    )
     return _render(
         request,
         code=ErrorCode.VALIDATION_ERROR,
         message="request body failed validation",
-        details={"errors": exc.errors()},
+        details={"errors": errors},
     )
 
 
 async def _internal_error_handler(request: Request, exc: Exception) -> JSONResponse:
+    _log.error(
+        "app.http.unhandled_exception",
+        request_id=_request_id(request),
+        exc_type=type(exc).__name__,
+        exc_message=str(exc)[:2_000],
+        traceback=_safe_trace(exc),
+    )
     return _render(
         request,
         code=ErrorCode.INTERNAL_ERROR,

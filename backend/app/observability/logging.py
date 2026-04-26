@@ -26,17 +26,38 @@ AGENT_LOG_REQUIRED_KEYS: Final = (
 )
 
 
-def configure_logging() -> None:
-    """Configure structlog + the stdlib logger to emit single-line JSON."""
+def _set_stdlib_log_levels(root_level: int) -> None:
+    """Point uvicorn / FastAPI loggers at the same level; keep third-party I/O at INFO."""
 
+    root = logging.getLogger()
+    root.setLevel(root_level)
+    for name in ("uvicorn", "uvicorn.error", "uvicorn.access", "fastapi", "app"):
+        logging.getLogger(name).setLevel(root_level)
+    for name in ("httpx", "httpcore", "h11", "openai", "tavily", "tavily_async"):
+        logging.getLogger(name).setLevel(logging.INFO)
+
+
+def configure_logging(*, log_level: int = logging.INFO) -> None:
+    """Configure structlog + the stdlib logger to emit single-line JSON.
+
+    ``log_level`` is a ``stdlib`` int (e.g. ``logging.DEBUG``). Set **LOG_LEVEL=DEBUG** in
+    ``.env`` to see:
+
+    * ``http.request.begin`` / ``http.request.response_start`` (path, status, **latency to first byte**; for SSE, this is *not* the full stream)
+    * ``app.literature_review.*`` / ``app.experiment_plan.*`` / ``pipeline.*.step_ms`` (task timings and I/O summaries)
+    * Third-party loggers (``httpx``, ``openai``, …) stay at **INFO** to avoid request-body noise unless you change ``_set_stdlib_log_levels`` below.
+    """
+
+    _set_stdlib_log_levels(log_level)
     structlog.configure(
         processors=[
             structlog.contextvars.merge_contextvars,
             structlog.stdlib.add_log_level,
             structlog.processors.TimeStamper(fmt="iso", utc=True),
+            structlog.processors.format_exc_info,
             structlog.processors.JSONRenderer(),
         ],
-        wrapper_class=structlog.make_filtering_bound_logger(logging.INFO),
+        wrapper_class=structlog.make_filtering_bound_logger(log_level),
         logger_factory=structlog.stdlib.LoggerFactory(),
         cache_logger_on_first_use=False,
     )

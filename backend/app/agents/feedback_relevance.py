@@ -23,7 +23,7 @@ from __future__ import annotations
 import time
 from dataclasses import dataclass
 
-from pydantic import BaseModel, Field
+from pydantic import Field
 
 from app.clients.openai_client import (
     AbstractOpenAIClient,
@@ -34,6 +34,7 @@ from app.config.settings import Settings, get_settings
 from app.observability.logging import emit_agent_call_complete
 from app.prompts.loader import load_role, prompt_versions
 from app.schemas.feedback import DomainTag, FewShotExample
+from app.schemas.openai_structured_model import OpenAIStructuredModel
 from app.storage.feedback_repo import FeedbackRepo
 
 _AGENT_NAME = "feedback_relevance"
@@ -42,20 +43,20 @@ _CANDIDATE_LIMIT = 20
 _RESULT_LIMIT = 5
 
 
-class DomainTagClaim(BaseModel):
+class DomainTagClaim(OpenAIStructuredModel):
     """Closed-enum domain tag returned by the first LLM call."""
 
     domain_tag: DomainTag
 
 
-class RelevanceItem(BaseModel):
+class RelevanceItem(OpenAIStructuredModel):
     """One score in the rerank step."""
 
     feedback_id: str = Field(min_length=1, max_length=64)
     score: float = Field(ge=0.0, le=1.0)
 
 
-class RelevanceClaim(BaseModel):
+class RelevanceClaim(OpenAIStructuredModel):
     """The structured output for the second LLM call."""
 
     items: list[RelevanceItem] = Field(default_factory=list)

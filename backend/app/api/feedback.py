@@ -27,14 +27,23 @@ from app.schemas.feedback import (
 )
 from app.storage.feedback_repo import FeedbackRepo
 
-router = APIRouter()
+router = APIRouter(tags=["Feedback"])
 
 
 def _new_feedback_id() -> str:
     return f"fb-{uuid.uuid4().hex}"
 
 
-@router.post("/feedback", response_model=FeedbackResponse)
+@router.post(
+    "/feedback",
+    response_model=FeedbackResponse,
+    summary="Store a scientist correction",
+    description=(
+        "Saves a correction for plan_id; domain_tag can be omitted (inferred). "
+        "Agent 2 may use it as few-shots on later POST /experiment-plan. "
+        "Returns feedback_id and request_id."
+    ),
+)
 async def submit_feedback(
     body: FeedbackRequest,
     request: Request,

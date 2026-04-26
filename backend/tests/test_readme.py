@@ -3,7 +3,7 @@
 These are the contract for the documentation deliverable defined in
 `.cursor/agents/implementation-agent.md`. The README is a first-class
 artefact: a teammate cloning the repo should be able to follow it from
-zero to a successful `POST /generate-plan` against one of the four
+zero to a successful `POST /literature-review` + `POST /experiment-plan` run against one of the four
 sample hypotheses with no extra Slack questions.
 """
 
@@ -62,7 +62,7 @@ def test_readme_contains_invoke_restmethod_and_curl_examples(
     assert "curl.exe" in readme_text, (
         "README must include at least one `curl.exe` example for cross-shell users."
     )
-    for endpoint in ("/generate-plan", "/feedback", "/health"):
+    for endpoint in ("/literature-review", "/experiment-plan", "/feedback", "/health"):
         assert endpoint in readme_text, f"README must document the `{endpoint}` endpoint."
 
 

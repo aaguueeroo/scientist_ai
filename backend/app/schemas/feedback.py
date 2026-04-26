@@ -11,6 +11,8 @@ from __future__ import annotations
 
 from enum import StrEnum
 
+from typing import Any, cast
+
 from pydantic import BaseModel, ConfigDict, Field
 
 
@@ -24,10 +26,30 @@ class DomainTag(StrEnum):
     OTHER = "other"
 
 
+_FEEDBACK_REQUEST_EXAMPLE: dict[str, str] = {
+    "plan_id": "plan-a1b2c3d-4e5f-6789-0abc-def012345678",
+    "domain_tag": "cell-biology-cryopreservation",
+    "corrected_field": "materials[0].vendor",
+    "before": "Acme Cytoware",
+    "after": "Sigma-Aldrich (SKU T9531) — verified 2024-11",
+    "reason": "Per supplier datasheet and in-house SOP; previous vendor was placeholder.",
+}
+
+_FEEDBACK_RESPONSE_EXAMPLE: dict[str, str | bool] = {
+    "feedback_id": "fb-6d7c8b9a0e1f2d3c4b5a68790fedcba1",
+    "request_id": "0f1e2d3c4b5a69788796a5b4c3d2e1f0",
+    "accepted": True,
+    "domain_tag": "cell-biology-cryopreservation",
+}
+
+
 class FeedbackRequest(BaseModel):
     """Input DTO for `POST /feedback`."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra=cast(Any, {"example": _FEEDBACK_REQUEST_EXAMPLE}),
+    )
 
     plan_id: str = Field(min_length=1, max_length=80)
     domain_tag: DomainTag | None = None
@@ -40,7 +62,10 @@ class FeedbackRequest(BaseModel):
 class FeedbackResponse(BaseModel):
     """Output DTO for `POST /feedback`."""
 
-    model_config = ConfigDict(extra="forbid")
+    model_config = ConfigDict(
+        extra="forbid",
+        json_schema_extra=cast(Any, {"example": _FEEDBACK_RESPONSE_EXAMPLE}),
+    )
 
     feedback_id: str
     request_id: str

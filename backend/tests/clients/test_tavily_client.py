@@ -8,8 +8,11 @@
 from __future__ import annotations
 
 from collections.abc import Iterator
+from types import SimpleNamespace
+from typing import Any
 from unittest.mock import AsyncMock
 
+import httpx
 import pytest
 
 from app.api.errors import TavilyUnavailable
@@ -93,7 +96,11 @@ def _no_retry_sleep(monkeypatch: pytest.MonkeyPatch) -> Iterator[None]:
 async def test_real_tavily_client_uses_advanced_depth_by_default(
     _no_retry_sleep: None,
 ) -> None:
-    client = RealTavilyClient(api_key="tvly-test", source_tiers=load_source_tiers())
+    client = RealTavilyClient(
+        api_key="tvly-test",
+        source_tiers=load_source_tiers(),
+        retrieval_mode="search",
+    )
     captured: dict[str, object] = {}
 
     async def fake_search(query: str, **kwargs: object) -> dict[str, object]:
@@ -110,7 +117,11 @@ async def test_real_tavily_client_uses_advanced_depth_by_default(
 async def test_real_tavily_client_derives_include_domains_from_config_when_none(
     _no_retry_sleep: None,
 ) -> None:
-    client = RealTavilyClient(api_key="tvly-test", source_tiers=load_source_tiers())
+    client = RealTavilyClient(
+        api_key="tvly-test",
+        source_tiers=load_source_tiers(),
+        retrieval_mode="search",
+    )
     captured: dict[str, object] = {}
 
     async def fake_search(query: str, **kwargs: object) -> dict[str, object]:
@@ -130,7 +141,11 @@ async def test_real_tavily_client_derives_include_domains_from_config_when_none(
 async def test_real_tavily_client_passes_through_explicit_include_domains(
     _no_retry_sleep: None,
 ) -> None:
-    client = RealTavilyClient(api_key="tvly-test", source_tiers=load_source_tiers())
+    client = RealTavilyClient(
+        api_key="tvly-test",
+        source_tiers=load_source_tiers(),
+        retrieval_mode="search",
+    )
     captured: dict[str, object] = {}
 
     async def fake_search(query: str, **kwargs: object) -> dict[str, object]:
@@ -150,7 +165,11 @@ async def test_real_tavily_client_passes_through_explicit_include_domains(
 async def test_real_tavily_client_raises_tavily_unavailable_after_retries(
     _no_retry_sleep: None,
 ) -> None:
-    client = RealTavilyClient(api_key="tvly-test", source_tiers=load_source_tiers())
+    client = RealTavilyClient(
+        api_key="tvly-test",
+        source_tiers=load_source_tiers(),
+        retrieval_mode="search",
+    )
     call_count = 0
 
     async def boom(*_args: object, **_kwargs: object) -> dict[str, object]:
@@ -162,3 +181,66 @@ async def test_real_tavily_client_raises_tavily_unavailable_after_retries(
     with pytest.raises(TavilyUnavailable):
         await client.search(query="q", include_domains=["nature.com"], max_results=5)
     assert call_count >= 2
+
+
+def _http_resp(status: int, data: dict[str, Any]) -> SimpleNamespace:
+    out = SimpleNamespace(status_code=status, _data=data)
+    out.json = lambda: out._data
+    return out
+
+
+@pytest.mark.asyncio
+async def test_real_tavily_research_uses_tavily_research_endpoints(
+    _no_retry_sleep: None,
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    class FakeHttpx:
+        def __init__(self) -> None:
+            self.get_calls = 0
+
+        async def post(
+            self,
+            path: str,
+            *,
+            json: dict[str, object] | None = None,
+        ) -> SimpleNamespace:
+            assert path == "/research"
+            return _http_resp(
+                201,
+                {"request_id": "task-aa", "status": "pending", "input": "q"},
+            )
+
+        async def get(self, path: str) -> SimpleNamespace:
+            self.get_calls += 1
+            return _http_resp(
+                200,
+                {
+                    "status": "completed",
+                    "request_id": "task-aa",
+                    "sources": [
+                        {"url": "https://www.nature.com/articles/xyz", "title": "Nature paper"},
+                    ],
+                },
+            )
+
+        async def aclose(self) -> None:
+            return None
+
+    def _fake_httpx_client(**_kwargs: object) -> FakeHttpx:
+        return FakeHttpx()
+
+    monkeypatch.setattr(httpx, "AsyncClient", _fake_httpx_client)
+    client = RealTavilyClient(
+        api_key="tvly-test",
+        source_tiers=load_source_tiers(),
+        retrieval_mode="research",
+    )
+    r = await client.search(
+        query="cryopreservation",
+        include_domains=["nature.com", "biorxiv.org"],
+        depth="advanced",
+        max_results=5,
+    )
+    assert r.results[0].title == "Nature paper"
+    assert "nature.com" in str(r.results[0].url)
+    await client.aclose()

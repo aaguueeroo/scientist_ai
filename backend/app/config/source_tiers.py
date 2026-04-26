@@ -66,12 +66,17 @@ class SourceTiersConfig:
         """Hostname allowlist for Tavily.
 
         Union of Tier 1 hostnames + Tier 2 hostnames +
-        Tier-1 supplier hostnames. Order is deterministic
-        (sorted) so the wire-level request is reproducible.
+        Tier-1 supplier hostnames. We **drop** a hostname if it is a **proper
+        subdomain of** another host in the set (e.g. keep ``nlm.nih.gov`` and
+        drop ``pmc.ncbi.lnm.nih.gov``) so the API sees a **shorter** list. Tavily
+        documents "keep domain lists short" for best results; an overly long
+        ``include_domains`` list often returns **no** results for difficult
+        queries even when unrestricted search finds good pages on those hosts.
+        Classifier :meth:`classify` still uses the full YAML sets (subdomain
+        matching via :func:`_host_matches`), so behaviour for URLs is unchanged.
         """
-
         union = self.tier_1_hostnames | self.tier_2_hostnames | self.tier_1_supplier_hostnames
-        return sorted(union)
+        return _minimize_domains_for_tavily(union)
 
 
 def _host_matches(host: str, allowlist: frozenset[str]) -> bool:
@@ -83,6 +88,19 @@ def _host_matches(host: str, allowlist: frozenset[str]) -> bool:
         if host.endswith(f".{allowed}"):
             return True
     return False
+
+
+def _minimize_domains_for_tavily(hosts: frozenset[str] | set[str]) -> list[str]:
+    """Omit a host if it is a strict subdomain of another host in the set."""
+
+    hset: set[str] = set(hosts)
+    remove: set[str] = set()
+    for h in hset:
+        for parent in hset:
+            if h != parent and h.endswith(f".{parent}"):
+                remove.add(h)
+    kept = hset - remove
+    return sorted(kept)
 
 
 @lru_cache(maxsize=4)

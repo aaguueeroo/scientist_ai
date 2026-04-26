@@ -275,7 +275,7 @@ async def test_literature_qc_unverified_references_are_dropped() -> None:
                 query="verbatim",
                 results=[
                     TavilyHit(url=good_url, title="Good", snippet="...", score=0.9),
-                    TavilyHit(url=bad_url, title="Bad", snippet="...", score=0.85),
+                    TavilyHit(url=bad_url, title="Bad", snippet="...", score=0.5),
                 ],
             ),
             TavilySearchResult(query="keywords", results=[]),
@@ -310,6 +310,136 @@ async def test_literature_qc_unverified_references_are_dropped() -> None:
     result = await agent.run(hypothesis="x" * 20, request_id="r-3")
     assert len(result.references) == 1
     assert str(result.references[0].url) == good_url
+
+
+@pytest.mark.asyncio
+async def test_literature_qc_similarity_suggestion_when_no_verified_refs() -> None:
+    """When the resolver returns nothing, surface one Tavily hit as unverified similar."""
+
+    nature_url = "https://www.nature.com/articles/fallback-1"
+    tavily = FakeTavilyClient(
+        responses=[
+            TavilySearchResult(
+                query="verbatim",
+                results=[
+                    TavilyHit(
+                        url=nature_url,
+                        title="Tavily title",
+                        snippet="A snippet for context.",
+                        score=0.55,
+                    ),
+                ],
+            ),
+            TavilySearchResult(query="keywords", results=[]),
+        ]
+    )
+    openai = FakeOpenAIClient(
+        chat_responses=[_keyword_chat()],
+        parsed_responses=[
+            _claim(
+                [
+                    ReferenceClaim(
+                        title="LLM title",
+                        url=nature_url,
+                        why_relevant="Claim that will not verify.",
+                    ),
+                ]
+            )
+        ],
+    )
+    resolver = FakeCitationResolver(outcomes={nature_url: _unverified()})
+    agent = LiteratureQCAgent(
+        openai=openai,
+        tavily=tavily,
+        citation_resolver=resolver,
+        source_tiers=load_source_tiers(),
+    )
+    result = await agent.run(hypothesis="x" * 20, request_id="r-sim-1")
+    assert result.references == []
+    assert result.similarity_suggestion is not None
+    s = result.similarity_suggestion
+    assert str(s.url) == nature_url
+    assert s.is_similarity_suggestion is True
+    assert s.verified is False
+    assert s.confidence == "low"
+
+
+@pytest.mark.asyncio
+async def test_literature_qc_tavily_score_promotes_to_verified_when_resolver_fails() -> None:
+    """Tavily relevance > 0.6 counts as verified even if the HTTP resolver does not verify."""
+
+    u = "https://www.nature.com/articles/tavily-075"
+    tavily = FakeTavilyClient(
+        responses=[
+            TavilySearchResult(
+                query="verbatim",
+                results=[TavilyHit(url=u, title="Paper", snippet="S", score=0.75)],
+            ),
+            TavilySearchResult(query="keywords", results=[]),
+        ]
+    )
+    openai = FakeOpenAIClient(
+        chat_responses=[_keyword_chat()],
+        parsed_responses=[_claim([ReferenceClaim(title="Paper", url=u, why_relevant="R.")])],
+    )
+    agent = LiteratureQCAgent(
+        openai=openai,
+        tavily=tavily,
+        citation_resolver=FakeCitationResolver(outcomes={u: _unverified()}),
+        source_tiers=load_source_tiers(),
+    )
+    result = await agent.run(hypothesis="x" * 20, request_id="r-tv-1")
+    assert len(result.references) == 1
+    assert str(result.references[0].url) == u
+    assert result.references[0].verified is True
+    assert result.references[0].is_similarity_suggestion is False
+    assert result.similarity_suggestion is None
+
+
+@pytest.mark.asyncio
+async def test_literature_qc_web_wide_last_resort_when_domain_search_empty() -> None:
+    """Unrestricted Tavily run supplies one unverified ref when the allowlist returns nothing."""
+
+    wide_url = "https://www.nature.com/articles/web-wide-fallback"
+    tavily = FakeTavilyClient(
+        responses=[
+            TavilySearchResult(query="verbatim", results=[]),
+            TavilySearchResult(query="keywords", results=[]),
+        ],
+        web_wide_responses=[
+            TavilySearchResult(
+                query="keywords",
+                results=[
+                    TavilyHit(
+                        url=wide_url,
+                        title="Web-wide hit",
+                        snippet="Possibly related study.",
+                        score=0.55,
+                    )
+                ],
+            )
+        ],
+    )
+    openai = FakeOpenAIClient(
+        chat_responses=[_keyword_chat("trehalose HeLa cryo")],
+        parsed_responses=[
+            _claim(
+                [],
+                confidence=0.6,
+            )
+        ],
+    )
+    agent = LiteratureQCAgent(
+        openai=openai,
+        tavily=tavily,
+        citation_resolver=FakeCitationResolver(outcomes={}),
+        source_tiers=load_source_tiers(),
+    )
+    result = await agent.run(hypothesis="x" * 20, request_id="r-web-1")
+    assert result.references == []
+    assert result.similarity_suggestion is not None
+    assert str(result.similarity_suggestion.url) == wide_url
+    assert any(c.get("kind") == "search_web_wide" for c in tavily.calls)
 
 
 @pytest.mark.asyncio
@@ -374,3 +504,168 @@ async def test_literature_qc_emits_structured_log_line_with_required_keys(
     assert payload["model"] == "gpt-4.1-mini"
     assert payload["request_id"] == "req-log-1"
     assert payload["verified_count"] == 1
+
+
+@pytest.mark.asyncio
+async def test_literature_qc_deduplicates_identical_llm_claims() -> None:
+    """The model may repeat the same source; we keep one verified ref."""
+
+    url = "https://www.nature.com/articles/dedupe-claim"
+    tavily = FakeTavilyClient(
+        responses=[
+            TavilySearchResult(
+                query="verbatim",
+                results=[TavilyHit(url=url, title="One", snippet=".", score=0.9)],
+            ),
+            TavilySearchResult(query="keywords", results=[]),
+        ]
+    )
+    openai = FakeOpenAIClient(
+        chat_responses=[_keyword_chat()],
+        parsed_responses=[
+            _claim(
+                [
+                    ReferenceClaim(title="A", url=url, why_relevant="first"),
+                    ReferenceClaim(
+                        title="A again",
+                        url=url,
+                        why_relevant="second row same URL",
+                    ),
+                ]
+            )
+        ],
+    )
+    res_ref = Reference(
+        title="A",
+        url=url,
+        why_relevant="first",
+        tier=SourceTier.TIER_1_PEER_REVIEWED,
+    )
+    resolver = FakeCitationResolver(outcomes={url: _verified(res_ref)})
+    agent = LiteratureQCAgent(
+        openai=openai,
+        tavily=tavily,
+        citation_resolver=resolver,
+        source_tiers=load_source_tiers(),
+    )
+    result = await agent.run(hypothesis="x" * 20, request_id="r-dedupe-1")
+    assert len(result.references) == 1
+    assert str(result.references[0].url) == url
+
+
+@pytest.mark.asyncio
+async def test_literature_qc_deduplicates_doi_url_variants() -> None:
+    """https://doi.org/... and http://dx.doi.org/... are one work."""
+
+    # DOI prefix must match tier_1_doi_prefixes (e.g. 10.1016) for doi.org URLs.
+    slug = "10.1016/j.dedupe.2024.01.001"
+    u1 = f"https://doi.org/{slug}"
+    u2 = f"http://dx.doi.org/{slug}"
+    tavily = FakeTavilyClient(
+        responses=[
+            TavilySearchResult(
+                query="verbatim",
+                results=[TavilyHit(url=u1, title="D", snippet=".", score=0.9)],
+            ),
+            TavilySearchResult(query="keywords", results=[]),
+        ]
+    )
+    openai = FakeOpenAIClient(
+        chat_responses=[_keyword_chat()],
+        parsed_responses=[
+            _claim(
+                [
+                    ReferenceClaim(
+                        title="One",
+                        url=u1,
+                        why_relevant="a",
+                        doi=slug,
+                    ),
+                    ReferenceClaim(
+                        title="Two",
+                        url=u2,
+                        why_relevant="b",
+                    ),
+                ]
+            )
+        ],
+    )
+    r1 = Reference(
+        title="One",
+        url=u1,
+        doi=slug,
+        why_relevant="a",
+        tier=SourceTier.TIER_1_PEER_REVIEWED,
+    )
+    resolver = FakeCitationResolver(outcomes={u1: _verified(r1)})
+    agent = LiteratureQCAgent(
+        openai=openai,
+        tavily=tavily,
+        citation_resolver=resolver,
+        source_tiers=load_source_tiers(),
+    )
+    result = await agent.run(hypothesis="x" * 20, request_id="r-dedupe-2")
+    assert len(result.references) == 1
+    assert result.references[0].doi == slug
+
+
+@pytest.mark.asyncio
+async def test_literature_qc_deduplicates_post_resolve_by_doi() -> None:
+    """Different claim URLs with the same DOI on verified refs return once."""
+
+    u1 = "https://www.nature.com/articles/post-dedupe-one"
+    u2 = "https://www.nature.com/articles/post-dedupe-two"
+    d = "10.1016/j.postresolve.2024.01.001"
+    tavily = FakeTavilyClient(
+        responses=[
+            TavilySearchResult(
+                query="verbatim",
+                results=[
+                    TavilyHit(url=u1, title="P1", snippet=".", score=0.9),
+                    TavilyHit(url=u2, title="P2", snippet=".", score=0.88),
+                ],
+            ),
+            TavilySearchResult(query="keywords", results=[]),
+        ]
+    )
+    r1 = Reference(
+        title="P1",
+        url=u1,
+        doi=d,
+        why_relevant="a",
+        tier=SourceTier.TIER_1_PEER_REVIEWED,
+    )
+    r2 = Reference(
+        title="P2",
+        url=u2,
+        doi=d,
+        why_relevant="b",
+        tier=SourceTier.TIER_1_PEER_REVIEWED,
+    )
+    openai = FakeOpenAIClient(
+        chat_responses=[_keyword_chat()],
+        parsed_responses=[
+            _claim(
+                [
+                    ReferenceClaim(
+                        title="P1", url=u1, why_relevant="a", doi=None
+                    ),
+                    ReferenceClaim(
+                        title="P2", url=u2, why_relevant="b", doi=None
+                    ),
+                ]
+            )
+        ],
+    )
+    resolver = FakeCitationResolver(
+        outcomes={u1: _verified(r1), u2: _verified(r2)}
+    )
+    agent = LiteratureQCAgent(
+        openai=openai,
+        tavily=tavily,
+        citation_resolver=resolver,
+        source_tiers=load_source_tiers(),
+    )
+    result = await agent.run(hypothesis="x" * 20, request_id="r-dedupe-3")
+    assert len(result.references) == 1
+    assert result.references[0].doi == d

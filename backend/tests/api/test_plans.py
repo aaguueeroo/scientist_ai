@@ -26,10 +26,12 @@ from app.storage import db as storage_db
 from app.storage.models import PLAN_SCHEMA_VERSION
 from app.verification.catalog_resolver import FakeCatalogResolver
 from app.verification.citation_resolver import FakeCitationResolver
-from tests.api.test_generate_plan import (
+from tests.api.test_experiment_plan import (
     NATURE_URL,
+    SAMPLE_HYPOTHESIS,
     _full_path_clients,
     _verified_nature_outcome,
+    post_literature_then_experiment_plan,
 )
 
 
@@ -109,20 +111,12 @@ async def persisted_app(monkeypatch: pytest.MonkeyPatch) -> AsyncIterator[FastAP
 
 
 @pytest.mark.asyncio
-async def test_generate_plan_persists_row_with_prompt_versions_and_schema_version(
+async def test_experiment_plan_persists_row_with_prompt_versions_and_schema_version(
     persisted_app: FastAPI,
 ) -> None:
     transport = ASGITransport(app=persisted_app, raise_app_exceptions=False)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        response = await client.post(
-            "/generate-plan",
-            json={
-                "hypothesis": ("Trehalose preserves HeLa viability better than sucrose at -80C."),
-            },
-        )
-
-    assert response.status_code == 200
-    body = response.json()
+        body = await post_literature_then_experiment_plan(client, query=SAMPLE_HYPOTHESIS)
     plan_id = body["plan_id"]
     assert plan_id
 
@@ -138,14 +132,8 @@ async def test_generate_plan_persists_row_with_prompt_versions_and_schema_versio
 async def test_get_plans_id_returns_persisted_response(persisted_app: FastAPI) -> None:
     transport = ASGITransport(app=persisted_app, raise_app_exceptions=False)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        post = await client.post(
-            "/generate-plan",
-            json={
-                "hypothesis": ("Trehalose preserves HeLa viability better than sucrose at -80C."),
-            },
-        )
-        assert post.status_code == 200
-        plan_id = post.json()["plan_id"]
+        post_body = await post_literature_then_experiment_plan(client, query=SAMPLE_HYPOTHESIS)
+        plan_id = post_body["plan_id"]
 
         get = await client.get(f"/plans/{plan_id}")
 

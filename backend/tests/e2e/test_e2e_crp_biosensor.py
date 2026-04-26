@@ -1,6 +1,7 @@
 """Step 47 — E2E: CRP paper-based biosensor.
 
-Drives `POST /generate-plan` with the CRP biosensor hypothesis from the
+Drives `POST /literature-review` and `POST /experiment-plan` with the CRP biosensor hypothesis from
+the
 brief. The protocol contains a qPCR clone-confirmation step, so the
 returned plan must populate `validation.miqe_compliance`.
 
@@ -17,7 +18,6 @@ from typing import Any
 
 import pytest
 from fastapi import FastAPI
-from httpx import ASGITransport, AsyncClient
 
 from app.schemas.experiment_plan import ExperimentPlan
 from app.schemas.literature_qc import NoveltyLabel
@@ -28,6 +28,7 @@ from tests.e2e.conftest import (
     make_material,
     make_protocol_step,
     make_reference,
+    post_literature_then_experiment_plan_e2e,
 )
 
 CRP_HYPOTHESIS = (
@@ -144,15 +145,7 @@ CRP_FIXTURE = HypothesisFixture(
 
 
 async def _post_generate_plan(app: FastAPI) -> dict[str, Any]:
-    transport = ASGITransport(app=app, raise_app_exceptions=False)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
-        response = await client.post(
-            "/generate-plan",
-            json={"hypothesis": CRP_HYPOTHESIS},
-        )
-    assert response.status_code == 200, response.text
-    body: dict[str, Any] = response.json()
-    return body
+    return await post_literature_then_experiment_plan_e2e(app, hypothesis=CRP_HYPOTHESIS)
 
 
 @pytest.mark.asyncio

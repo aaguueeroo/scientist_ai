@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import logging
+
 import pytest
 from pydantic import ValidationError
 
@@ -15,8 +17,11 @@ def _clear_env_keys(monkeypatch: pytest.MonkeyPatch) -> None:
         "OPENAI_MODEL_LITERATURE_QC",
         "OPENAI_MODEL_FEEDBACK_RELEVANCE",
         "OPENAI_MODEL_EXPERIMENT_PLANNER",
+        "LOG_LEVEL",
     ):
         monkeypatch.delenv(key, raising=False)
+    # `Settings` may load `backend/.env`; this wins over the file in tests.
+    monkeypatch.setenv("LOG_LEVEL", "INFO")
 
 
 def test_settings_loads_from_env_returns_expected_keys(
@@ -69,3 +74,20 @@ def test_settings_pinned_model_strings_match_research(
     assert settings.OPENAI_SEED_FEEDBACK_DOMAIN == 11
     assert settings.OPENAI_SEED_FEEDBACK_RERANK == 13
     assert settings.OPENAI_SEED_EXPERIMENT_PLANNER == 23
+    assert settings.LOG_LEVEL == "INFO"
+    assert settings.logging_level() == logging.INFO
+    assert settings.TAVILY_RETRIEVAL_MODE == "search"
+    assert settings.TAVILY_RESEARCH_MODEL == "mini"
+
+
+def test_settings_log_level_debug(
+    monkeypatch: pytest.MonkeyPatch,
+) -> None:
+    _clear_env_keys(monkeypatch)
+    monkeypatch.setenv("OPENAI_API_KEY", "sk-test")
+    monkeypatch.setenv("TAVILY_API_KEY", "tvly-test")
+    monkeypatch.setenv("LOG_LEVEL", "debug")
+    get_settings.cache_clear()
+    s = get_settings()
+    assert s.LOG_LEVEL == "DEBUG"
+    assert s.logging_level() == logging.DEBUG

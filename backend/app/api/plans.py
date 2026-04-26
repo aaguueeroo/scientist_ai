@@ -8,7 +8,7 @@ from __future__ import annotations
 
 from typing import Annotated
 
-from fastapi import APIRouter, Depends
+from fastapi import APIRouter, Depends, Path
 
 from app.api.deps import get_plans_repo
 from app.api.errors import DomainError
@@ -23,12 +23,31 @@ class _PlanNotFound(DomainError):
     default_message = "plan id not found"
 
 
-router = APIRouter()
+router = APIRouter(tags=["Plans"])
 
 
-@router.get("/plans/{plan_id}", response_model=GeneratePlanResponse)
+@router.get(
+    "/plans/{plan_id}",
+    response_model=GeneratePlanResponse,
+    summary="Load a saved experiment plan",
+    description=(
+        "Returns the persisted JSON snapshot (GeneratePlanResponse) from a prior "
+        "POST /experiment-plan. 404 if plan_id unknown (ErrorResponse, validation_error)."
+    ),
+    responses={
+        404: {
+            "description": "Unknown `plan_id`",
+        }
+    },
+)
 async def get_plan(
-    plan_id: str,
+    plan_id: Annotated[
+        str,
+        Path(
+            description="Storage key: plan_id from a successful POST /experiment-plan.",
+            examples=["plan-a1b2c3d-4e5f-6789-0abc-def012345678"],
+        ),
+    ],
     plans_repo: Annotated[PlansRepo, Depends(get_plans_repo)],
 ) -> GeneratePlanResponse:
     response = await plans_repo.get_by_id(plan_id)

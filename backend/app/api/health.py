@@ -6,10 +6,18 @@ from fastapi import APIRouter
 
 from app.schemas.responses import HealthResponse
 
-router = APIRouter()
+router = APIRouter(tags=["Health"])
 
 
-@router.get("/health", response_model=HealthResponse)
+@router.get(
+    "/health",
+    response_model=HealthResponse,
+    summary="Liveness probe",
+    description=(
+        "Returns `{\"status\":\"ok\"}` when the process is running. "
+        "Use for load balancer health checks and quick smoke tests."
+    ),
+)
 async def health() -> HealthResponse:
     """Return a static `{"status": "ok"}` body to confirm the server is up."""
 

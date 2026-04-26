@@ -17,6 +17,7 @@ from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
 PLAN_SCHEMA_VERSION = 1
 FEEDBACK_SCHEMA_VERSION = 1
+LITERATURE_REVIEW_SCHEMA_VERSION = 1
 
 
 class Base(DeclarativeBase):
@@ -33,6 +34,19 @@ class PlanRow(Base):
     schema_version: Mapped[int] = mapped_column(Integer, nullable=False)
     prompt_versions: Mapped[dict[str, str]] = mapped_column(JSON, nullable=False)
     domain_tag: Mapped[str | None] = mapped_column(String(64), index=True, nullable=True)
+    payload: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+
+class LiteratureReviewRow(Base):
+    """Persisted output of `POST /literature-review` (Agent 1) for `POST /experiment-plan`."""
+
+    __tablename__ = "literature_reviews"
+
+    literature_review_id: Mapped[str] = mapped_column(String(80), primary_key=True)
+    request_id: Mapped[str] = mapped_column(String(64), index=True)
+    query: Mapped[str] = mapped_column(String(4000), nullable=False)
+    schema_version: Mapped[int] = mapped_column(Integer, nullable=False)
     payload: Mapped[dict[str, Any]] = mapped_column(JSON, nullable=False)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 

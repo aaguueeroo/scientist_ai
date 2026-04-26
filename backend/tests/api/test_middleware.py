@@ -129,8 +129,12 @@ def _build_rate_limited_app(*, limit_per_min: int) -> _FastAPI:
     async def _health() -> dict[str, str]:
         return {"status": "ok"}
 
-    @app.post("/generate-plan")
-    async def _generate_plan() -> dict[str, str]:
+    @app.post("/literature-review")
+    async def _literature_review() -> dict[str, str]:
+        return {"ok": "true"}
+
+    @app.post("/experiment-plan")
+    async def _experiment_plan() -> dict[str, str]:
         return {"ok": "true"}
 
     @app.post("/feedback")
@@ -149,8 +153,8 @@ async def test_rate_limit_allows_within_quota(
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         for _ in range(5):
             response = await client.post(
-                "/generate-plan",
-                json={"hypothesis": "x" * 30},
+                "/experiment-plan",
+                json={"query": "x" * 30, "literature_review_id": "lr-mw"},
                 headers={"X-Forwarded-For": "10.0.0.1"},
             )
             assert response.status_code == 200, response.text
@@ -165,15 +169,15 @@ async def test_rate_limit_breach_returns_429_with_error_response(
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         for _ in range(2):
             ok_response = await client.post(
-                "/generate-plan",
-                json={"hypothesis": "x" * 30},
+                "/experiment-plan",
+                json={"query": "x" * 30, "literature_review_id": "lr-mw2"},
                 headers={"X-Forwarded-For": "10.0.0.2"},
             )
             assert ok_response.status_code == 200
 
         breach = await client.post(
-            "/generate-plan",
-            json={"hypothesis": "x" * 30},
+            "/experiment-plan",
+            json={"query": "x" * 30, "literature_review_id": "lr-mw2"},
             headers={"X-Forwarded-For": "10.0.0.2"},
         )
 

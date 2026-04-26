@@ -4,12 +4,26 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass, field
-from typing import Any, Generic, Literal, TypeVar
+from typing import Any, Generic, Literal, TypeVar, cast
 
-from openai import AsyncOpenAI
+from openai import (
+    APIConnectionError,
+    APIStatusError,
+    APITimeoutError,
+    AsyncOpenAI,
+    AuthenticationError,
+    InternalServerError,
+    OpenAIError,
+    RateLimitError,
+)
 from pydantic import BaseModel, Field
 
-from app.api.errors import CostCeilingExceeded, OpenAIUnavailable
+from app.api.errors import (
+    CostCeilingExceeded,
+    OpenAIRateLimited,
+    OpenAIUnavailable,
+    StructuredOutputInvalid,
+)
 
 ChatRole = Literal["system", "user", "assistant"]
 
@@ -153,6 +167,73 @@ def _prompt_chars(messages: list[ChatMessage]) -> int:
     return sum(len(m.content) for m in messages)
 
 
+def _to_api_messages(messages: list[ChatMessage]) -> list[dict[str, str]]:
+    """Map internal messages to the JSON shape the OpenAI SDK accepts."""
+
+    return [{"role": m.role, "content": m.content} for m in messages]
+
+
+def _token_usage_from_api(usage: object | None) -> TokenUsage:
+    if usage is None:
+        return TokenUsage(prompt_tokens=0, completion_tokens=0)
+    return TokenUsage(
+        prompt_tokens=int(getattr(usage, "prompt_tokens", 0) or 0),
+        completion_tokens=int(getattr(usage, "completion_tokens", 0) or 0),
+    )
+
+
+def _reraise_as_domain_error(exc: OpenAIError) -> None:
+    """Translate `openai` transport/API failures into :class:`DomainError` subtypes."""
+
+    if isinstance(exc, RateLimitError):
+        raise OpenAIRateLimited(
+            f"OpenAI rate limit: {exc!s}",
+            details={"type": type(exc).__name__},
+        ) from exc
+    if isinstance(exc, AuthenticationError):
+        raise OpenAIUnavailable(
+            "OpenAI authentication failed; check OPENAI_API_KEY",
+            details={"type": type(exc).__name__},
+        ) from exc
+    if isinstance(
+        exc,
+        (
+            APIConnectionError,
+            APITimeoutError,
+        ),
+    ):
+        raise OpenAIUnavailable(
+            f"OpenAI request failed: {exc!s}",
+            details={"type": type(exc).__name__},
+        ) from exc
+    if isinstance(exc, InternalServerError):
+        raise OpenAIUnavailable(
+            "OpenAI returned a server error",
+            details={"type": type(exc).__name__},
+        ) from exc
+    if isinstance(exc, APIStatusError):
+        sc = int(getattr(exc, "status_code", 0) or 0)
+        if sc == 429:
+            raise OpenAIRateLimited(
+                f"OpenAI rate limit (HTTP 429): {exc!s}",
+                details={"status_code": 429, "type": type(exc).__name__},
+            ) from exc
+        if sc >= 500:
+            raise OpenAIUnavailable(
+                f"OpenAI error: {exc!s}",
+                details={"status_code": sc, "type": type(exc).__name__},
+            ) from exc
+        if sc in (401, 403):
+            raise OpenAIUnavailable(
+                "OpenAI authentication failed; check OPENAI_API_KEY",
+                details={"status_code": sc, "type": type(exc).__name__},
+            ) from exc
+    raise OpenAIUnavailable(
+        f"OpenAI error: {exc!s}",
+        details={"type": type(exc).__name__},
+    ) from exc
+
+
 class FakeOpenAIClient(AbstractOpenAIClient):
     """Deterministic in-memory client for unit tests."""
 
@@ -262,7 +343,31 @@ class RealOpenAIClient(AbstractOpenAIClient):
         seed: int,
         max_tokens: int,
     ) -> ChatResult:
-        raise NotImplementedError
+        if self.cost_tracker is not None:
+            self.cost_tracker.check_projected(
+                model=model, prompt_chars=_prompt_chars(messages), max_tokens=max_tokens
+            )
+        try:
+            response = await self._client.chat.completions.create(
+                model=model,
+                messages=cast(Any, _to_api_messages(messages)),
+                temperature=temperature,
+                seed=seed,
+                max_tokens=max_tokens,
+            )
+        except OpenAIError as exc:
+            _reraise_as_domain_error(exc)
+        assert response.choices
+        first = response.choices[0].message
+        text = (first.content or "").strip()
+        ut = _token_usage_from_api(response.usage)
+        if self.cost_tracker is not None:
+            self.cost_tracker.record(model=model, usage=ut)
+        return ChatResult(
+            content=text,
+            usage=ut,
+            model=(response.model or model),
+        )
 
     async def parse(
         self,
@@ -274,7 +379,52 @@ class RealOpenAIClient(AbstractOpenAIClient):
         seed: int,
         max_tokens: int,
     ) -> ParsedResult[T]:
-        raise NotImplementedError
+        """Structured output. ``response_format`` must follow OpenAI's JSON Schema subset; in
+        this repo use :class:`app.schemas.openai_structured_model.OpenAIStructuredModel`.
+        https://developers.openai.com/api/docs/guides/structured-outputs#supported-schemas
+        """
+
+        if self.cost_tracker is not None:
+            self.cost_tracker.check_projected(
+                model=model, prompt_chars=_prompt_chars(messages), max_tokens=max_tokens
+            )
+        try:
+            completion = await self._client.chat.completions.parse(
+                model=model,
+                messages=cast(Any, _to_api_messages(messages)),
+                response_format=response_format,
+                temperature=temperature,
+                seed=seed,
+                max_tokens=max_tokens,
+            )
+        except OpenAIError as exc:
+            _reraise_as_domain_error(exc)
+        assert completion.choices
+        message = completion.choices[0].message
+        raw: object = message.parsed
+        if raw is None:
+            refusal = getattr(message, "refusal", None)
+            if refusal:
+                raise StructuredOutputInvalid(
+                    f"OpenAI model refusal: {refusal!s}",
+                    details={"refusal": str(refusal)[:2_000]},
+                )
+            raise StructuredOutputInvalid(
+                "no structured object returned by OpenAI",
+                details={"reason": "empty_parsed", "type": "openai.parse"},
+            )
+        if isinstance(raw, response_format):
+            out: T = raw
+        else:
+            out = response_format.model_validate(raw)
+        ut = _token_usage_from_api(completion.usage)
+        if self.cost_tracker is not None:
+            self.cost_tracker.record(model=model, usage=ut)
+        return ParsedResult(
+            parsed=out,
+            usage=ut,
+            model=(completion.model or model),
+        )
 
     async def aclose(self) -> None:
         await self._client.close()

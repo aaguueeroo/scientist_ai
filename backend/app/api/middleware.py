@@ -8,8 +8,8 @@ The middleware:
    without bypassing this middleware.
 3. Emits exactly one `event="http.request.complete"` JSON log line per
    request (per `docs/research.md` §13).
-4. Enforces a per-IP token-bucket rate limit (Step 46) on the two
-   user-facing POST endpoints (`/generate-plan`, `/feedback`). On
+4. Enforces a per-IP token-bucket rate limit (Step 46) on
+   `POST /literature-review`, `POST /experiment-plan`, and `POST /feedback`. On
    breach the middleware returns a closed-set
    `ErrorCode.OPENAI_RATE_LIMITED` `ErrorResponse` (HTTP 429) with the
    recommended `retry_after_s` in `details`.
@@ -34,7 +34,7 @@ from app.observability.logging import bind_request, clear_request
 from app.schemas.errors import ErrorCode, ErrorResponse
 
 REQUEST_ID_HEADER = "x-request-id"
-_RATE_LIMITED_PATHS = frozenset({"/generate-plan", "/feedback"})
+_RATE_LIMITED_PATHS = frozenset({"/literature-review", "/experiment-plan", "/feedback"})
 
 
 @dataclass
@@ -67,12 +67,33 @@ class RequestContextMiddleware(BaseHTTPMiddleware):
 
         logger = structlog.get_logger("http")
         start = time.perf_counter()
+        path_qs = f"{request.url.path}"
+        if request.url.query:
+            path_qs = f"{path_qs}?{request.url.query[:2000]}"
+        logger.debug(
+            "http.request.begin",
+            method=request.method,
+            path=request.url.path,
+            path_with_query=path_qs,
+            content_type=(request.headers.get("content-type") or ""),
+            client_host=request.client.host if request.client else None,
+            request_id=request_id,
+        )
         try:
             response = await call_next(request)
         finally:
             latency_ms = int((time.perf_counter() - start) * 1000)
 
         response.headers[REQUEST_ID_HEADER] = request_id
+        logger.debug(
+            "http.request.response_start",
+            method=request.method,
+            path=request.url.path,
+            status=response.status_code,
+            latency_ms=latency_ms,
+            media_type=getattr(response, "media_type", None) or "",
+            request_id=request_id,
+        )
         logger.info(
             "http.request.complete",
             method=request.method,
@@ -98,7 +119,7 @@ class _Bucket:
 
 
 class RateLimitMiddleware(BaseHTTPMiddleware):
-    """Per-IP token bucket gating `/generate-plan` and `/feedback`.
+    """Per-IP token bucket gating `/literature-review`, `/experiment-plan`, and `/feedback`.
 
     The bucket capacity equals `rate_limit_per_min`; tokens refill at
     `rate_limit_per_min / 60` per second. A request consumes one token;
@@ -153,6 +174,14 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
             return await call_next(request)
 
         request_id = request.headers.get(REQUEST_ID_HEADER) or _new_request_id()
+        structlog.get_logger("http").warning(
+            "http.rate_limited",
+            method=request.method,
+            path=request.url.path,
+            client_ip=client_ip,
+            retry_after_s=retry_after_s,
+            request_id=request_id,
+        )
         body = ErrorResponse(
             code=ErrorCode.OPENAI_RATE_LIMITED,
             message="rate limit exceeded; try again shortly",

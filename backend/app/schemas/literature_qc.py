@@ -5,7 +5,9 @@ from __future__ import annotations
 from enum import StrEnum
 from typing import Literal
 
-from pydantic import BaseModel, Field, HttpUrl
+from pydantic import Field
+
+from app.schemas.openai_structured_model import OpenAIStructuredModel
 
 
 class SourceTier(StrEnum):
@@ -25,23 +27,50 @@ class NoveltyLabel(StrEnum):
     EXACT_MATCH = "exact_match"
 
 
-class Reference(BaseModel):
-    """A literature reference attached to a QC result or experiment plan."""
+class Reference(OpenAIStructuredModel):
+    """A literature reference attached to a QC result or experiment plan.
+
+    URL fields are plain ``str`` so OpenAI ``response_format`` JSON Schemas
+    (Agent 1 / Agent 3) do not use ``format: "uri"``, which the API rejects.
+    """
 
     title: str = Field(min_length=1, max_length=500)
-    url: HttpUrl
+    url: str = Field(
+        min_length=1,
+        max_length=2048,
+        description="Candidate article URL; resolved when verified.",
+    )
     doi: str | None = None
     why_relevant: str = Field(max_length=400)
     tier: SourceTier
     verified: bool = False
-    verification_url: HttpUrl | None = None
+    verification_url: str | None = Field(default=None, max_length=2048)
     confidence: Literal["high", "medium", "low"] = "low"
+    is_similarity_suggestion: bool = Field(
+        default=False,
+        description=(
+            "True when this row is a best-effort similar link only (Tavily / model "
+            "suggestion), not passed through the HTTP citation resolver as verified."
+        ),
+    )
 
 
-class LiteratureQCResult(BaseModel):
+class LiteratureQCResult(OpenAIStructuredModel):
     """Output of runtime Agent 1 (literature QC)."""
 
     novelty: NoveltyLabel
-    references: list[Reference] = Field(default_factory=list, max_length=3)
+    references: list[Reference] = Field(
+        default_factory=list,
+        max_length=3,
+        description="HTTP-verified references only (citation resolver), max 3.",
+    )
+    similarity_suggestion: Reference | None = Field(
+        default=None,
+        description=(
+            "When ``references`` is empty, up to one unverified 'similar' link may "
+            "be attached (domain-restricted Tavily, optional open-web Tavily fallback, "
+            "or a non–tier-0 LLM claim). Omitted in JSON when null."
+        ),
+    )
     confidence: Literal["high", "medium", "low"] = "low"
     tier_0_drops: int = 0

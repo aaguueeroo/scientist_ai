@@ -9,11 +9,22 @@ malicious URL never reaches the outbound HTTP layer.
 from __future__ import annotations
 
 import re
+import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 
 import httpx
+import structlog
 from pydantic import BaseModel
+
+_resolver_log = structlog.get_logger("app")
+
+
+def _trunc_url(url: str, max_len: int = 120) -> str:
+    s = (url or "").replace("\n", " ")
+    if len(s) <= max_len:
+        return s
+    return f"{s[: max_len - 3]}..."
 
 from app.config.source_tiers import SourceTiersConfig
 from app.schemas.literature_qc import Reference, SourceTier
@@ -51,11 +62,32 @@ class RealCitationResolver(AbstractCitationResolver):
         if tier is SourceTier.TIER_0_FORBIDDEN:
             return CitationOutcome(reference=None, tier_0_drop=True)
 
+        t0 = time.perf_counter()
+        _resolver_log.info(
+            "app.citation.http_get_begin",
+            url=_trunc_url(url),
+            timeout_s=self.timeout_s,
+        )
         async with httpx.AsyncClient(timeout=self.timeout_s, follow_redirects=True) as client:
             try:
                 response = await client.get(url)
-            except httpx.HTTPError:
+            except httpx.HTTPError as exc:
+                elapsed_ms = int((time.perf_counter() - t0) * 1000)
+                _resolver_log.info(
+                    "app.citation.http_get_error",
+                    url=_trunc_url(url),
+                    elapsed_ms=elapsed_ms,
+                    error_type=type(exc).__name__,
+                )
                 return CitationOutcome(reference=None, tier_0_drop=False)
+
+        elapsed_ms = int((time.perf_counter() - t0) * 1000)
+        _resolver_log.info(
+            "app.citation.http_get_done",
+            url=_trunc_url(url),
+            status_code=response.status_code,
+            elapsed_ms=elapsed_ms,
+        )
 
         if response.status_code != 200:
             return CitationOutcome(reference=None, tier_0_drop=False)

@@ -241,7 +241,8 @@ async def test_literature_qc_llm_cannot_flip_verified_true() -> None:
             TavilySearchResult(
                 query="verbatim",
                 results=[
-                    TavilyHit(url=NATURE_URL, title="Nature paper", snippet="...", score=0.9),
+                    # Low Tavily score: no tavily-based verification; resolver returns nothing
+                    TavilyHit(url=NATURE_URL, title="Nature paper", snippet="...", score=0.5),
                 ],
             ),
             TavilySearchResult(query="keywords", results=[]),
@@ -275,8 +276,8 @@ async def test_literature_qc_llm_cannot_flip_verified_true() -> None:
 
     assert len(result.references) == 0
     assert "verified" not in ReferenceClaim.model_fields, (
-        "ReferenceClaim must not expose a `verified` field — only the "
-        "citation resolver may set verified=True on Reference."
+        "ReferenceClaim must not expose a `verified` field; only downstream "
+        "stages (citation resolver or strong Tavily score) set verified on Reference."
     )
 
 

@@ -9,9 +9,9 @@ codes.
 from __future__ import annotations
 
 from enum import StrEnum
-from typing import Any
+from typing import Any, cast
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 
 
 class ErrorCode(StrEnum):
@@ -27,8 +27,20 @@ class ErrorCode(StrEnum):
     INTERNAL_ERROR = "internal_error"
 
 
+_ERROR_EXAMPLE: dict[str, Any] = {
+    "code": "validation_error",
+    "message": "unknown literature_review_id: 'lr-not-in-db'",
+    "details": {"literature_review_id": "lr-not-in-db"},
+    "request_id": "9a8b7c6d5e4f32109876543210fedcba",
+}
+
+
 class ErrorResponse(BaseModel):
     """Single error envelope returned by every non-2xx response."""
+
+    model_config = ConfigDict(
+        json_schema_extra=cast(Any, {"example": _ERROR_EXAMPLE}),
+    )
 
     code: ErrorCode
     message: str

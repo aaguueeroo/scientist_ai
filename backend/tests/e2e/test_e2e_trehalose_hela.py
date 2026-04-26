@@ -1,6 +1,6 @@
 """Step 49 — E2E: Trehalose vs sucrose cryopreservation of HeLa cells.
 
-Drives `POST /generate-plan` with the trehalose hypothesis from the
+Drives `POST /literature-review` + `POST /experiment-plan` with the trehalose hypothesis from the
 brief. The plan asserts the *actual* MIQE outcome rather than a fixed
 expectation: this protocol does not run qPCR, so MIQE compliance must be
 `None` for the canned plan returned by the fake planner.
@@ -18,7 +18,6 @@ from typing import Any
 
 import pytest
 from fastapi import FastAPI
-from httpx import ASGITransport, AsyncClient
 
 from app.schemas.experiment_plan import ExperimentPlan
 from app.schemas.literature_qc import NoveltyLabel
@@ -29,6 +28,7 @@ from tests.e2e.conftest import (
     make_material,
     make_protocol_step,
     make_reference,
+    post_literature_then_experiment_plan_e2e,
 )
 
 TREHALOSE_HYPOTHESIS = (
@@ -152,14 +152,7 @@ TREHALOSE_FIXTURE = HypothesisFixture(
 
 
 async def _post_generate_plan(app: FastAPI) -> dict[str, Any]:
-    transport = ASGITransport(app=app, raise_app_exceptions=False)
-    async with AsyncClient(transport=transport, base_url="http://test") as client:
-        response = await client.post(
-            "/generate-plan",
-            json={"hypothesis": TREHALOSE_HYPOTHESIS},
-        )
-    assert response.status_code == 200, response.text
-    body: dict[str, Any] = response.json()
+    body = await post_literature_then_experiment_plan_e2e(app, hypothesis=TREHALOSE_HYPOTHESIS)
     return body
 
 

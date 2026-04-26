@@ -7,9 +7,11 @@ they may be overridden via environment variables for cassette regeneration.
 
 from __future__ import annotations
 
+import logging
 from functools import lru_cache
+from typing import Literal
 
-from pydantic import Field, SecretStr
+from pydantic import Field, SecretStr, field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -31,6 +33,17 @@ class Settings(BaseSettings):
         ...,
         description="API key for Tavily web search (required).",
     )
+    TAVILY_RETRIEVAL_MODE: Literal["search", "research"] = Field(
+        default="search",
+        description=(
+            "Tavily Search API (`/search`, fast results) vs Research API "
+            "(`/research`, multi-step report + sources; slower, higher cost)."
+        ),
+    )
+    TAVILY_RESEARCH_MODEL: Literal["mini", "pro", "auto"] = Field(
+        default="mini",
+        description="Tavily Research agent model (only used when TAVILY_RETRIEVAL_MODE=research).",
+    )
 
     MAX_REQUEST_USD: float = Field(
         default=0.60,
@@ -40,8 +53,34 @@ class Settings(BaseSettings):
     RATE_LIMIT_PER_MIN: int = Field(
         default=30,
         ge=1,
-        description="Per-IP rate limit applied to /generate-plan and /feedback.",
+        description=(
+            "Per-IP rate limit applied to /literature-review, /experiment-plan, and /feedback."
+        ),
     )
+
+    LOG_LEVEL: str = Field(
+        default="INFO",
+        description="Stdlib/structlog level: DEBUG, INFO, WARNING, ERROR, or CRITICAL.",
+    )
+    LOG_DEBUG_PREVIEW_CHARS: int = Field(
+        default=400,
+        ge=0,
+        le=10_000,
+        description="Max characters for `query_preview` / body previews in DEBUG logs (0 = omit previews).",
+    )
+
+    @field_validator("LOG_LEVEL", mode="before")
+    @classmethod
+    def _normalize_log_level(cls, v: object) -> str:
+        s = (str(v) if v is not None else "INFO").strip().upper() or "INFO"
+        if s in ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL"):
+            return s
+        return "INFO"
+
+    def logging_level(self) -> int:
+        """Return a `logging` module level constant (defaults to INFO if unknown)."""
+
+        return getattr(logging, self.LOG_LEVEL, logging.INFO)
 
     DATABASE_URL: str = Field(
         default="sqlite+aiosqlite:///./ai_scientist.db",

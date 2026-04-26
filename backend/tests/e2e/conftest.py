@@ -1,20 +1,17 @@
 """Shared fixtures for the four e2e hypothesis tests (Steps 47-50)."""
 
-# Pydantic v2 coerces plain string URLs into `HttpUrl` at validation time,
-# but the pydantic mypy plugin synthesises strict `__init__` signatures that
-# reject `str`. Test fixtures pass literal URLs as `str`; this file-level
-# directive silences the resulting `[arg-type]` false positives.
 # mypy: disable-error-code="arg-type"
 
 from __future__ import annotations
 
 from collections.abc import AsyncIterator, Sequence
 from dataclasses import dataclass
+from typing import Any
 
 import pytest
 import pytest_asyncio
 from fastapi import FastAPI
-from pydantic import HttpUrl, TypeAdapter
+from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import create_async_engine
 
 from app.agents.literature_qc import NoveltyClaim, ReferenceClaim
@@ -45,19 +42,7 @@ from app.schemas.literature_qc import (
 from app.storage import db as storage_db
 from app.verification.catalog_resolver import AbstractCatalogResolver
 from app.verification.citation_resolver import CitationOutcome, FakeCitationResolver
-
-_HTTP_URL_ADAPTER = TypeAdapter(HttpUrl)
-
-
-def _to_http_url(url: str) -> HttpUrl:
-    """Validate a string into a real `HttpUrl` instance.
-
-    Pydantic v2 emits a `PydanticSerializationUnexpectedValue` warning when a
-    `HttpUrl`-typed field is mutated with a plain string via `model_copy`.
-    This helper centralises the coercion so tests/fixtures never trip it.
-    """
-
-    return _HTTP_URL_ADAPTER.validate_python(url)
+from tests.api.test_experiment_plan import post_literature_then_experiment_plan
 
 
 @dataclass(frozen=True)
@@ -97,7 +82,7 @@ class _PassthroughCatalogResolver(AbstractCatalogResolver):
             update={
                 "vendor": vendor,
                 "verified": True,
-                "verification_url": _to_http_url(url),
+                "verification_url": url,
                 "confidence": "high",
             }
         )
@@ -267,3 +252,15 @@ def baseline_validation() -> ValidationPlan:
 
 def baseline_grounding() -> GroundingSummary:
     return GroundingSummary(verified_count=0, unverified_count=0)
+
+
+async def post_literature_then_experiment_plan_e2e(
+    app: FastAPI,
+    *,
+    hypothesis: str,
+) -> dict[str, Any]:
+    """Run `POST /literature-review` then `POST /experiment-plan` (matches production flow)."""
+
+    transport = ASGITransport(app=app, raise_app_exceptions=False)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        return await post_literature_then_experiment_plan(client, query=hypothesis)

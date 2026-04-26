@@ -1,6 +1,4 @@
-"""Tests for the POST /generate-plan input contract (Step 12), the QC-only
-short-circuit route wiring (Step 25), and the full-orchestrator path
-(Step 34)."""
+"""Tests for `POST /literature-review` + `POST /experiment-plan` (Steps 12, 25, 34)."""
 
 # Pydantic v2 coerces plain string URLs into `HttpUrl` at validation time,
 # but the pydantic mypy plugin synthesises strict `__init__` signatures that
@@ -13,6 +11,7 @@ from __future__ import annotations
 import json
 import logging
 from collections.abc import AsyncIterator
+from typing import Any
 
 import pytest
 import pytest_asyncio
@@ -41,30 +40,71 @@ from app.schemas.experiment_plan import (
     ProtocolStep,
     ValidationPlan,
 )
-from app.schemas.hypothesis import GeneratePlanRequest
 from app.schemas.literature_qc import NoveltyLabel, Reference, SourceTier
+from app.schemas.pipeline_http import ExperimentPlanHttpRequest
 from app.storage import db as storage_db
 from app.verification.catalog_resolver import FakeCatalogResolver
 from app.verification.citation_resolver import CitationOutcome, FakeCitationResolver
 
 NATURE_URL = "https://www.nature.com/articles/s41586-020-2649-2"
 
+# Shared across API tests: must match between literature + experiment post bodies.
+SAMPLE_HYPOTHESIS = "Trehalose preserves HeLa viability better than sucrose at -80C."
 
-def test_generate_plan_request_accepts_valid_hypothesis() -> None:
-    body = GeneratePlanRequest(
-        hypothesis="Trehalose preserves HeLa viability better than sucrose at -80C.",
+
+def literature_review_id_from_sse(sse_text: str) -> str:
+    last: str | None = None
+    for line in sse_text.splitlines():
+        if not line.startswith("data:"):
+            continue
+        raw = line.removeprefix("data:").strip()
+        if not raw:
+            continue
+        env = json.loads(raw)
+        data = env.get("data")
+        if isinstance(data, dict) and "literature_review_id" in data:
+            last = data["literature_review_id"]
+    assert last is not None, f"no literature_review_id in SSE: {sse_text!r}"
+    return last
+
+
+async def post_literature_then_experiment_plan(
+    client: AsyncClient,
+    *,
+    query: str,
+    lit_request_id: str = "test-lit-client-req",
+) -> dict[str, Any]:
+    lit = await client.post(
+        "/literature-review",
+        json={"query": query, "request_id": lit_request_id},
     )
-    assert body.hypothesis.startswith("Trehalose")
+    assert lit.status_code == 200, lit.text
+    lr_id = literature_review_id_from_sse(lit.text)
+    exp = await client.post(
+        "/experiment-plan",
+        json={"query": query, "literature_review_id": lr_id},
+    )
+    assert exp.status_code == 200, exp.text
+    body: dict[str, Any] = exp.json()
+    return body
 
 
-def test_generate_plan_request_rejects_too_short_hypothesis() -> None:
+def test_experiment_plan_request_accepts_valid_body() -> None:
+    body = ExperimentPlanHttpRequest(
+        query=SAMPLE_HYPOTHESIS,
+        literature_review_id="lr-abc",
+    )
+    assert body.literature_review_id == "lr-abc"
+
+
+def test_experiment_plan_request_rejects_too_short_query() -> None:
     with pytest.raises(ValidationError):
-        GeneratePlanRequest(hypothesis="too short")
+        ExperimentPlanHttpRequest(query="too short", literature_review_id="lr-1")
 
 
-def test_generate_plan_request_rejects_too_long_hypothesis() -> None:
+def test_experiment_plan_request_rejects_too_long_query() -> None:
     with pytest.raises(ValidationError):
-        GeneratePlanRequest(hypothesis="x" * 2001)
+        ExperimentPlanHttpRequest(query="x" * 2001, literature_review_id="lr-1")
 
 
 def _exact_match_parsed() -> ParsedResult[NoveltyClaim]:
@@ -160,20 +200,13 @@ async def exact_match_app(monkeypatch: pytest.MonkeyPatch) -> AsyncIterator[Fast
 
 
 @pytest.mark.asyncio
-async def test_generate_plan_exact_match_returns_qc_only_response(
+async def test_experiment_plan_exact_match_returns_qc_only_response(
     exact_match_app: FastAPI,
 ) -> None:
     transport = ASGITransport(app=exact_match_app, raise_app_exceptions=False)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        response = await client.post(
-            "/generate-plan",
-            json={
-                "hypothesis": ("Trehalose preserves HeLa viability better than sucrose at -80C."),
-            },
-        )
+        body = await post_literature_then_experiment_plan(client, query=SAMPLE_HYPOTHESIS)
 
-    assert response.status_code == 200
-    body = response.json()
     assert body["plan"] is None
     assert body["plan_id"] is None
     assert body["qc"]["novelty"] == NoveltyLabel.EXACT_MATCH.value
@@ -181,20 +214,13 @@ async def test_generate_plan_exact_match_returns_qc_only_response(
 
 
 @pytest.mark.asyncio
-async def test_generate_plan_response_includes_prompt_versions_for_role_files(
+async def test_experiment_plan_response_includes_prompt_versions_for_role_files(
     exact_match_app: FastAPI,
 ) -> None:
     transport = ASGITransport(app=exact_match_app, raise_app_exceptions=False)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        response = await client.post(
-            "/generate-plan",
-            json={
-                "hypothesis": ("Trehalose preserves HeLa viability better than sucrose at -80C."),
-            },
-        )
+        body = await post_literature_then_experiment_plan(client, query=SAMPLE_HYPOTHESIS)
 
-    assert response.status_code == 200
-    body = response.json()
     assert body["prompt_versions"] == prompt_versions()
     expected_keys = {
         "literature_qc.md",
@@ -205,14 +231,14 @@ async def test_generate_plan_response_includes_prompt_versions_for_role_files(
 
 
 @pytest.mark.asyncio
-async def test_generate_plan_validation_error_returns_422_with_error_response(
+async def test_experiment_plan_validation_error_returns_422_with_error_response(
     exact_match_app: FastAPI,
 ) -> None:
     transport = ASGITransport(app=exact_match_app, raise_app_exceptions=False)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
         response = await client.post(
-            "/generate-plan",
-            json={"hypothesis": "too short"},
+            "/experiment-plan",
+            json={"query": "too short", "literature_review_id": "lr-1"},
         )
 
     assert response.status_code == 422
@@ -252,7 +278,7 @@ def _experiment_plan_canned() -> ExperimentPlan:
     )
     return ExperimentPlan(
         plan_id="plan-route-001",
-        hypothesis="Trehalose preserves HeLa viability better than sucrose at -80C.",
+        hypothesis=SAMPLE_HYPOTHESIS,
         novelty=NoveltyLabel.SIMILAR_WORK_EXISTS,
         references=[nature_ref],
         protocol=[
@@ -451,20 +477,13 @@ async def grounding_failed_app(monkeypatch: pytest.MonkeyPatch) -> AsyncIterator
 
 
 @pytest.mark.asyncio
-async def test_generate_plan_full_path_returns_plan_with_grounded_references(
+async def test_experiment_plan_full_path_returns_plan_with_grounded_references(
     full_path_app: FastAPI,
 ) -> None:
     transport = ASGITransport(app=full_path_app, raise_app_exceptions=False)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
-        response = await client.post(
-            "/generate-plan",
-            json={
-                "hypothesis": ("Trehalose preserves HeLa viability better than sucrose at -80C."),
-            },
-        )
+        body = await post_literature_then_experiment_plan(client, query=SAMPLE_HYPOTHESIS)
 
-    assert response.status_code == 200
-    body = response.json()
     assert body["plan"] is not None
     assert body["plan_id"] == "plan-route-001"
     assert body["qc"]["novelty"] == NoveltyLabel.SIMILAR_WORK_EXISTS.value
@@ -474,26 +493,30 @@ async def test_generate_plan_full_path_returns_plan_with_grounded_references(
 
 
 @pytest.mark.asyncio
-async def test_generate_plan_grounding_failed_returns_422_grounding_failed_refused(
+async def test_experiment_plan_grounding_failed_status(
     grounding_failed_app: FastAPI,
 ) -> None:
     transport = ASGITransport(app=grounding_failed_app, raise_app_exceptions=False)
     async with AsyncClient(transport=transport, base_url="http://test") as client:
+        lit = await client.post(
+            "/literature-review",
+            json={"query": SAMPLE_HYPOTHESIS, "request_id": "a"},
+        )
+        assert lit.status_code == 200, lit.text
+        lr = literature_review_id_from_sse(lit.text)
         response = await client.post(
-            "/generate-plan",
-            json={
-                "hypothesis": ("Trehalose preserves HeLa viability better than sucrose at -80C."),
-            },
+            "/experiment-plan",
+            json={"query": SAMPLE_HYPOTHESIS, "literature_review_id": lr},
         )
 
     assert response.status_code == 422
-    body = response.json()
-    assert body["code"] == ErrorCode.GROUNDING_FAILED_REFUSED.value
-    assert body["request_id"]
+    res_body = response.json()
+    assert res_body["code"] == ErrorCode.GROUNDING_FAILED_REFUSED.value
+    assert res_body["request_id"]
 
 
 @pytest.mark.asyncio
-async def test_generate_plan_response_carries_request_id_matching_log_line(
+async def test_experiment_plan_response_carries_request_id_matching_log_line(
     full_path_app: FastAPI,
     caplog: pytest.LogCaptureFixture,
 ) -> None:
@@ -502,13 +525,15 @@ async def test_generate_plan_response_carries_request_id_matching_log_line(
 
     with caplog.at_level(logging.INFO):
         async with AsyncClient(transport=transport, base_url="http://test") as client:
+            lit = await client.post(
+                "/literature-review",
+                json={"query": SAMPLE_HYPOTHESIS, "request_id": "a"},
+            )
+            assert lit.status_code == 200, lit.text
+            lr = literature_review_id_from_sse(lit.text)
             response = await client.post(
-                "/generate-plan",
-                json={
-                    "hypothesis": (
-                        "Trehalose preserves HeLa viability better than sucrose at -80C."
-                    ),
-                },
+                "/experiment-plan",
+                json={"query": SAMPLE_HYPOTHESIS, "literature_review_id": lr},
                 headers={"x-request-id": "req-route-34"},
             )
 

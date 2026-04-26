@@ -1,44 +1,94 @@
 schema_version: 1
 tier_1_peer_reviewed:
   hostnames:
-    - nature.com
-    - science.org
-    - cell.com
-    - sciencedirect.com
-    - springer.com
-    - link.springer.com
-    - onlinelibrary.wiley.com
+    # Trust tier-1: major peer-reviewed publishers, medical journals, and
+    # public literature indexes (NCBI, Europe PMC, Semantic Scholar). Sorted.
+    - aacrjournals.org
     - academic.oup.com
-    - pubs.acs.org
-    - pubs.rsc.org
-    - ieeexplore.ieee.org
-    - journals.aps.org
-    - pnas.org
-    - plos.org
-    - journals.plos.org
+    - annualreviews.org
+    - api.semanticscholar.org
+    - bio-protocol.org
+    - biomedcentral.com
+    - bmj.com
+    - cambridge.org
+    - cell.com
+    - cshlp.org
+    - dl.acm.org
+    - elifesciences.org
     - embopress.org
+    - europepmc.org
+    - frontiersin.org
+    - ieeexplore.ieee.org
+    - iopscience.iop.org
+    - jamanetwork.com
+    - jove.com
+    - journals.aps.org
+    - journals.asm.org
+    - journals.plos.org
+    - karger.com
+    - link.springer.com
     - mdpi.com
     - ncbi.nlm.nih.gov
+    # Single entry for NIH/NLM tree (matches pmc.* / pubmed.* / www.ncbi.* in Tavily
+    # and keeps include_domains short — Tavily recommends short lists)
+    - nlm.nih.gov
+    - nature.com
+    - nejm.org
+    - onlinelibrary.wiley.com
+    - plos.org
+    - pmc.ncbi.nlm.nih.gov
+    - pnas.org
     - pubmed.ncbi.nlm.nih.gov
-    - www.ncbi.nlm.nih.gov
-    - bio-protocol.org
-    - jove.com
+    - pubs.acs.org
+    - pubs.aip.org
+    - pubs.rsc.org
+    - royalsocietypublishing.org
+    - sagepub.com
+    - science.org
+    - sciencedirect.com
     - semanticscholar.org
-    - api.semanticscholar.org
+    - springer.com
+    - tandfonline.com
+    - thelancet.com
+    - wiley.com
+    - www.ncbi.nlm.nih.gov
   doi_prefixes:
-    - "10.1038"
-    - "10.1126"
+    # On doi.org / dx.doi.org, path prefix => Tier-1. Major Crossref
+    # registrants (journals, societies). Omitted: 10.1101 (bioRxiv and similar).
+    - "10.1002"
+    - "10.1006"
+    - "10.1007"
     - "10.1016"
     - "10.1021"
+    - "10.1038"
     - "10.1039"
-    - "10.1109"
+    - "10.1056"
     - "10.1073"
-    - "10.1371"
+    - "10.1080"
+    - "10.1088"
     - "10.1093"
-    - "10.15252"
-    - "10.3791"
-    - "10.21769"
+    - "10.1103"
+    - "10.1109"
+    - "10.1111"
+    - "10.1126"
+    - "10.1128"
+    - "10.1158"
+    - "10.1161"
+    - "10.1186"
+    - "10.1242"
+    - "10.1371"
     - "10.1373"
+    - "10.15252"
+    - "10.1523"
+    - "10.2147"
+    - "10.21769"
+    - "10.3389"
+    - "10.3390"
+    - "10.3758"
+    - "10.3772"
+    - "10.3791"
+    - "10.7554"
+    - "10.7717"
   supplier_hostnames_for_catalog:
     - sigmaaldrich.com
     - thermofisher.com
@@ -57,11 +107,14 @@ tier_2_preprint_or_community:
   hostnames:
     - arxiv.org
     - biorxiv.org
-    - medrxiv.org
     - chemrxiv.org
+    - medrxiv.org
     - preprints.org
     - protocols.io
     - openwetware.org
+    - researchsquare.com
+    - ssrn.com
+    - zenodo.org
 tier_0_forbidden:
   hostnames:
     - facebook.com

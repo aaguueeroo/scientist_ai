@@ -137,28 +137,51 @@ def refuse_if_ungrounded(plan: ExperimentPlan, summary: GroundingSummary) -> Non
     """
 
     total_materials = len(plan.materials)
+    total_slots = max(0, summary.verified_count + summary.unverified_count)
     if summary.verified_count == 0:
+        msg = (
+            "After automated verification, nothing in the plan could be marked verified: "
+            f"0 verified, {summary.unverified_count} unverified, "
+            f"{summary.tier_0_drops} reference(s) dropped as forbidden Tier-0, "
+            f"{len(plan.references)} ref(s) / {len(plan.protocol)} step(s) / "
+            f"{len(plan.materials)} material(s) in the plan. "
+            "Citations need HTTP 200 and title match; material SKUs must appear on the "
+            "supplier product page (Sigma / Thermo patterns)."
+        )
         raise GroundingFailedRefused(
+            message=msg,
             details={
                 "reason": "zero_verified_items",
                 "verified_count": summary.verified_count,
                 "unverified_count": summary.unverified_count,
                 "tier_0_drops": summary.tier_0_drops,
                 "total_materials": total_materials,
-            }
+                "references_in_plan": len(plan.references),
+                "protocol_steps": len(plan.protocol),
+                "materials_in_plan": len(plan.materials),
+                "total_grounding_slots": total_slots,
+            },
         )
 
     ratio = summary.unverified_count / max(1, total_materials)
     if ratio >= _UNVERIFIED_MATERIAL_RATIO:
+        msg = (
+            "Too many unverified items relative to material rows: "
+            f"unverified_count={summary.unverified_count} vs materials={max(1, total_materials)} "
+            f"(ratio {round(ratio, 3)} >= threshold {_UNVERIFIED_MATERIAL_RATIO}). "
+            f"Only verified_count={summary.verified_count} item(s) verified in total. "
+            "Tighten supplier + SKU on materials so the catalog resolver can confirm SKUs on-page."
+        )
         raise GroundingFailedRefused(
+            message=msg,
             details={
                 "reason": "too_many_unverified_materials",
                 "verified_count": summary.verified_count,
                 "unverified_count": summary.unverified_count,
                 "total_materials": total_materials,
-                "ratio": ratio,
-                "threshold": _UNVERIFIED_MATERIAL_RATIO,
-            }
+                "ratio": round(ratio, 6),
+                "ratio_threshold": _UNVERIFIED_MATERIAL_RATIO,
+            },
         )
 
 

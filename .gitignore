@@ -8,6 +8,7 @@ __pycache__/
 .mypy_cache/
 .ruff_cache/
 backend/.venv/
+docs/
 
 ### Dart ###
 # See https://www.dartlang.org/guides/libraries/private-files
@@ -283,3 +284,23 @@ fabric.properties
 !/gradle/wrapper/gradle-wrapper.jar
 
 # End of https://www.toptal.com/developers/gitignore/api/flutter,androidstudio,dart,xcode,macos
+
+# --- Monorepo: IDE / local-only (do not commit) ---
+.cursor/
+**/.cursor/
+
+# Cursor MCP tool descriptors and similar (if symlinked or copied into repo)
+mcps/
+
+# Optional: local agent transcript exports
+agent-transcripts/
+
+# Windows
+Thumbs.db
+ehthumbs.db
+Desktop.ini
+
+# Local scratch
+*.local.md
+.env.local
+.env.*.local

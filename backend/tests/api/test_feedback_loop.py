@@ -4,7 +4,7 @@ Round-trip integration test that:
 
 1. Submits a `POST /feedback` correction for the trehalose hypothesis
    (vendor `before="acme"` → `after="Sigma-Aldrich trehalose lot-XYZ"`).
-2. Calls `POST /generate-plan` with a closely-related hypothesis.
+2. Calls `POST /literature-review` + `POST /experiment-plan` with a closely-related hypothesis.
 3. Asserts the resulting plan visibly reflects the prior correction
    (the corrected vendor appears; the `before` value does not).
 
@@ -75,6 +75,7 @@ from app.schemas.literature_qc import (
 from app.storage import db as storage_db
 from app.verification.catalog_resolver import AbstractCatalogResolver
 from app.verification.citation_resolver import CitationOutcome, FakeCitationResolver
+from tests.api.test_experiment_plan import post_literature_then_experiment_plan
 
 NATURE_URL = "https://www.nature.com/articles/abc"
 CORRECTED_VENDOR = "Sigma-Aldrich trehalose lot-XYZ"
@@ -355,18 +356,13 @@ async def test_feedback_loop_correction_visibly_influences_next_plan(
         )
         assert feedback_response.status_code == 200, feedback_response.text
 
-        plan_response = await client.post(
-            "/generate-plan",
-            json={
-                "hypothesis": (
-                    "Trehalose preserves HeLa cell viability better than sucrose "
-                    "during -80C cryopreservation."
-                )
-            },
+        body: dict[str, Any] = await post_literature_then_experiment_plan(
+            client,
+            query=(
+                "Trehalose preserves HeLa cell viability better than sucrose "
+                "during -80C cryopreservation."
+            ),
         )
-
-    assert plan_response.status_code == 200, plan_response.text
-    body = plan_response.json()
     assert body["plan"] is not None, "Continue branch must produce a plan."
 
     materials = body["plan"]["materials"]

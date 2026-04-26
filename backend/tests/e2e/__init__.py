@@ -1,4 +1,4 @@
-"""End-to-end tests driving `POST /generate-plan` with the four sample hypotheses.
+"""End-to-end tests for literature-review and experiment-plan (four sample hypotheses).
 
 The plan calls for `pytest-recording` cassettes; in this environment we
 ship an offline-equivalent fixture that monkeypatches the `build_*`

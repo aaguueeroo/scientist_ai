@@ -27,6 +27,7 @@ from app.clients.tavily_client import AbstractTavilyClient, RealTavilyClient
 from app.config.settings import Settings
 from app.config.source_tiers import SourceTiersConfig
 from app.storage.feedback_repo import FeedbackRepo
+from app.storage.literature_review_repo import LiteratureReviewRepo
 from app.storage.plans_repo import PlansRepo
 from app.verification.catalog_resolver import (
     AbstractCatalogResolver,
@@ -79,6 +80,8 @@ def build_tavily_client(
     return RealTavilyClient(
         api_key=settings.TAVILY_API_KEY.get_secret_value(),
         source_tiers=source_tiers,
+        retrieval_mode=settings.TAVILY_RETRIEVAL_MODE,
+        research_model=settings.TAVILY_RESEARCH_MODEL,
     )
 
 
@@ -116,6 +119,10 @@ async def get_plans_repo(request: Request) -> PlansRepo:
 
 async def get_feedback_repo(request: Request) -> FeedbackRepo:
     return cast(FeedbackRepo, request.app.state.feedback_repo)
+
+
+async def get_literature_review_repo(request: Request) -> LiteratureReviewRepo:
+    return cast(LiteratureReviewRepo, request.app.state.literature_review_repo)
 
 
 async def get_source_tiers(request: Request) -> SourceTiersConfig:
