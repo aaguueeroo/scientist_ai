@@ -6,6 +6,7 @@ import '../../core/app_constants.dart';
 import '../../core/theme/theme_context.dart';
 import '../../models/experiment_plan.dart';
 import '../../models/literature_review.dart';
+import '../literature/widgets/literature_loading.dart';
 import '../literature/widgets/source_tile.dart';
 import '../plan/review/plan_review_scaffold.dart';
 import '../plan/widgets/workspace_step_header.dart';
@@ -157,11 +158,61 @@ class _LiteraturePane extends StatelessWidget {
     final TextTheme textTheme = Theme.of(context).textTheme;
     final LiteratureReview? currentReview = review;
     if (currentReview == null) {
-      return Center(
-        child: Text(
-          'Marie hasn\'t reviewed the literature for this question yet.',
-          style: context.scientist.bodySecondary,
-        ),
+      return Consumer<ScientistController>(
+        builder: (
+          BuildContext context,
+          ScientistController controller,
+          Widget? child,
+        ) {
+          if (controller.isLoadingLiterature) {
+            return const LiteratureLoading();
+          }
+          final bool canRequest = (query ?? '').isNotEmpty;
+          return Center(
+            child: SingleChildScrollView(
+              child: Column(
+                mainAxisAlignment: MainAxisAlignment.center,
+                mainAxisSize: MainAxisSize.min,
+                children: <Widget>[
+                  Text(
+                    'Marie hasn\'t reviewed the literature for this question yet.',
+                    textAlign: TextAlign.center,
+                    style: context.scientist.bodySecondary,
+                  ),
+                  if (controller.literatureError != null) ...<Widget>[
+                    const SizedBox(height: kSpace16),
+                    Text(
+                      controller.literatureError!,
+                      textAlign: TextAlign.center,
+                      style: Theme.of(context).textTheme.bodyMedium,
+                    ),
+                    if (controller.literatureErrorRequestId != null &&
+                        controller
+                            .literatureErrorRequestId!.isNotEmpty) ...<Widget>[
+                      const SizedBox(height: kSpace8),
+                      SelectableText(
+                        controller.literatureErrorRequestId!,
+                        textAlign: TextAlign.center,
+                        style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                              fontFamily: 'monospace',
+                            ),
+                      ),
+                    ],
+                  ],
+                  const SizedBox(height: kSpace24),
+                  FilledButton(
+                    onPressed: canRequest
+                        ? () {
+                            controller.loadLiteratureReview();
+                          }
+                        : null,
+                    child: const Text('Ask Marie to review the literature'),
+                  ),
+                ],
+              ),
+            ),
+          );
+        },
       );
     }
     final String headline = currentReview.doesSimilarWorkExist

@@ -32,6 +32,17 @@ class Source {
   final DateTime dateOfPublication;
   final String abstractText;
   final String doi;
+  /// When false, the UI should not show a DOI line (missing or placeholder).
+  bool get hasDisplayableDoi {
+    final String t = doi.trim();
+    if (t.isEmpty) {
+      return false;
+    }
+    if (t == '10.0000/unspecified') {
+      return false;
+    }
+    return true;
+  }
   /// Trust level for this source, from 0.0 (lowest) to 1.0 (highest).
   final double score;
   /// Whether this is an official, verified source.
