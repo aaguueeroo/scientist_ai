@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../../controllers/projects_controller.dart';
+import '../../../controllers/review_store_controller.dart';
 import '../../../controllers/role_controller.dart';
 import '../../../controllers/scientist_controller.dart';
 import '../../../core/app_constants.dart';
@@ -12,6 +13,7 @@ import '../../../core/app_toasts.dart';
 import '../../../core/theme/theme_context.dart';
 import '../../../models/project.dart';
 import '../../../models/user_role.dart';
+import '../../review/widgets/review_list_pane.dart';
 import 'ongoing_project_tile.dart';
 import 'past_conversation_tile.dart';
 import 'sidebar_nav_link.dart';
@@ -94,6 +96,13 @@ class Sidebar extends StatelessWidget {
     final int currentBranch = navigationShell.currentIndex;
     final bool isHomeActive = _isAtConversationHome(currentBranch, location);
     final bool isReviewerActive = currentBranch == kBranchReviewer;
+    if (currentBranch == kBranchReviewer) {
+      return _ReviewerSidebar(
+        navigationShell: navigationShell,
+        textTheme: textTheme,
+        scheme: scheme,
+      );
+    }
     return Container(
       decoration: BoxDecoration(
         color: context.scientist.sidebarBackground,
@@ -253,6 +262,179 @@ class Sidebar extends StatelessWidget {
           );
         },
       ),
+    );
+  }
+}
+
+class _ReviewerSidebar extends StatelessWidget {
+  const _ReviewerSidebar({
+    required this.navigationShell,
+    required this.textTheme,
+    required this.scheme,
+  });
+
+  final StatefulNavigationShell navigationShell;
+  final TextTheme textTheme;
+  final ColorScheme scheme;
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      decoration: BoxDecoration(
+        color: context.scientist.sidebarBackground,
+      ),
+      child: Consumer2<RoleController, ReviewStoreController>(
+        builder: (
+          BuildContext context,
+          RoleController roleController,
+          ReviewStoreController store,
+          Widget? child,
+        ) {
+          final String? selectedReviewId =
+              GoRouterState.of(context).uri.queryParameters['reviewId'];
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              Padding(
+                padding: const EdgeInsets.fromLTRB(
+                  kSpace24,
+                  kSpace24,
+                  kSpace24,
+                  kSpace16,
+                ),
+                child: Text(
+                  'Marie Query',
+                  style: textTheme.titleLarge,
+                ),
+              ),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: kSpace8),
+                child: Align(
+                  alignment: Alignment.centerLeft,
+                  child: TextButton.icon(
+                    onPressed: () {
+                      navigationShell.goBranch(kBranchConversation);
+                    },
+                    icon: const Icon(Icons.arrow_back_rounded),
+                    label: const Text('Back'),
+                  ),
+                ),
+              ),
+              const SizedBox(height: kSpace8),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: kSpace16),
+                child: Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: scheme.outline.withValues(alpha: 0.25),
+                ),
+              ),
+              const SizedBox(height: kSpace8),
+              Flexible(
+                child: _ReviewerSidebarListBody(
+                  store: store,
+                  selectedReviewId: selectedReviewId,
+                  scheme: scheme,
+                ),
+              ),
+              const SizedBox(height: kSpace8),
+              SidebarUserMenu(
+                userName: _kCurrentUserName,
+                userAvatarUrl: _kCurrentUserAvatarUrl,
+                role: roleController.role,
+                onSelectRole: (UserRole next) {
+                  roleController.setRole(next);
+                },
+                onOpenSettings: () {
+                  showAppToast(
+                    context,
+                    message:
+                        'Settings are not available in this preview yet.',
+                    autoCloseDuration: const Duration(seconds: 2),
+                  );
+                },
+              ),
+            ],
+          );
+        },
+      ),
+    );
+  }
+}
+
+class _ReviewerSidebarListBody extends StatelessWidget {
+  const _ReviewerSidebarListBody({
+    required this.store,
+    required this.selectedReviewId,
+    required this.scheme,
+  });
+
+  final ReviewStoreController store;
+  final String? selectedReviewId;
+  final ColorScheme scheme;
+
+  @override
+  Widget build(BuildContext context) {
+    if (store.isLoading && store.reviews.isEmpty) {
+      return const Center(
+        child: Padding(
+          padding: EdgeInsets.all(kSpace16),
+          child: CircularProgressIndicator(),
+        ),
+      );
+    }
+    if (store.loadError != null && store.reviews.isEmpty) {
+      return Center(
+        child: Padding(
+          padding: const EdgeInsets.symmetric(horizontal: kSpace16),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              Icon(
+                Icons.error_outline_rounded,
+                size: 28,
+                color: scheme.error,
+              ),
+              const SizedBox(height: kSpace8),
+              Text(
+                store.loadError!,
+                textAlign: TextAlign.center,
+                style: Theme.of(context).textTheme.bodySmall,
+              ),
+              const SizedBox(height: kSpace12),
+              FilledButton.tonal(
+                onPressed: () => store.loadReviews(),
+                child: const Text('Retry'),
+              ),
+            ],
+          ),
+        ),
+      );
+    }
+    if (store.reviews.isEmpty) {
+      return Padding(
+        padding: const EdgeInsets.symmetric(horizontal: kSpace24),
+        child: Center(
+          child: Text(
+            'No reviews yet. Feedback on experiment plans will show here.',
+            textAlign: TextAlign.center,
+            style: context.scientist.bodyTertiary,
+          ),
+        ),
+      );
+    }
+    return ReviewListPane(
+      reviews: store.reviews,
+      selectedReviewId: selectedReviewId,
+      onSelectReview: (String id) {
+        context.go(
+          Uri(
+            path: kRouteReviewer,
+            queryParameters: <String, String>{'reviewId': id},
+          ).toString(),
+        );
+      },
+      embedInSidebar: true,
     );
   }
 }

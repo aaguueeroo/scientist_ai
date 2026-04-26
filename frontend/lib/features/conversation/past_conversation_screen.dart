@@ -125,18 +125,24 @@ class _PromptPane extends StatelessWidget {
                 alignment: const Alignment(-0.72, -0.62),
                 child: Padding(
                   padding: const EdgeInsets.all(kSpace16),
-                  child: Center(
-                    child: Text(
-                      query!,
-                      textAlign: TextAlign.center,
-                      style: const TextStyle(
-                        color: Color(0xDDEEEEE8),
-                        fontSize: 16,
-                        fontWeight: FontWeight.w400,
-                        height: 1.5,
-                        letterSpacing: 0.3,
+                  child: Theme(
+                    data: Theme.of(context).copyWith(
+                      scrollbarTheme: const ScrollbarThemeData(
+                        thickness: WidgetStatePropertyAll<double>(6),
+                        radius: Radius.circular(3),
+                        thumbVisibility: WidgetStatePropertyAll<bool>(true),
+                        trackVisibility: WidgetStatePropertyAll<bool>(true),
+                        thumbColor: WidgetStatePropertyAll<Color>(
+                          Color(0xB3EEEEE8),
+                        ),
+                        trackColor: WidgetStatePropertyAll<Color>(
+                          Color(0x33FFFFFF),
+                        ),
+                        crossAxisMargin: 2,
+                        mainAxisMargin: 4,
                       ),
                     ),
+                    child: _BlackboardQueryScroll(query: query!),
                   ),
                 ),
               ),
@@ -144,6 +150,66 @@ class _PromptPane extends StatelessWidget {
           ],
         ),
       ),
+    );
+  }
+}
+
+class _BlackboardQueryScroll extends StatefulWidget {
+  const _BlackboardQueryScroll({required this.query});
+
+  final String query;
+
+  @override
+  State<_BlackboardQueryScroll> createState() => _BlackboardQueryScrollState();
+}
+
+class _BlackboardQueryScrollState extends State<_BlackboardQueryScroll> {
+  late final ScrollController _scrollController;
+
+  static const TextStyle _kQueryTextStyle = TextStyle(
+    color: Color(0xDDEEEEE8),
+    fontSize: 16,
+    fontWeight: FontWeight.w400,
+    height: 1.5,
+    letterSpacing: 0.3,
+  );
+
+  @override
+  void initState() {
+    super.initState();
+    _scrollController = ScrollController();
+  }
+
+  @override
+  void dispose() {
+    _scrollController.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return LayoutBuilder(
+      builder: (BuildContext context, BoxConstraints constraints) {
+        return Scrollbar(
+          controller: _scrollController,
+          child: SingleChildScrollView(
+            controller: _scrollController,
+            child: ConstrainedBox(
+              constraints: BoxConstraints(
+                minHeight: constraints.maxHeight,
+                minWidth: constraints.maxWidth,
+              ),
+              child: Center(
+                child: Text(
+                  widget.query,
+                  textAlign: TextAlign.center,
+                  style: _kQueryTextStyle,
+                ),
+              ),
+            ),
+          ),
+        );
+      },
     );
   }
 }

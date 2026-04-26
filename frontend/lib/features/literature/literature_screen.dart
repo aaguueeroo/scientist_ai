@@ -94,23 +94,25 @@ class LiteratureScreen extends StatelessWidget {
                                 },
                               ),
               ),
-              const SizedBox(height: kSpace24),
-              Align(
-                alignment: Alignment.centerRight,
-                child: FilledButton.icon(
-                  onPressed: (review == null ||
-                          review.sources.isEmpty ||
-                          !review.isFinal ||
-                          (review.literatureReviewId ?? '').isEmpty)
-                      ? null
-                      : () {
-                          controller.loadExperimentPlan();
-                          context.go(kRoutePlan);
-                        },
-                  icon: const Icon(Icons.arrow_forward, size: 16),
-                  label: const Text('Ask Marie for an experiment plan'),
+              if (!controller.isLoadingLiterature) ...<Widget>[
+                const SizedBox(height: kSpace24),
+                Align(
+                  alignment: Alignment.centerRight,
+                  child: FilledButton.icon(
+                    onPressed: (review == null ||
+                            review.sources.isEmpty ||
+                            !review.isFinal ||
+                            (review.literatureReviewId ?? '').isEmpty)
+                        ? null
+                        : () {
+                            controller.loadExperimentPlan();
+                            context.go(kRoutePlan);
+                          },
+                    icon: const Icon(Icons.arrow_forward, size: 16),
+                    label: const Text('Ask Marie for an experiment plan'),
+                  ),
                 ),
-              ),
+              ],
             ],
           ),
         );

@@ -16,8 +16,9 @@ class SourceDto {
   factory SourceDto.fromJson(Map<String, dynamic> json) {
     final bool? legacyVerified = json['is_verified'] as bool?;
     final bool? beVerified = json['verified'] as bool?;
-    final double? tavily = (json['tavily_score'] as num?)?.toDouble();
+    final double? tavilyScore = (json['tavily_score'] as num?)?.toDouble();
     final double? legacyScore = (json['score'] as num?)?.toDouble();
+    final double? resolvedScore = tavilyScore ?? legacyScore;
     return SourceDto(
       author: json['author'] as String? ?? '',
       title: json['title'] as String? ?? '',
@@ -25,7 +26,7 @@ class SourceDto {
       dateOfPublication: json['date_of_publication'] as String? ?? '1970-01-01',
       abstractText: json['abstract'] as String? ?? '',
       doi: json['doi'] as String? ?? '',
-      score: tavily ?? legacyScore,
+      score: resolvedScore,
       isVerified: legacyVerified,
       verified: beVerified,
       tier: json['tier'] as String?,
