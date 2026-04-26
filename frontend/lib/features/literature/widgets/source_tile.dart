@@ -105,12 +105,14 @@ class SourceTile extends StatelessWidget {
                         : null,
                   ),
                 ),
-                const SizedBox(height: kSpace8),
-                Text(
-                  source.doi,
-                  style: context.scientist.bodyTertiaryMonospace
-                      .copyWith(fontSize: 13),
-                ),
+                if (source.hasDisplayableDoi) ...<Widget>[
+                  const SizedBox(height: kSpace8),
+                  Text(
+                    source.doi,
+                    style: context.scientist.bodyTertiaryMonospace
+                        .copyWith(fontSize: 13),
+                  ),
+                ],
               ],
             ),
           ),

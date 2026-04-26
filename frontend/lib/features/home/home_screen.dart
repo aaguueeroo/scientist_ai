@@ -74,7 +74,7 @@ class _HomeScreenState extends State<HomeScreen> {
       _queryController.text = text;
       _queryController.selection = TextSelection.collapsed(offset: text.length);
     });
-    _focusNode.requestFocus();
+    _submitPlan();
   }
 
   @override
@@ -86,11 +86,7 @@ class _HomeScreenState extends State<HomeScreen> {
         vertical: kSpace32,
       ),
       child: Consumer<ScientistController>(
-        builder: (
-          BuildContext context,
-          ScientistController controller,
-          Widget? child,
-        ) {
+        builder: (BuildContext context, ScientistController controller, Widget? child) {
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
@@ -116,64 +112,61 @@ class _HomeScreenState extends State<HomeScreen> {
                         mainAxisSize: MainAxisSize.min,
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: <Widget>[
-                              Center(
-                                child: ConstrainedBox(
-                                  constraints: const BoxConstraints(
-                                    maxHeight: 380,
+                          Center(
+                            child: ConstrainedBox(
+                              constraints: const BoxConstraints(maxHeight: 380),
+                              child: Image.asset(
+                                'lib/assets/marie-query-home.png',
+                                fit: BoxFit.contain,
+                              ),
+                            ),
+                          ),
+                          Text(
+                            'Hi! What are we investigating today?',
+                            style: textTheme.headlineMedium,
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: kSpace8),
+                          Text(
+                            'Tell me your research question — I\'ll review the literature and draft an experiment plan for you.',
+                            style: context.scientist.bodySecondary,
+                            textAlign: TextAlign.center,
+                          ),
+                          const SizedBox(height: kSpace32),
+                          TextField(
+                            controller: _queryController,
+                            focusNode: _focusNode,
+                            minLines: 2,
+                            maxLines: 3,
+                            style: textTheme.bodyLarge,
+                            decoration: const InputDecoration(
+                              hintText:
+                                  'e.g. Does intermittent fasting improve markers of mitochondrial biogenesis in sedentary adults?',
+                            ),
+                          ),
+                          const SizedBox(height: kSpace12),
+                          Text(
+                            'Not sure where to start? Try one of these',
+                            style: textTheme.labelSmall,
+                          ),
+                          const SizedBox(height: kSpace8),
+                          Wrap(
+                            spacing: kSpace8,
+                            runSpacing: kSpace8,
+                            children: <Widget>[
+                              for (final String suggestion
+                                  in _kQuerySuggestions)
+                                ActionChip(
+                                  label: Text(
+                                    suggestion,
+                                    style: textTheme.bodyMedium,
                                   ),
-                                  child: Image.asset(
-                                    'lib/assets/marie-query-home.png',
-                                    fit: BoxFit.contain,
-                                  ),
+                                  onPressed: () => _applySuggestion(suggestion),
+                                  materialTapTargetSize:
+                                      MaterialTapTargetSize.shrinkWrap,
                                 ),
-                              ),
-                              Text(
-                                'Hi! What are we investigating today?',
-                                style: textTheme.headlineMedium,
-                                textAlign: TextAlign.center,
-                              ),
-                              const SizedBox(height: kSpace8),
-                              Text(
-                                'Tell me your hypothesis or research question — I\'ll review the literature and draft an experiment plan for you.',
-                                style: context.scientist.bodySecondary,
-                                textAlign: TextAlign.center,
-                              ),
-                              const SizedBox(height: kSpace32),
-                              TextField(
-                                controller: _queryController,
-                                focusNode: _focusNode,
-                                minLines: 7,
-                                maxLines: 12,
-                                style: textTheme.bodyLarge,
-                                decoration: const InputDecoration(
-                                  hintText:
-                                      'e.g. Does intermittent fasting improve markers of mitochondrial biogenesis in sedentary adults?',
-                                ),
-                              ),
-                              const SizedBox(height: kSpace12),
-                              Text(
-                                'Not sure where to start? Try one of these',
-                                style: textTheme.labelSmall,
-                              ),
-                              const SizedBox(height: kSpace8),
-                              Wrap(
-                                spacing: kSpace8,
-                                runSpacing: kSpace8,
-                                children: <Widget>[
-                                  for (final String suggestion
-                                      in _kQuerySuggestions)
-                                    ActionChip(
-                                      label: Text(
-                                        suggestion,
-                                        style: textTheme.bodyMedium,
-                                      ),
-                                      onPressed: () =>
-                                          _applySuggestion(suggestion),
-                                      materialTapTargetSize:
-                                          MaterialTapTargetSize.shrinkWrap,
-                                    ),
-                                ],
-                              ),
+                            ],
+                          ),
                         ],
                       ),
                     ),
