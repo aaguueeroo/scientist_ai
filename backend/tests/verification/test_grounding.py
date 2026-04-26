@@ -214,12 +214,11 @@ def test_grounding_refuses_when_zero_verified_items() -> None:
         refuse_if_ungrounded(plan, summary)
 
 
-def test_grounding_refuses_when_more_than_half_materials_unverified() -> None:
+def test_grounding_does_not_refuse_when_some_verified_despite_unverified_rows() -> None:
     plan = _plan_with_materials(total=4)
     summary = GroundingSummary(verified_count=1, unverified_count=2, tier_0_drops=0)
 
-    with pytest.raises(GroundingFailedRefused):
-        refuse_if_ungrounded(plan, summary)
+    refuse_if_ungrounded(plan, summary)
 
 
 def test_grounding_does_not_refuse_when_majority_verified() -> None:

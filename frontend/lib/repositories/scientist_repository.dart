@@ -1,3 +1,4 @@
+import '../data/dto/conversation_summary_dto.dart';
 import '../features/review/models/review.dart';
 import '../models/generate_plan_result.dart';
 import '../models/literature_review.dart';
@@ -22,6 +23,12 @@ abstract class ScientistRepository {
   // recent first.
   // Throws `ScientistApiException` on backend errors and on parse failures.
   Future<List<Review>> fetchReviews();
+
+  // GET /conversations — recent saved plan sessions (for sidebar + restore).
+  Future<List<ConversationSummaryDto>> fetchConversationsList();
+
+  // GET /plans/{plan_id} — full snapshot; does not re-run the pipeline.
+  Future<GeneratePlanResult> fetchSavedPlanById(String planId);
 }
 
 class ScientistApiException implements Exception {

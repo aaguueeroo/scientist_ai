@@ -4,6 +4,13 @@ import 'mock_payloads.dart';
 import 'mock_review_payloads.dart';
 import 'scientist_backend_client.dart';
 
+const List<String> kMockPastConversationSeeds = <String>[
+  'mRNA vaccine stability under freeze-thaw cycles',
+  'CRISPR Cas9 delivery optimization in liver cells',
+  'Protein folding assay with fluorescence readout',
+  'Cell culture contamination prevention protocol',
+];
+
 const Duration _kStreamStepInterval = Duration(milliseconds: 600);
 const Duration _kErrorPreEmitDelay = Duration(milliseconds: 900);
 const Duration _kReviewLatency = Duration(milliseconds: 200);
@@ -94,6 +101,34 @@ class MockScientistBackendClient implements ScientistBackendClient {
     return <String, dynamic>{
       'reviews': List<Map<String, dynamic>>.from(_reviews),
     };
+  }
+
+  @override
+  Future<Map<String, dynamic>> fetchConversations() async {
+    await Future<void>.delayed(_kReviewLatency);
+    return <String, dynamic>{
+      'conversations': <Map<String, dynamic>>[
+        for (int i = 0; i < kMockPastConversationSeeds.length; i++)
+          <String, dynamic>{
+            'query': kMockPastConversationSeeds[i],
+            'plan_id': 'mock_past_conv_$i',
+            'literature_review_id': 'mock_lr_$i',
+          },
+      ],
+    };
+  }
+
+  @override
+  Future<Map<String, dynamic>> getPlanById(String planId) async {
+    await Future<void>.delayed(_kReviewLatency);
+    if (planId.isEmpty) {
+      throw const ScientistTransportException(
+        code: 'validation_error',
+        message: 'plan id is empty',
+        statusCode: 400,
+      );
+    }
+    return Map<String, dynamic>.from(kMockExperimentPlanJson);
   }
 
   bool _isUnknownQuery(String query) {

@@ -61,8 +61,8 @@ class LiteratureQCResult(OpenAIStructuredModel):
     novelty: NoveltyLabel
     references: list[Reference] = Field(
         default_factory=list,
-        max_length=3,
-        description="HTTP-verified references only (citation resolver), max 3.",
+        max_length=5,
+        description="HTTP-verified references only (citation resolver), max 5.",
     )
     similarity_suggestion: Reference | None = Field(
         default=None,

@@ -82,7 +82,7 @@ def test_reference_serializes_verification_url_when_present() -> None:
     assert dumped["verified"] is True
 
 
-def test_literature_qc_result_caps_references_at_three() -> None:
+def test_literature_qc_result_caps_references_at_five() -> None:
     refs = [
         Reference(
             title=f"Paper {i}",
@@ -90,16 +90,16 @@ def test_literature_qc_result_caps_references_at_three() -> None:
             why_relevant="Relevant.",
             tier=SourceTier.TIER_1_PEER_REVIEWED,
         )
-        for i in range(4)
+        for i in range(6)
     ]
     with pytest.raises(ValidationError):
         LiteratureQCResult(novelty=NoveltyLabel.SIMILAR_WORK_EXISTS, references=refs)
 
     ok = LiteratureQCResult(
         novelty=NoveltyLabel.SIMILAR_WORK_EXISTS,
-        references=refs[:3],
+        references=refs[:5],
     )
-    assert len(ok.references) == 3
+    assert len(ok.references) == 5
     assert ok.tier_0_drops == 0
 
 

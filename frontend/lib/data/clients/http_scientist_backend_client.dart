@@ -181,6 +181,76 @@ class HttpScientistBackendClient implements ScientistBackendClient {
   }
 
   @override
+  Future<Map<String, dynamic>> fetchConversations() async {
+    final HttpClient client = HttpClient();
+    try {
+      final HttpClientRequest request =
+          await client.getUrl(_resolve('conversations'));
+      final HttpClientResponse response = await request.close();
+      final String body = await response.transform(utf8.decoder).join();
+      final String? headerRequestId =
+          response.headers.value('x-request-id') ??
+              response.headers.value('X-Request-ID');
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final Object? decoded = jsonDecode(body);
+        if (decoded is Map<String, dynamic>) {
+          return decoded;
+        }
+      }
+      throw _transportFromHttp(
+        response.statusCode,
+        body,
+        headerRequestId: headerRequestId,
+      );
+    } on ScientistTransportException {
+      rethrow;
+    } on SocketException catch (e) {
+      throw ScientistTransportException(
+        code: 'network_error',
+        message: e.message,
+      );
+    } finally {
+      client.close(force: true);
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> getPlanById(String planId) async {
+    final HttpClient client = HttpClient();
+    try {
+      final String encoded = Uri.encodeComponent(planId);
+      final HttpClientRequest request =
+          await client.getUrl(_resolve('plans/$encoded'));
+      request.headers.set(HttpHeaders.acceptHeader, 'application/json');
+      final HttpClientResponse response = await request.close();
+      final String body = await response.transform(utf8.decoder).join();
+      final String? headerRequestId =
+          response.headers.value('x-request-id') ??
+              response.headers.value('X-Request-ID');
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final Object? decoded = jsonDecode(body);
+        if (decoded is Map<String, dynamic>) {
+          return decoded;
+        }
+      }
+      throw _transportFromHttp(
+        response.statusCode,
+        body,
+        headerRequestId: headerRequestId,
+      );
+    } on ScientistTransportException {
+      rethrow;
+    } on SocketException catch (e) {
+      throw ScientistTransportException(
+        code: 'network_error',
+        message: e.message,
+      );
+    } finally {
+      client.close(force: true);
+    }
+  }
+
+  @override
   Future<Map<String, dynamic>> fetchReviews() async {
     final HttpClient client = HttpClient();
     try {

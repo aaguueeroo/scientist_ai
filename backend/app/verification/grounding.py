@@ -25,8 +25,6 @@ from app.verification.citation_resolver import (
     CitationOutcome,
 )
 
-_UNVERIFIED_MATERIAL_RATIO = 0.5
-
 
 async def apply_resolvers(
     plan: ExperimentPlan,
@@ -128,12 +126,10 @@ def _unverified_step(step: ProtocolStep) -> ProtocolStep:
 def refuse_if_ungrounded(plan: ExperimentPlan, summary: GroundingSummary) -> None:
     """Raise `GroundingFailedRefused` when the plan has no grounding to stand on.
 
-    Two refusal conditions, both pinned by the resolved-issue list at
-    the top of `docs/implementation-plan.md`:
-
-    1. `verified_count == 0` — nothing in the plan was verifiable.
-    2. `unverified_count / max(1, total_materials) >= 0.5` — more than
-       half the materials lack a verified supplier link.
+    Refuses only when `verified_count == 0` — nothing in the plan was
+    verifiable. When at least one reference, step, or material verifies,
+    the plan is returned with unverified rows marked for review; there
+    is no separate refusal based on the ratio of unverified rows.
     """
 
     total_materials = len(plan.materials)
@@ -160,27 +156,6 @@ def refuse_if_ungrounded(plan: ExperimentPlan, summary: GroundingSummary) -> Non
                 "protocol_steps": len(plan.protocol),
                 "materials_in_plan": len(plan.materials),
                 "total_grounding_slots": total_slots,
-            },
-        )
-
-    ratio = summary.unverified_count / max(1, total_materials)
-    if ratio >= _UNVERIFIED_MATERIAL_RATIO:
-        msg = (
-            "Too many unverified items relative to material rows: "
-            f"unverified_count={summary.unverified_count} vs materials={max(1, total_materials)} "
-            f"(ratio {round(ratio, 3)} >= threshold {_UNVERIFIED_MATERIAL_RATIO}). "
-            f"Only verified_count={summary.verified_count} item(s) verified in total. "
-            "Tighten supplier + SKU on materials so the catalog resolver can confirm SKUs on-page."
-        )
-        raise GroundingFailedRefused(
-            message=msg,
-            details={
-                "reason": "too_many_unverified_materials",
-                "verified_count": summary.verified_count,
-                "unverified_count": summary.unverified_count,
-                "total_materials": total_materials,
-                "ratio": round(ratio, 6),
-                "ratio_threshold": _UNVERIFIED_MATERIAL_RATIO,
             },
         )
 

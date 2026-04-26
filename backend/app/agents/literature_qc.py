@@ -12,7 +12,7 @@ Pipeline:
    confirm the row but the same work has a Tavily relevance **score** above
    0.6, treat it as verified anyway (Tavily-only verification).
 7. Deduplicate by normalized DOI (or host+path for publishers); skip
-   repeated LLM rows that point to the same work. Cap at 3 references.
+   repeated LLM rows that point to the same work. Cap at 5 references.
 8. If no verified row yet, backfill from merged Tavily hits (score>0.6) before
    unverified similarity suggestions.
 9. Emit one structured log line with the per-request contract keys.
@@ -51,7 +51,7 @@ from app.verification.citation_resolver import AbstractCitationResolver
 
 _AGENT_NAME = "literature_qc"
 _ROLE_FILE = "literature_qc.md"
-_MAX_REFERENCES = 3
+_MAX_REFERENCES = 5
 # Per Tavily request: API allows up to 20; we use the ceiling so both verbatim + keyword
 # searches can contribute every hit (see `_merge_hits` — no cap after dedupe).
 _TAVILY_MAX_RESULTS: Final[int] = 20

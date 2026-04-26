@@ -1,6 +1,7 @@
 import 'package:flutter/foundation.dart';
 
 import '../data/clients/scientist_backend_client.dart';
+import '../data/dto/conversation_summary_dto.dart';
 import '../data/dto/experiment_plan_dto.dart';
 import '../data/dto/experiment_plan_request_dto.dart';
 import '../data/dto/generate_plan_response_dto.dart';
@@ -120,6 +121,80 @@ class ScientistRepositoryImpl implements ScientistRepository {
       throw ScientistApiException(
         code: 'parse_error',
         message: 'Received an unexpected review payload.',
+        cause: err,
+      );
+    }
+  }
+
+  @override
+  Future<List<ConversationSummaryDto>> fetchConversationsList() async {
+    Map<String, dynamic> rawResponse;
+    try {
+      rawResponse = await _client.fetchConversations();
+    } catch (err, stackTrace) {
+      debugPrint('Fetch conversations transport error: $err\n$stackTrace');
+      throw _translateTransportError(err);
+    }
+    try {
+      final List<dynamic> raw = rawResponse['conversations'] as List<dynamic>? ??
+          <dynamic>[];
+      return raw
+          .map(
+            (dynamic e) => ConversationSummaryDto.fromJson(
+              e as Map<String, dynamic>,
+            ),
+          )
+          .where(
+            (ConversationSummaryDto c) => c.query.isNotEmpty && c.planId.isNotEmpty,
+          )
+          .toList(growable: false);
+    } catch (err, stackTrace) {
+      debugPrint('Fetch conversations parse error: $err\n$stackTrace');
+      throw ScientistApiException(
+        code: 'parse_error',
+        message: 'Received an unexpected conversations payload.',
+        cause: err,
+      );
+    }
+  }
+
+  @override
+  Future<GeneratePlanResult> fetchSavedPlanById(String planId) async {
+    if (planId.isEmpty) {
+      throw const ScientistApiException(
+        code: 'validation_error',
+        message: 'Plan id is empty.',
+      );
+    }
+    Map<String, dynamic> rawResponse;
+    try {
+      rawResponse = await _client.getPlanById(planId);
+    } catch (err, stackTrace) {
+      debugPrint('GET plan transport error: $err\n$stackTrace');
+      throw _translateTransportError(err);
+    }
+    try {
+      if (rawResponse.containsKey('plan') || rawResponse.containsKey('qc')) {
+        final GeneratePlanResponseDto dto =
+            GeneratePlanResponseDto.fromJson(rawResponse);
+        return BackendPlanMapper.toGeneratePlanResult(dto);
+      }
+      final ExperimentPlanDto legacy = ExperimentPlanDto.fromJson(rawResponse);
+      final ExperimentPlan plan = ExperimentPlanMapper.toDomain(legacy);
+      return GeneratePlanResult(
+        requestId: '',
+        qc: const LiteratureQcResult(
+          novelty: '',
+          confidence: '',
+          references: <QcReference>[],
+        ),
+        plan: plan,
+      );
+    } catch (err, stackTrace) {
+      debugPrint('GET plan parse error: $err\n$stackTrace');
+      throw ScientistApiException(
+        code: 'parse_error',
+        message: 'Received an unexpected saved plan payload.',
         cause: err,
       );
     }

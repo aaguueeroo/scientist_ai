@@ -33,6 +33,12 @@ abstract class ScientistBackendClient {
   // Returns the decoded JSON body `{ "reviews": [...] }`.
   // On non-2xx, throws a `ScientistTransportException`.
   Future<Map<String, dynamic>> fetchReviews();
+
+  // GET /conversations — recent saved sessions (query + plan_id for sidebar).
+  Future<Map<String, dynamic>> fetchConversations();
+
+  // GET /plans/{plan_id} — snapshot from DB (same shape as POST /experiment-plan).
+  Future<Map<String, dynamic>> getPlanById(String planId);
 }
 
 class ScientistTransportException implements Exception {

@@ -99,7 +99,6 @@ async def test_plans_repo_save_persists_prompt_versions_and_schema_version(
     row = await repo.get_row_by_id("plan-test-002")
     assert row is not None
     assert row.schema_version == PLAN_SCHEMA_VERSION
-    assert row.schema_version == 1
     assert row.prompt_versions == response.prompt_versions
 
 

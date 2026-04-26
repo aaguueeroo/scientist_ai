@@ -18,6 +18,7 @@ from app.api import deps as api_deps
 from app.api.debug_tavily import router as debug_tavily_router
 from app.api.openapi_extra import enrich_openapi_schema
 from app.api.errors import register_exception_handlers
+from app.api.conversations import router as conversations_router
 from app.api.experiment_plan import router as experiment_plan_router
 from app.api.feedback import router as feedback_router
 from app.api.health import router as health_router
@@ -112,6 +113,7 @@ def create_app() -> FastAPI:
     app.include_router(debug_tavily_router)
     app.include_router(literature_review_router)
     app.include_router(experiment_plan_router)
+    app.include_router(conversations_router)
     app.include_router(plans_router)
     app.include_router(feedback_router)
 

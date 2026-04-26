@@ -15,7 +15,9 @@ from typing import Any
 from sqlalchemy import JSON, DateTime, Integer, String
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column
 
-PLAN_SCHEMA_VERSION = 1
+# Bumped when stored `GeneratePlanResponse` JSON shape changes. Rows may exist
+# in the wild with 1; `plans_repo` still reads 1+2 until a breaking migration.
+PLAN_SCHEMA_VERSION = 2
 FEEDBACK_SCHEMA_VERSION = 1
 LITERATURE_REVIEW_SCHEMA_VERSION = 1
 
