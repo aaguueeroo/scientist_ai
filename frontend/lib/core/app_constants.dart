@@ -14,7 +14,12 @@ const double kSidebarMaxWidth = 400;
 const double kContentMaxWidth = 1200;
 const double kHomeMaxWidth = 720;
 
+/// Max width for provider API key help tooltips (OpenAI / Tavily).
+const double kProviderApiKeyHelpTooltipMaxWidth = 200;
+
 const double kPlanHeroMetricValueSize = 52;
+const double kPlanQcAlertIconSize = 36;
+const double kPlanQcInlineIconSize = 20;
 const double kPlanTimelineLineThickness = 2;
 const double kPlanTimelineNodeDiameter = 12;
 const double kPlanTimelineMilestoneSize = 20;

@@ -7,8 +7,6 @@ import '../../controllers/scientist_controller.dart';
 import '../../core/app_colors.dart';
 import '../../core/app_constants.dart';
 import '../../core/app_routes.dart';
-import '../../core/theme/theme_context.dart';
-import '../plan/widgets/workspace_step_header.dart';
 
 const List<String> _kQuerySuggestions = <String>[
   'Does cold exposure improve insulin sensitivity in metabolically healthy adults?',
@@ -106,111 +104,73 @@ class _HomeScreenState extends State<HomeScreen> {
         horizontal: kSpace40,
         vertical: kSpace32,
       ),
-      child: Consumer<ScientistController>(
-        builder:
-            (
-              BuildContext context,
-              ScientistController controller,
-              Widget? child,
-            ) {
-              return Column(
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: <Widget>[
-                  WorkspaceStepHeader(
-                    stepIndex: 0,
-                    stepLabels: kWorkspaceStepLabels,
-                    stepEnabled: workspaceStepEnabled(
-                      currentQuery: controller.currentQuery,
-                      isLoadingPlan: controller.isLoadingPlan,
-                      experimentPlan: controller.experimentPlan,
-                      planError: controller.planError,
-                      planFetchQc: controller.planFetchQc,
-                    ),
-                    onSelect: (int i) => navigateToWorkspaceStep(context, i),
-                  ),
-                  const SizedBox(height: kSpace32),
-                  Expanded(
-                    child: Center(
-                      child: ConstrainedBox(
-                        constraints: const BoxConstraints(
-                          maxWidth: kHomeMaxWidth,
-                        ),
-                        child: SingleChildScrollView(
-                          child: Column(
-                            mainAxisSize: MainAxisSize.min,
-                            crossAxisAlignment: CrossAxisAlignment.stretch,
-                            children: <Widget>[
-                              Center(
-                                child: ConstrainedBox(
-                                  constraints: const BoxConstraints(
-                                    maxHeight: 380,
-                                  ),
-                                  child: Image.asset(
-                                    'lib/assets/marie-query-home.png',
-                                    fit: BoxFit.contain,
-                                  ),
-                                ),
-                              ),
-                              Text(
-                                'Hi! What are we investigating today?',
-                                style: textTheme.headlineMedium,
-                                textAlign: TextAlign.center,
-                              ),
-                              const SizedBox(height: kSpace8),
-                              Text(
-                                'Tell me your research question — I\'ll review the literature and draft an experiment plan for you.',
-                                style: context.scientist.bodySecondary,
-                                textAlign: TextAlign.center,
-                              ),
-                              const SizedBox(height: kSpace32),
-                              Text(
-                                'Research question',
-                                style: textTheme.labelMedium?.copyWith(
-                                  color: AppColors.textTertiary,
-                                  fontWeight: FontWeight.w500,
-                                ),
-                              ),
-                              const SizedBox(height: kSpace8),
-                              _HomePromptComposer(
-                                controller: _queryController,
-                                focusNode: _focusNode,
-                                isFocused: _focusNode.hasFocus,
-                                textTheme: textTheme,
-                                colorScheme: Theme.of(context).colorScheme,
-                              ),
-                              const SizedBox(height: kSpace12),
-                              Text(
-                                'Not sure where to start? Try one of these',
-                                style: textTheme.labelSmall,
-                              ),
-                              const SizedBox(height: kSpace8),
-                              Wrap(
-                                spacing: kSpace8,
-                                runSpacing: kSpace8,
-                                children: <Widget>[
-                                  for (final String suggestion
-                                      in _kQuerySuggestions)
-                                    ActionChip(
-                                      label: Text(
-                                        suggestion,
-                                        style: textTheme.bodyMedium,
-                                      ),
-                                      onPressed: () =>
-                                          _applySuggestion(suggestion),
-                                      materialTapTargetSize:
-                                          MaterialTapTargetSize.shrinkWrap,
-                                    ),
-                                ],
-                              ),
-                            ],
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.stretch,
+        children: <Widget>[
+          Expanded(
+            child: Center(
+              child: ConstrainedBox(
+                constraints: const BoxConstraints(
+                  maxWidth: kHomeMaxWidth,
+                ),
+                child: SingleChildScrollView(
+                  child: Column(
+                    mainAxisSize: MainAxisSize.min,
+                    crossAxisAlignment: CrossAxisAlignment.stretch,
+                    children: <Widget>[
+                      Center(
+                        child: ConstrainedBox(
+                          constraints: const BoxConstraints(
+                            maxHeight: 380,
+                          ),
+                          child: Image.asset(
+                            'lib/assets/marie-query-home.png',
+                            fit: BoxFit.contain,
                           ),
                         ),
                       ),
-                    ),
+                      Text(
+                        'Hi! What are we investigating today?',
+                        style: textTheme.headlineMedium,
+                        textAlign: TextAlign.center,
+                      ),
+                      const SizedBox(height: kSpace32),
+                      _HomePromptComposer(
+                        controller: _queryController,
+                        focusNode: _focusNode,
+                        isFocused: _focusNode.hasFocus,
+                        textTheme: textTheme,
+                        colorScheme: Theme.of(context).colorScheme,
+                      ),
+                      const SizedBox(height: kSpace12),
+                      Text(
+                        'Not sure where to start? Try one of these',
+                        style: textTheme.labelSmall,
+                      ),
+                      const SizedBox(height: kSpace8),
+                      Wrap(
+                        spacing: kSpace8,
+                        runSpacing: kSpace8,
+                        children: <Widget>[
+                          for (final String suggestion in _kQuerySuggestions)
+                            ActionChip(
+                              label: Text(
+                                suggestion,
+                                style: textTheme.bodyMedium,
+                              ),
+                              onPressed: () => _applySuggestion(suggestion),
+                              materialTapTargetSize:
+                                  MaterialTapTargetSize.shrinkWrap,
+                            ),
+                        ],
+                      ),
+                    ],
                   ),
-                ],
-              );
-            },
+                ),
+              ),
+            ),
+          ),
+        ],
       ),
     );
   }
@@ -251,6 +211,7 @@ class _HomePromptComposer extends StatelessWidget {
           colorScheme.surface,
         ),
         borderRadius: radius,
+        border: Border.all(color: borderColor, width: borderWidth),
         boxShadow: <BoxShadow>[
           BoxShadow(
             color: (isFocused ? AppColors.accent : Colors.black).withValues(

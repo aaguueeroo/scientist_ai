@@ -18,6 +18,7 @@ class SidebarUserMenu extends StatelessWidget {
     required this.role,
     required this.onSelectRole,
     required this.onOpenSettings,
+    required this.onOpenApiKeys,
   });
 
   final String userName;
@@ -25,6 +26,7 @@ class SidebarUserMenu extends StatelessWidget {
   final UserRole role;
   final ValueChanged<UserRole> onSelectRole;
   final VoidCallback onOpenSettings;
+  final VoidCallback onOpenApiKeys;
 
   @override
   Widget build(BuildContext context) {
@@ -85,6 +87,15 @@ class SidebarUserMenu extends StatelessWidget {
             ),
             onPressed: onOpenSettings,
             child: Text('Settings', style: textTheme.bodyMedium),
+          ),
+          MenuItemButton(
+            leadingIcon: Icon(
+              Icons.key_outlined,
+              size: 16,
+              color: scheme.onSurface,
+            ),
+            onPressed: onOpenApiKeys,
+            child: Text('API keys', style: textTheme.bodyMedium),
           ),
           const Divider(height: 1),
           for (final UserRole option in UserRole.values)

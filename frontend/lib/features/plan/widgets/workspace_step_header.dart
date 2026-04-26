@@ -28,7 +28,7 @@ const int _kWorkspaceTabBarAnimationMs = 220;
 
 void navigateToWorkspaceStep(BuildContext context, int index) {
   if (index == 0) {
-    context.go(kRouteHome);
+    context.go(kRoutePrompt);
   } else if (index == 1) {
     context.go(kRouteLiterature);
   } else if (index == 2) {
@@ -36,8 +36,8 @@ void navigateToWorkspaceStep(BuildContext context, int index) {
   }
 }
 
-/// Gating for workspace tabs: step 0 is always [true]; step 1 after a research
-/// question exists; step 2 after the user has started or received a plan load.
+/// Gating for workspace tabs: steps 0–1 need a research question; step 2 after
+/// the user has started or received a plan load.
 List<bool> workspaceStepEnabled({
   required String? currentQuery,
   required bool isLoadingPlan,
@@ -52,7 +52,7 @@ List<bool> workspaceStepEnabled({
           planFetchQc != null ||
           (planError != null && planError.isNotEmpty));
   return <bool>[
-    true,
+    hasQuery,
     hasQuery,
     canUsePlan,
   ];

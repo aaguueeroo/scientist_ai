@@ -2,19 +2,59 @@ import 'dart:async';
 import 'dart:convert';
 import 'dart:io';
 
+import '../../core/user_api_keys_constants.dart';
 import '../dto/api_error_dto.dart';
 import 'scientist_backend_client.dart';
 
 /// Real-network implementation against the FastAPI backend.
 class HttpScientistBackendClient implements ScientistBackendClient {
-  HttpScientistBackendClient({required this.baseUrl});
+  HttpScientistBackendClient({
+    required this.baseUrl,
+    this.openAiApiKeyProvider,
+    this.tavilyApiKeyProvider,
+  });
 
   final Uri baseUrl;
+
+  /// Returns the active OpenAI API key for this request, or null to omit the header.
+  final String? Function()? openAiApiKeyProvider;
+
+  /// Returns the active Tavily API key for this request, or null to omit the header.
+  final String? Function()? tavilyApiKeyProvider;
 
   Uri _resolve(String path) {
     final String base = baseUrl.toString().replaceAll(RegExp(r'/+$'), '');
     final String p = path.startsWith('/') ? path : '/$path';
     return Uri.parse('$base$p');
+  }
+
+  void _maybeAttachOpenAiKeyHeader(HttpClientRequest request) {
+    final String? Function()? provider = openAiApiKeyProvider;
+    if (provider == null) {
+      return;
+    }
+    final String? key = provider();
+    if (key == null || key.isEmpty) {
+      return;
+    }
+    request.headers.set(kOpenAiApiKeyHttpHeader, key);
+  }
+
+  void _maybeAttachTavilyKeyHeader(HttpClientRequest request) {
+    final String? Function()? provider = tavilyApiKeyProvider;
+    if (provider == null) {
+      return;
+    }
+    final String? key = provider();
+    if (key == null || key.isEmpty) {
+      return;
+    }
+    request.headers.set(kTavilyApiKeyHttpHeader, key);
+  }
+
+  void _maybeAttachAgentApiKeyHeaders(HttpClientRequest request) {
+    _maybeAttachOpenAiKeyHeader(request);
+    _maybeAttachTavilyKeyHeader(request);
   }
 
   @override
@@ -30,6 +70,7 @@ class HttpScientistBackendClient implements ScientistBackendClient {
         'application/json; charset=utf-8',
       );
       request.headers.set(HttpHeaders.acceptHeader, 'text/event-stream');
+      _maybeAttachAgentApiKeyHeaders(request);
       request.write(jsonEncode(requestBody));
       final HttpClientResponse response = await request.close();
       final String? headerRequestId =
@@ -96,6 +137,7 @@ class HttpScientistBackendClient implements ScientistBackendClient {
         'application/json; charset=utf-8',
       );
       request.headers.set(HttpHeaders.acceptHeader, 'application/json');
+      _maybeAttachAgentApiKeyHeaders(request);
       request.write(jsonEncode(requestBody));
       final HttpClientResponse response = await request.close();
       final String body = await response.transform(utf8.decoder).join();
@@ -151,6 +193,7 @@ class HttpScientistBackendClient implements ScientistBackendClient {
         HttpHeaders.contentTypeHeader,
         'application/json; charset=utf-8',
       );
+      _maybeAttachAgentApiKeyHeaders(request);
       request.write(jsonEncode(requestBody));
       final HttpClientResponse response = await request.close();
       final String body = await response.transform(utf8.decoder).join();

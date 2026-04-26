@@ -7,6 +7,7 @@ import '../../core/app_constants.dart';
 import '../../core/theme/theme_context.dart';
 import '../../models/experiment_plan.dart';
 import '../../models/literature_qc.dart';
+import '../../models/literature_review.dart';
 import 'experiment_plan_view.dart';
 import 'project/project_plan_screen.dart';
 import 'review/plan_review_scaffold.dart';
@@ -63,6 +64,9 @@ class PlanScreen extends StatelessWidget {
                   conversationId: controller.currentConversationId,
                   usedPriorFeedback: controller.usedPriorFeedback,
                   planGroundingCaveat: controller.planGroundingCaveat,
+                  literatureReview: controller.literatureReview,
+                  isLoadingLiterature: controller.isLoadingLiterature,
+                  onRequestExperimentPlan: controller.loadExperimentPlan,
                   onRetry: controller.loadExperimentPlan,
                   onLivePlanChanged: controller.applyCorrectedPlan,
                 ),
@@ -86,6 +90,9 @@ class _PlanBody extends StatelessWidget {
     required this.conversationId,
     required this.usedPriorFeedback,
     this.planGroundingCaveat,
+    this.literatureReview,
+    required this.isLoadingLiterature,
+    required this.onRequestExperimentPlan,
     required this.onRetry,
     required this.onLivePlanChanged,
   });
@@ -99,6 +106,9 @@ class _PlanBody extends StatelessWidget {
   final String? conversationId;
   final bool usedPriorFeedback;
   final String? planGroundingCaveat;
+  final LiteratureReview? literatureReview;
+  final bool isLoadingLiterature;
+  final VoidCallback onRequestExperimentPlan;
   final VoidCallback onRetry;
   final void Function(ExperimentPlan) onLivePlanChanged;
 
@@ -121,10 +131,27 @@ class _PlanBody extends StatelessWidget {
       );
     }
     if (plan == null) {
+      final LiteratureReview? lit = literatureReview;
+      final bool canRequestExperimentPlan = !isLoadingLiterature &&
+          lit != null &&
+          lit.sources.isNotEmpty &&
+          lit.isFinal &&
+          (lit.literatureReviewId ?? '').isNotEmpty;
       return Center(
-        child: Text(
-          'Marie hasn\'t prepared an experiment plan yet.',
-          style: context.scientist.bodySecondary,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Text(
+              'Marie hasn\'t prepared an experiment plan yet.',
+              style: context.scientist.bodySecondary,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: kSpace24),
+            FilledButton(
+              onPressed: canRequestExperimentPlan ? onRequestExperimentPlan : null,
+              child: const Text('Ask Marie to prepare it'),
+            ),
+          ],
         ),
       );
     }

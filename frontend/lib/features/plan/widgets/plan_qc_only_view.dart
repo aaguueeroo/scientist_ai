@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
+import '../../../core/app_colors.dart';
 import '../../../core/app_constants.dart';
 import '../../../core/app_routes.dart';
 import '../../../core/theme/theme_context.dart';
@@ -22,21 +23,96 @@ class PlanQcOnlyView extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final TextTheme textTheme = Theme.of(context).textTheme;
+    final ColorScheme scheme = context.appColorScheme;
     return ListView(
       padding: EdgeInsets.zero,
       children: <Widget>[
-        Text(
-          'No experiment plan generated',
-          style: textTheme.headlineMedium,
-        ),
-        const SizedBox(height: kSpace12),
-        Text(
-          'Marie completed a literature quality check, but did not produce a '
-          'full protocol for this query. This often happens when the novelty '
-          'gate flags very close prior work.',
-          style: context.scientist.bodySecondary,
+        Semantics(
+          label:
+              'Warning: literature originality check blocked the experiment plan.',
+          container: true,
+          child: AppSurface(
+            color: AppColors.qcAlertSurface,
+            borderColor: AppColors.qcWarning.withValues(alpha: 0.45),
+            padding: const EdgeInsets.all(kSpace16),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Icon(
+                  Icons.warning_amber_rounded,
+                  size: kPlanQcAlertIconSize,
+                  color: AppColors.qcWarning,
+                  semanticLabel: 'Warning',
+                ),
+                const SizedBox(width: kSpace16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: <Widget>[
+                      Text(
+                        'Originality concern — no experiment plan',
+                        style: textTheme.titleLarge?.copyWith(
+                          color: AppColors.textPrimary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: kSpace8),
+                      Text(
+                        'Marie\'s literature check suggests your request lines up '
+                        'very closely with existing publications. When overlap is '
+                        'that strong, we treat it like a plagiarism-risk situation: '
+                        'Marie stops short of a full protocol so we do not echo or '
+                        'repackage prior work.',
+                        style: textTheme.bodyMedium?.copyWith(
+                          color: AppColors.textPrimary,
+                          height: 1.45,
+                        ),
+                      ),
+                      const SizedBox(height: kSpace12),
+                      Row(
+                        crossAxisAlignment: CrossAxisAlignment.start,
+                        children: <Widget>[
+                          Icon(
+                            Icons.lightbulb_outline,
+                            size: kPlanQcInlineIconSize,
+                            color: AppColors.accent,
+                          ),
+                          const SizedBox(width: kSpace8),
+                          Expanded(
+                            child: Text(
+                              'Try narrowing what is genuinely new in your study, '
+                              'or review the references below and rewrite your query '
+                              'so the contribution is explicit.',
+                              style: context.scientist.bodySecondary.copyWith(
+                                height: 1.4,
+                              ),
+                            ),
+                          ),
+                        ],
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
         ),
         const SizedBox(height: kSpace24),
+        Row(
+          children: <Widget>[
+            Icon(
+              Icons.fact_check_outlined,
+              size: kPlanQcInlineIconSize,
+              color: scheme.onSurfaceVariant,
+            ),
+            const SizedBox(width: kSpace8),
+            Text(
+              'Check details',
+              style: textTheme.titleSmall,
+            ),
+          ],
+        ),
+        const SizedBox(height: kSpace12),
         AppSurface(
           padding: const EdgeInsets.all(kSpace16),
           child: Column(

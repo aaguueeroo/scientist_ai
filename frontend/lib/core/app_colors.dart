@@ -22,4 +22,8 @@ class AppColors {
 
   /// Toast / inline success, distinct from [accent] on dark surfaces.
   static const Color feedbackPositive = Color(0xFF6DAB96);
+
+  /// Literature / originality QC warnings (amber on dark UI).
+  static const Color qcWarning = Color(0xFFF59E0B);
+  static const Color qcAlertSurface = Color(0xFF2A2620);
 }

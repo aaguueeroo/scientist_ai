@@ -8,8 +8,10 @@ import '../../models/experiment_plan.dart';
 import '../../models/literature_review.dart';
 import '../literature/widgets/literature_loading.dart';
 import '../literature/widgets/source_tile.dart';
+import '../plan/experiment_plan_view.dart';
 import '../plan/review/plan_review_scaffold.dart';
 import '../plan/widgets/workspace_step_header.dart';
+import 'widgets/blackboard_prompt_view.dart';
 
 class PastConversationScreen extends StatefulWidget {
   const PastConversationScreen({super.key});
@@ -63,150 +65,27 @@ class _PastConversationScreenState extends State<PastConversationScreen> {
                 child: IndexedStack(
                   index: _stepIndex,
                   children: <Widget>[
-                    _PromptPane(query: controller.currentQuery),
+                    BlackboardPromptView(query: controller.currentQuery),
                     _LiteraturePane(
                       review: controller.literatureReview,
                       query: controller.currentQuery,
                     ),
                     _ExperimentPlanStepPane(
                       plan: controller.experimentPlan,
+                      isLoadingPlan: controller.isLoadingPlan,
                       query: controller.currentQuery,
                       conversationId: controller.currentConversationId,
                       usedPriorFeedback: controller.usedPriorFeedback,
                       planGroundingCaveat: controller.planGroundingCaveat,
+                      literatureReview: controller.literatureReview,
+                      isLoadingLiterature: controller.isLoadingLiterature,
+                      onRequestExperimentPlan: controller.loadExperimentPlan,
                       onLivePlanChanged: controller.applyCorrectedPlan,
                     ),
                   ],
                 ),
               ),
             ],
-          ),
-        );
-      },
-    );
-  }
-}
-
-const String _kBlackboardAsset = 'lib/assets/marie-query-blackboard.png';
-
-class _PromptPane extends StatelessWidget {
-  const _PromptPane({required this.query});
-
-  final String? query;
-
-  @override
-  Widget build(BuildContext context) {
-    if (query == null || query!.isEmpty) {
-      return Center(
-        child: Text(
-          'No question recorded for this conversation.',
-          style: context.scientist.bodySecondary,
-        ),
-      );
-    }
-    return Center(
-      child: ConstrainedBox(
-        constraints: const BoxConstraints(maxWidth: 700, maxHeight: 560),
-        child: Stack(
-          fit: StackFit.passthrough,
-          children: <Widget>[
-            Image.asset(
-              _kBlackboardAsset,
-              fit: BoxFit.contain,
-            ),
-            Positioned(
-              left: 0,
-              top: 0,
-              right: 0,
-              bottom: 0,
-              child: FractionallySizedBox(
-                widthFactor: 0.52,
-                heightFactor: 0.40,
-                alignment: const Alignment(-0.72, -0.62),
-                child: Padding(
-                  padding: const EdgeInsets.all(kSpace16),
-                  child: Theme(
-                    data: Theme.of(context).copyWith(
-                      scrollbarTheme: const ScrollbarThemeData(
-                        thickness: WidgetStatePropertyAll<double>(6),
-                        radius: Radius.circular(3),
-                        thumbVisibility: WidgetStatePropertyAll<bool>(true),
-                        trackVisibility: WidgetStatePropertyAll<bool>(true),
-                        thumbColor: WidgetStatePropertyAll<Color>(
-                          Color(0xB3EEEEE8),
-                        ),
-                        trackColor: WidgetStatePropertyAll<Color>(
-                          Color(0x33FFFFFF),
-                        ),
-                        crossAxisMargin: 2,
-                        mainAxisMargin: 4,
-                      ),
-                    ),
-                    child: _BlackboardQueryScroll(query: query!),
-                  ),
-                ),
-              ),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-}
-
-class _BlackboardQueryScroll extends StatefulWidget {
-  const _BlackboardQueryScroll({required this.query});
-
-  final String query;
-
-  @override
-  State<_BlackboardQueryScroll> createState() => _BlackboardQueryScrollState();
-}
-
-class _BlackboardQueryScrollState extends State<_BlackboardQueryScroll> {
-  late final ScrollController _scrollController;
-
-  static const TextStyle _kQueryTextStyle = TextStyle(
-    color: Color(0xDDEEEEE8),
-    fontSize: 16,
-    fontWeight: FontWeight.w400,
-    height: 1.5,
-    letterSpacing: 0.3,
-  );
-
-  @override
-  void initState() {
-    super.initState();
-    _scrollController = ScrollController();
-  }
-
-  @override
-  void dispose() {
-    _scrollController.dispose();
-    super.dispose();
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return LayoutBuilder(
-      builder: (BuildContext context, BoxConstraints constraints) {
-        return Scrollbar(
-          controller: _scrollController,
-          child: SingleChildScrollView(
-            controller: _scrollController,
-            child: ConstrainedBox(
-              constraints: BoxConstraints(
-                minHeight: constraints.maxHeight,
-                minWidth: constraints.maxWidth,
-              ),
-              child: Center(
-                child: Text(
-                  widget.query,
-                  textAlign: TextAlign.center,
-                  style: _kQueryTextStyle,
-                ),
-              ),
-            ),
           ),
         );
       },
@@ -327,28 +206,56 @@ class _LiteraturePane extends StatelessWidget {
 class _ExperimentPlanStepPane extends StatelessWidget {
   const _ExperimentPlanStepPane({
     required this.plan,
+    required this.isLoadingPlan,
     required this.query,
     required this.conversationId,
     required this.usedPriorFeedback,
     this.planGroundingCaveat,
+    this.literatureReview,
+    required this.isLoadingLiterature,
+    required this.onRequestExperimentPlan,
     required this.onLivePlanChanged,
   });
 
   final ExperimentPlan? plan;
+  final bool isLoadingPlan;
   final String? query;
   final String? conversationId;
   final bool usedPriorFeedback;
   final String? planGroundingCaveat;
+  final LiteratureReview? literatureReview;
+  final bool isLoadingLiterature;
+  final VoidCallback onRequestExperimentPlan;
   final ValueChanged<ExperimentPlan> onLivePlanChanged;
 
   @override
   Widget build(BuildContext context) {
     final ExperimentPlan? currentPlan = plan;
+    if (isLoadingPlan && currentPlan == null) {
+      return const ExperimentPlanLoadingView();
+    }
     if (currentPlan == null) {
+      final LiteratureReview? lit = literatureReview;
+      final bool canRequestExperimentPlan = !isLoadingLiterature &&
+          lit != null &&
+          lit.sources.isNotEmpty &&
+          lit.isFinal &&
+          (lit.literatureReviewId ?? '').isNotEmpty;
       return Center(
-        child: Text(
-          'Marie hasn\'t prepared an experiment plan yet.',
-          style: context.scientist.bodySecondary,
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: <Widget>[
+            Text(
+              'Marie hasn\'t prepared an experiment plan yet.',
+              style: context.scientist.bodySecondary,
+              textAlign: TextAlign.center,
+            ),
+            const SizedBox(height: kSpace24),
+            FilledButton(
+              onPressed: canRequestExperimentPlan ? onRequestExperimentPlan : null,
+              child: const Text('Ask Marie to prepare it'),
+            ),
+          ],
         ),
       );
     }

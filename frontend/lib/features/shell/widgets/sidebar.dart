@@ -281,6 +281,7 @@ class Sidebar extends StatelessWidget {
                   roleController.setRole(next);
                 },
                 onOpenSettings: () => _showSettingsPlaceholder(context),
+                onOpenApiKeys: () => context.go(kRouteOpenAiApiKeys),
               ),
             ],
           );
@@ -377,6 +378,7 @@ class _ReviewerSidebar extends StatelessWidget {
                     autoCloseDuration: const Duration(seconds: 2),
                   );
                 },
+                onOpenApiKeys: () => context.go(kRouteOpenAiApiKeys),
               ),
             ],
           );
