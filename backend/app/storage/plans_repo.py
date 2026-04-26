@@ -16,7 +16,7 @@ from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
 
-from sqlalchemy import select
+from sqlalchemy import delete, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
 from app.schemas.responses import GeneratePlanResponse
@@ -93,6 +93,15 @@ class PlansRepo:
         async with self.session_factory() as session:
             result = await session.execute(select(PlanRow).where(PlanRow.plan_id == plan_id))
             return result.scalar_one_or_none()
+
+    async def delete_by_plan_id(self, plan_id: str) -> bool:
+        """Delete a plan row by primary key. Returns whether a row was removed."""
+        tid = plan_id.strip()
+        if not tid:
+            return False
+        async with self.session_factory() as session, session.begin():
+            result = await session.execute(delete(PlanRow).where(PlanRow.plan_id == tid))
+            return (result.rowcount or 0) > 0
 
     async def get_by_id(self, plan_id: str) -> GeneratePlanResponse | None:
         row = await self.get_row_by_id(plan_id)

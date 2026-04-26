@@ -155,3 +155,32 @@ async def test_get_plans_id_unknown_returns_404_with_error_response(
     body = response.json()
     assert body["code"] == ErrorCode.VALIDATION_ERROR.value
     assert body["request_id"]
+
+
+@pytest.mark.asyncio
+async def test_delete_plans_id_removes_row_then_get_returns_404(
+    persisted_app: FastAPI,
+) -> None:
+    transport = ASGITransport(app=persisted_app, raise_app_exceptions=False)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        post_body = await post_literature_then_experiment_plan(client, query=SAMPLE_HYPOTHESIS)
+        plan_id = post_body["plan_id"]
+
+        delete_response = await client.delete(f"/plans/{plan_id}")
+        get_after = await client.get(f"/plans/{plan_id}")
+
+    assert delete_response.status_code == 204
+    assert get_after.status_code == 404
+
+
+@pytest.mark.asyncio
+async def test_delete_plans_id_unknown_returns_404(
+    persisted_app: FastAPI,
+) -> None:
+    transport = ASGITransport(app=persisted_app, raise_app_exceptions=False)
+    async with AsyncClient(transport=transport, base_url="http://test") as client:
+        response = await client.delete("/plans/plan-does-not-exist")
+
+    assert response.status_code == 404
+    body = response.json()
+    assert body["code"] == ErrorCode.VALIDATION_ERROR.value

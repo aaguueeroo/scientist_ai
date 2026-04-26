@@ -54,3 +54,32 @@ async def get_plan(
     if response is None:
         raise _PlanNotFound(details={"plan_id": plan_id})
     return response
+
+
+@router.delete(
+    "/plans/{plan_id}",
+    status_code=204,
+    summary="Delete a saved experiment plan",
+    description=(
+        "Removes the persisted plan row. Used when the user dismisses a sidebar "
+        "recent question. 404 if `plan_id` is unknown (same error envelope as GET)."
+    ),
+    responses={
+        404: {
+            "description": "Unknown `plan_id`",
+        },
+    },
+)
+async def delete_plan(
+    plan_id: Annotated[
+        str,
+        Path(
+            description="Storage key returned with the saved plan.",
+            examples=["plan-a1b2c3d-4e5f-6789-0abc-def012345678"],
+        ),
+    ],
+    plans_repo: Annotated[PlansRepo, Depends(get_plans_repo)],
+) -> None:
+    removed = await plans_repo.delete_by_plan_id(plan_id)
+    if not removed:
+        raise _PlanNotFound(details={"plan_id": plan_id})

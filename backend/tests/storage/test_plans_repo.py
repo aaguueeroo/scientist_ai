@@ -131,6 +131,27 @@ async def test_plans_repo_get_by_id_returns_none_for_unknown_id(
 
 
 @pytest.mark.asyncio
+async def test_plans_repo_delete_by_plan_id_removes_row(
+    session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    repo = PlansRepo(session_factory)
+    response = _response(plan_id="plan-delete-me")
+    await repo.save(
+        response=response,
+        prompt_versions=response.prompt_versions,
+        request_id=response.request_id,
+    )
+    assert await repo.get_row_by_id("plan-delete-me") is not None
+
+    removed = await repo.delete_by_plan_id("plan-delete-me")
+    assert removed is True
+    assert await repo.get_row_by_id("plan-delete-me") is None
+
+    again = await repo.delete_by_plan_id("plan-delete-me")
+    assert again is False
+
+
+@pytest.mark.asyncio
 async def test_allocate_unique_plan_id_format_and_uniqueness(
     session_factory: async_sessionmaker[AsyncSession],
 ) -> None:
