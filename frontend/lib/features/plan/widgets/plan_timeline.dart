@@ -4,6 +4,8 @@ import '../../../core/app_constants.dart';
 import '../../../core/theme/theme_context.dart';
 import '../../../models/experiment_plan.dart';
 import '../../../ui/app_surface.dart';
+import 'plan_timeline_dag_canvas.dart';
+import 'timeline_dag_layout.dart';
 
 class PlanTimeline extends StatelessWidget {
   const PlanTimeline({
@@ -24,12 +26,6 @@ class PlanTimeline extends StatelessWidget {
     return '${value.inHours} h';
   }
 
-  int _flexForStep(Step step) {
-    return step.duration.inMilliseconds > 0
-        ? step.duration.inMilliseconds
-        : 1;
-  }
-
   @override
   Widget build(BuildContext context) {
     if (steps.isEmpty) {
@@ -42,125 +38,101 @@ class PlanTimeline extends StatelessWidget {
         horizontal: kSpace24,
         vertical: kSpace24,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: List<Widget>.generate(steps.length, (int index) {
-              final Step step = steps[index];
-              return Expanded(
-                flex: _flexForStep(step),
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: kSpace4),
-                  child: Text(
-                    step.name,
-                    textAlign: TextAlign.center,
-                    maxLines: 2,
-                    overflow: TextOverflow.ellipsis,
-                    style: step.isMilestone
-                        ? textTheme.labelMedium!.copyWith(
-                            color: scheme.primary,
-                            fontWeight: FontWeight.w700,
-                          )
-                        : textTheme.labelMedium,
-                  ),
-                ),
-              );
-            }),
-          ),
-          const SizedBox(height: kSpace12),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.center,
-            children: List<Widget>.generate(steps.length, (int index) {
-              return Expanded(
-                flex: _flexForStep(steps[index]),
-                child: _TimelineNodeSegment(
-                  step: steps[index],
-                  scheme: scheme,
-                  hasLeftSegment: index > 0,
-                  hasRightSegment: index < steps.length - 1,
-                ),
-              );
-            }),
-          ),
-          const SizedBox(height: kSpace8),
-          Row(
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: List<Widget>.generate(steps.length, (int index) {
-              final Step step = steps[index];
-              return Expanded(
-                flex: _flexForStep(step),
-                child: step.isMilestone
-                    ? Text(
-                        step.milestone!,
-                        textAlign: TextAlign.center,
-                        style: textTheme.labelSmall!.copyWith(
-                          color: scheme.primary,
-                        ),
+      child: LayoutBuilder(
+        builder: (BuildContext context, BoxConstraints constraints) {
+          final TimelineDagLayout layout = computeTimelineDagLayout(steps);
+          final TimelineDagPaintMetrics metrics = computeTimelineDagPaintMetrics(
+            layout: layout,
+            viewportInnerWidth: constraints.maxWidth,
+            labelBandHeight: kPlanTimelineDagLabelBandHeight,
+            laneRowHeight: kPlanTimelineDagLaneRowHeight,
+            subLabelBandHeight: kPlanTimelineDagSubLabelBandHeight,
+            minNodeWidth: kPlanTimelineDagMinNodeWidth,
+          );
+          final Widget graph = PlanTimelineDagCanvas(
+            steps: steps,
+            metrics: metrics,
+            edgeColor: context.scientist.timelineConnector,
+            nameLabelBuilder: (BuildContext ctx, Step step, int index) {
+              return Text(
+                step.name,
+                textAlign: TextAlign.center,
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
+                style: step.isMilestone
+                    ? textTheme.labelMedium!.copyWith(
+                        color: scheme.primary,
+                        fontWeight: FontWeight.w700,
                       )
-                    : Text(
-                        _formatDuration(step.duration),
-                        textAlign: TextAlign.center,
-                        style: context.scientist.numericBody.copyWith(
-                          color: scheme.onSurfaceVariant,
-                        ),
-                      ),
+                    : textTheme.labelMedium,
               );
-            }),
-          ),
-        ],
+            },
+            subLabelBuilder: (BuildContext ctx, Step step, int index) {
+              if (step.isMilestone) {
+                return Text(
+                  step.milestone!,
+                  textAlign: TextAlign.center,
+                  maxLines: 2,
+                  overflow: TextOverflow.ellipsis,
+                  style: textTheme.labelSmall!.copyWith(
+                    color: scheme.primary,
+                  ),
+                );
+              }
+              return Text(
+                _formatDuration(step.duration),
+                textAlign: TextAlign.center,
+                maxLines: 1,
+                overflow: TextOverflow.ellipsis,
+                style: context.scientist.numericBody.copyWith(
+                  color: scheme.onSurfaceVariant,
+                ),
+              );
+            },
+            nodeBuilder:
+                (BuildContext ctx, Step step, int index, Rect nodeRect) {
+              return _PlanDagStepNode(
+                step: step,
+                scheme: scheme,
+              );
+            },
+          );
+          if (metrics.contentWidth <= constraints.maxWidth + 0.5) {
+            return graph;
+          }
+          return SingleChildScrollView(
+            scrollDirection: Axis.horizontal,
+            child: graph,
+          );
+        },
       ),
     );
   }
 }
 
-class _TimelineNodeSegment extends StatelessWidget {
-  const _TimelineNodeSegment({
+class _PlanDagStepNode extends StatelessWidget {
+  const _PlanDagStepNode({
     required this.step,
     required this.scheme,
-    required this.hasLeftSegment,
-    required this.hasRightSegment,
   });
 
   final Step step;
   final ColorScheme scheme;
-  final bool hasLeftSegment;
-  final bool hasRightSegment;
 
   @override
   Widget build(BuildContext context) {
-    final Color lineColor = context.scientist.timelineConnector;
-    return Row(
-      crossAxisAlignment: CrossAxisAlignment.center,
-      children: <Widget>[
-        Expanded(
-          child: hasLeftSegment
-              ? Container(
-                  height: kPlanTimelineLineThickness,
-                  color: lineColor,
-                )
-              : const SizedBox.shrink(),
-        ),
-        step.isMilestone
-            ? _MilestoneNode(step: step, scheme: scheme)
-            : Container(
-                width: kPlanTimelineNodeDiameter,
-                height: kPlanTimelineNodeDiameter,
-                decoration: BoxDecoration(
-                  color: scheme.primary,
-                  shape: BoxShape.circle,
-                ),
-              ),
-        Expanded(
-          child: hasRightSegment
-              ? Container(
-                  height: kPlanTimelineLineThickness,
-                  color: lineColor,
-                )
-              : const SizedBox.shrink(),
-        ),
-      ],
+    if (step.isMilestone) {
+      return Center(
+        child: _MilestoneNode(step: step, scheme: scheme),
+      );
+    }
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(kRadius),
+        color: scheme.primary.withValues(alpha: 0.14),
+        border: Border.all(color: scheme.primary),
+      ),
+      child: const SizedBox.expand(),
     );
   }
 }

@@ -187,17 +187,23 @@ class ReviewMapper {
       'duration_seconds': step.duration.inSeconds,
       'name': step.name,
       'description': step.description,
+      if (step.dependsOn.isNotEmpty) 'depends_on': step.dependsOn,
       'milestone': step.milestone,
     };
   }
 
   static Step _decodeStep(Map<String, dynamic> raw) {
+    final List<dynamic>? rawDeps =
+        raw['depends_on'] as List<dynamic>? ?? raw['dependsOn'] as List<dynamic>?;
     return Step(
       id: raw['id'] as String,
       number: (raw['number'] as num).toInt(),
       duration: Duration(seconds: (raw['duration_seconds'] as num).toInt()),
       name: raw['name'] as String,
       description: raw['description'] as String,
+      dependsOn: rawDeps == null
+          ? const <String>[]
+          : rawDeps.map((dynamic e) => e as String).toList(),
       milestone: raw['milestone'] as String?,
     );
   }

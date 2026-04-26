@@ -83,15 +83,14 @@ class BackendGeneratePlanMapper {
     final String name = (phase['phase'] as String?) ?? 'Phase $number';
     final int days = (phase['duration_days'] as num?)?.toInt() ?? 0;
     final List<dynamic> deps = phase['depends_on'] as List<dynamic>? ?? const <dynamic>[];
-    final String depText = deps.isEmpty
-        ? ''
-        : 'Depends on: ${deps.map((dynamic e) => e.toString()).join(", ")}.';
+    final List<String> dependsOn = deps.map((dynamic e) => e.toString()).toList();
     return Step(
       id: generateLocalId('step'),
       number: number,
       duration: Duration(days: math.max(0, days)),
       name: name,
-      description: depText,
+      description: '',
+      dependsOn: dependsOn,
     );
   }
 }
