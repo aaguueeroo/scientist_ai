@@ -7,17 +7,26 @@ class SourceDto {
     required this.doi,
     this.score,
     this.isVerified,
+    this.verified,
+    this.tier,
+    this.unverifiedSimilaritySuggestion = false,
   });
 
   factory SourceDto.fromJson(Map<String, dynamic> json) {
+    final bool? legacyVerified = json['is_verified'] as bool?;
+    final bool? beVerified = json['verified'] as bool?;
     return SourceDto(
-      author: json['author'] as String,
-      title: json['title'] as String,
-      dateOfPublication: json['date_of_publication'] as String,
-      abstractText: json['abstract'] as String,
-      doi: json['doi'] as String,
+      author: json['author'] as String? ?? '',
+      title: json['title'] as String? ?? '',
+      dateOfPublication: json['date_of_publication'] as String? ?? '1970-01-01',
+      abstractText: json['abstract'] as String? ?? '',
+      doi: json['doi'] as String? ?? '',
       score: (json['score'] as num?)?.toDouble(),
-      isVerified: json['is_verified'] as bool?,
+      isVerified: legacyVerified,
+      verified: beVerified,
+      tier: json['tier'] as String?,
+      unverifiedSimilaritySuggestion:
+          json['unverified_similarity_suggestion'] as bool? ?? false,
     );
   }
 
@@ -29,6 +38,11 @@ class SourceDto {
   final String doi;
   final double? score;
   final bool? isVerified;
+  final bool? verified;
+  final String? tier;
+  final bool unverifiedSimilaritySuggestion;
+
+  bool get resolvedVerified => verified ?? isVerified ?? false;
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
@@ -39,6 +53,9 @@ class SourceDto {
       'doi': doi,
       'score': score,
       'is_verified': isVerified,
+      'verified': verified,
+      'tier': tier,
+      'unverified_similarity_suggestion': unverifiedSimilaritySuggestion,
     };
   }
 }

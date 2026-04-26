@@ -10,6 +10,8 @@ class LiteratureReviewMapper {
       doesSimilarWorkExist: event.doesSimilarWorkExist,
       sources: event.sources.map(_sourceToDomain).toList(),
       totalSources: event.expectedTotalSources,
+      isFinal: event.isFinal,
+      literatureReviewId: event.literatureReviewId,
     );
   }
 
@@ -21,7 +23,9 @@ class LiteratureReviewMapper {
       abstractText: dto.abstractText,
       doi: dto.doi,
       score: (dto.score ?? 0.0).clamp(0.0, 1.0),
-      isVerified: dto.isVerified ?? false,
+      isVerified: dto.resolvedVerified,
+      tier: dto.tier,
+      unverifiedSimilaritySuggestion: dto.unverifiedSimilaritySuggestion,
     );
   }
 }

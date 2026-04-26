@@ -1,5 +1,5 @@
 import '../features/review/models/review.dart';
-import '../models/experiment_plan.dart';
+import '../models/generate_plan_result.dart';
 import '../models/literature_review.dart';
 
 abstract class ScientistRepository {
@@ -7,9 +7,12 @@ abstract class ScientistRepository {
   // Emits `ScientistApiException` on backend errors and on parse failures.
   Stream<LiteratureReview> streamLiteratureReview(String query);
 
-  // Generates an experiment plan for the given query.
+  /// Generates an experiment plan (full [GeneratePlanResponse] envelope).
   // Throws `ScientistApiException` on backend errors and on parse failures.
-  Future<ExperimentPlan> fetchExperimentPlan(String query);
+  Future<GeneratePlanResult> fetchGeneratePlan(
+    String query,
+    String literatureReviewId,
+  );
 
   // Persists a single review event (correction, comment, or feedback).
   // Throws `ScientistApiException` on backend errors and on parse failures.
@@ -26,15 +29,17 @@ class ScientistApiException implements Exception {
     required this.code,
     required this.message,
     this.cause,
+    this.requestId,
   });
 
   final String code;
   final String message;
   final Object? cause;
+  final String? requestId;
 
   @override
   String toString() {
     return 'ScientistApiException(code: $code, message: $message, '
-        'cause: $cause)';
+        'requestId: $requestId, cause: $cause)';
   }
 }

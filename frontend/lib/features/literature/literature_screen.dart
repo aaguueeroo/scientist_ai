@@ -47,6 +47,7 @@ class LiteratureScreen extends StatelessWidget {
                   isLoadingPlan: controller.isLoadingPlan,
                   experimentPlan: controller.experimentPlan,
                   planError: controller.planError,
+                  planFetchQc: controller.planFetchQc,
                 ),
                 onSelect: (int i) => navigateToWorkspaceStep(context, i),
               ),
@@ -63,6 +64,7 @@ class LiteratureScreen extends StatelessWidget {
               if (controller.literatureError != null) ...<Widget>[
                 _LiteratureError(
                   message: controller.literatureError!,
+                  requestId: controller.literatureErrorRequestId,
                   onRetry: controller.loadLiteratureReview,
                 ),
                 const SizedBox(height: kSpace16),
@@ -96,7 +98,10 @@ class LiteratureScreen extends StatelessWidget {
               Align(
                 alignment: Alignment.centerRight,
                 child: FilledButton.icon(
-                  onPressed: (review == null || review.sources.isEmpty)
+                  onPressed: (review == null ||
+                          review.sources.isEmpty ||
+                          !review.isFinal ||
+                          (review.literatureReviewId ?? '').isEmpty)
                       ? null
                       : () {
                           controller.loadExperimentPlan();
@@ -118,30 +123,59 @@ class _LiteratureError extends StatelessWidget {
   const _LiteratureError({
     required this.message,
     required this.onRetry,
+    this.requestId,
   });
 
   final String message;
   final VoidCallback onRetry;
+  final String? requestId;
 
   @override
   Widget build(BuildContext context) {
     return AppSurface(
-      child: Row(
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        mainAxisSize: MainAxisSize.min,
         children: <Widget>[
-          Icon(
-            Icons.error_outline,
-            size: 18,
-            color: context.appColorScheme.onSurfaceVariant,
+          Row(
+            children: <Widget>[
+              Icon(
+                Icons.error_outline,
+                size: 18,
+                color: context.appColorScheme.onSurfaceVariant,
+              ),
+              const SizedBox(width: kSpace12),
+              Expanded(
+                child: Text(
+                  message,
+                  style: Theme.of(context).textTheme.bodyMedium,
+                ),
+              ),
+              const SizedBox(width: kSpace12),
+              TextButton(onPressed: onRetry, child: const Text('Retry')),
+            ],
           ),
-          const SizedBox(width: kSpace12),
-          Expanded(
-            child: Text(
-              message,
-              style: Theme.of(context).textTheme.bodyMedium,
+          if (requestId != null && requestId!.isNotEmpty) ...<Widget>[
+            const SizedBox(height: kSpace8),
+            Theme(
+              data: Theme.of(context).copyWith(dividerColor: Colors.transparent),
+              child: ExpansionTile(
+                tilePadding: EdgeInsets.zero,
+                title: Text(
+                  'Reference ID',
+                  style: Theme.of(context).textTheme.labelMedium,
+                ),
+                children: <Widget>[
+                  SelectableText(
+                    requestId!,
+                    style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                          fontFamily: 'monospace',
+                        ),
+                  ),
+                ],
+              ),
             ),
-          ),
-          const SizedBox(width: kSpace12),
-          TextButton(onPressed: onRetry, child: const Text('Retry')),
+          ],
         ],
       ),
     );

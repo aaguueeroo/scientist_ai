@@ -4,6 +4,7 @@ import 'package:flutter/foundation.dart';
 
 import '../core/id_generator.dart';
 import '../models/experiment_plan.dart';
+import '../models/literature_qc.dart';
 import '../models/literature_review.dart';
 import '../repositories/scientist_repository.dart';
 import 'plan_review_session_snapshot.dart';
@@ -34,11 +35,17 @@ class ScientistController extends ChangeNotifier {
   String? currentQuery;
   String? currentConversationId;
   LiteratureReview? literatureReview;
+  String? literatureReviewId;
   bool isLoadingLiterature = false;
   String? literatureError;
+  String? literatureErrorRequestId;
   ExperimentPlan? experimentPlan;
+  LiteratureQcResult? planFetchQc;
+  String? planId;
+  String? lastPlanRequestId;
   bool isLoadingPlan = false;
   String? planError;
+  String? planErrorRequestId;
 
   Future<void> submitQuestion(String query) async {
     final String normalizedQuery = query.trim();
@@ -51,7 +58,12 @@ class ScientistController extends ChangeNotifier {
       pastConversations.insert(0, normalizedQuery);
     }
     experimentPlan = null;
+    planFetchQc = null;
+    planId = null;
+    lastPlanRequestId = null;
     planError = null;
+    planErrorRequestId = null;
+    literatureReviewId = null;
     isLoadingPlan = false;
     await loadLiteratureReview();
   }
@@ -64,21 +76,46 @@ class ScientistController extends ChangeNotifier {
     await _literatureSubscription?.cancel();
     isLoadingLiterature = true;
     literatureError = null;
+    literatureErrorRequestId = null;
     literatureReview = null;
+    literatureReviewId = null;
     notifyListeners();
+    final Completer<void> streamDone = Completer<void>();
     _literatureSubscription = _repository.streamLiteratureReview(query).listen(
       (LiteratureReview nextReview) {
         literatureReview = nextReview;
         isLoadingLiterature = false;
+        if (nextReview.isFinal) {
+          literatureReviewId = nextReview.literatureReviewId;
+        }
         notifyListeners();
+        if (nextReview.isFinal && !streamDone.isCompleted) {
+          streamDone.complete();
+        }
       },
       onError: (Object err) {
         debugPrint('Literature stream error: $err');
         literatureError = 'Marie couldn\'t load the literature review. Please retry.';
+        literatureErrorRequestId = err is ScientistApiException
+            ? err.requestId
+            : null;
         isLoadingLiterature = false;
         notifyListeners();
+        if (!streamDone.isCompleted) {
+          streamDone.completeError(err);
+        }
+      },
+      onDone: () {
+        if (!streamDone.isCompleted) {
+          streamDone.complete();
+        }
       },
     );
+    try {
+      await streamDone.future;
+    } catch (_) {
+      // Error state already surfaced in onError.
+    }
   }
 
   Future<void> openPastConversationReplay(String title) async {
@@ -98,8 +135,13 @@ class ScientistController extends ChangeNotifier {
     }
     literatureReview = null;
     literatureError = null;
+    literatureReviewId = null;
     experimentPlan = null;
+    planFetchQc = null;
+    planId = null;
+    lastPlanRequestId = null;
     planError = null;
+    planErrorRequestId = null;
     notifyListeners();
     await loadLiteratureReview();
     await loadExperimentPlan();
@@ -107,17 +149,29 @@ class ScientistController extends ChangeNotifier {
 
   Future<void> loadExperimentPlan() async {
     final String? query = currentQuery;
-    if (query == null || query.isEmpty) {
+    final String? litId = literatureReviewId;
+    if (query == null || query.isEmpty || litId == null || litId.isEmpty) {
       return;
     }
     isLoadingPlan = true;
     planError = null;
+    planErrorRequestId = null;
     notifyListeners();
     try {
-      experimentPlan = await _repository.fetchExperimentPlan(query);
+      final result = await _repository.fetchGeneratePlan(query, litId);
+      experimentPlan = result.plan;
+      planFetchQc = result.qc;
+      planId = result.planId;
+      lastPlanRequestId = result.requestId.isNotEmpty ? result.requestId : null;
     } catch (err) {
       debugPrint('Experiment plan error: $err');
       planError = 'Marie couldn\'t generate the experiment plan. Please retry.';
+      planErrorRequestId =
+          err is ScientistApiException ? err.requestId : null;
+      experimentPlan = null;
+      planFetchQc = null;
+      planId = null;
+      lastPlanRequestId = null;
     } finally {
       isLoadingPlan = false;
       notifyListeners();
@@ -152,11 +206,17 @@ class ScientistController extends ChangeNotifier {
     currentQuery = null;
     currentConversationId = null;
     literatureReview = null;
+    literatureReviewId = null;
     isLoadingLiterature = false;
     literatureError = null;
+    literatureErrorRequestId = null;
     experimentPlan = null;
+    planFetchQc = null;
+    planId = null;
+    lastPlanRequestId = null;
     isLoadingPlan = false;
     planError = null;
+    planErrorRequestId = null;
     _literatureSubscription?.cancel();
     _literatureSubscription = null;
     _planReviewSessions.clear();

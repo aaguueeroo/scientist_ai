@@ -66,6 +66,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   isLoadingPlan: controller.isLoadingPlan,
                   experimentPlan: controller.experimentPlan,
                   planError: controller.planError,
+                  planFetchQc: controller.planFetchQc,
                 ),
                 onSelect: (int i) => navigateToWorkspaceStep(context, i),
               ),

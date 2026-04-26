@@ -6,8 +6,10 @@ import 'controllers/projects_controller.dart';
 import 'controllers/review_store_controller.dart';
 import 'controllers/role_controller.dart';
 import 'controllers/scientist_controller.dart';
+import 'core/api_config.dart';
 import 'core/app_router.dart';
 import 'core/app_theme.dart';
+import 'data/clients/http_scientist_backend_client.dart';
 import 'data/clients/mock_scientist_backend_client.dart';
 import 'data/clients/scientist_backend_client.dart';
 import 'repositories/scientist_repository.dart';
@@ -21,7 +23,11 @@ class ScientistApp extends StatelessWidget {
     return MultiProvider(
       providers: [
         Provider<ScientistBackendClient>(
-          create: (_) => MockScientistBackendClient(),
+          create: (_) => kUseRealScientistApi
+              ? HttpScientistBackendClient(
+                  baseUrl: Uri.parse(kScientistApiBaseUrl.trim()),
+                )
+              : MockScientistBackendClient(),
         ),
         Provider<ScientistRepository>(
           create: (BuildContext c) =>

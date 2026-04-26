@@ -3,6 +3,30 @@ import 'plan_source_ref.dart';
 
 enum PlanRiskLikelihood { low, medium, high }
 
+class PlanPhase {
+  const PlanPhase({
+    required this.phase,
+    required this.durationDays,
+    this.dependsOn = const <String>[],
+  });
+
+  final String phase;
+  final int durationDays;
+  final List<String> dependsOn;
+}
+
+class PlanValidation {
+  const PlanValidation({
+    required this.successMetrics,
+    required this.failureMetrics,
+    this.miqeCompliance,
+  });
+
+  final List<String> successMetrics;
+  final List<String> failureMetrics;
+  final String? miqeCompliance;
+}
+
 class PlanRisk {
   const PlanRisk({
     required this.id,
@@ -39,17 +63,27 @@ class PlanRisk {
 
 class ExperimentPlan {
   const ExperimentPlan({
+    this.hypothesis = '',
     required this.description,
     required this.budget,
     required this.timePlan,
+    this.timelinePhases = const <PlanPhase>[],
+    this.validation,
     this.stepsSectionSourceRefs = const <PlanSourceRef>[],
     this.materialsSectionSourceRefs = const <PlanSourceRef>[],
     this.risks = const <PlanRisk>[],
   });
 
+  /// Primary scientific hypothesis when provided by the backend.
+  final String hypothesis;
   final String description;
   final Budget budget;
   final TimePlan timePlan;
+
+  /// Backend timeline phases (duration + dependencies); drives the plan timeline bar.
+  final List<PlanPhase> timelinePhases;
+
+  final PlanValidation? validation;
 
   /// Source references for the Steps section header as a whole.
   final List<PlanSourceRef> stepsSectionSourceRefs;
@@ -61,17 +95,25 @@ class ExperimentPlan {
   final List<PlanRisk> risks;
 
   ExperimentPlan copyWith({
+    String? hypothesis,
     String? description,
     Budget? budget,
     TimePlan? timePlan,
+    List<PlanPhase>? timelinePhases,
+    PlanValidation? validation,
+    bool clearValidation = false,
     List<PlanSourceRef>? stepsSectionSourceRefs,
     List<PlanSourceRef>? materialsSectionSourceRefs,
     List<PlanRisk>? risks,
   }) {
     return ExperimentPlan(
+      hypothesis: hypothesis ?? this.hypothesis,
       description: description ?? this.description,
       budget: budget ?? this.budget,
       timePlan: timePlan ?? this.timePlan,
+      timelinePhases: timelinePhases ?? this.timelinePhases,
+      validation:
+          clearValidation ? null : (validation ?? this.validation),
       stepsSectionSourceRefs:
           stepsSectionSourceRefs ?? this.stepsSectionSourceRefs,
       materialsSectionSourceRefs:
@@ -84,7 +126,23 @@ class ExperimentPlan {
 /// Snapshot of [plan] so an ongoing project keeps a stable copy of the plan.
 ExperimentPlan deepCopyExperimentPlan(ExperimentPlan plan) {
   return ExperimentPlan(
+    hypothesis: plan.hypothesis,
     description: plan.description,
+    timelinePhases: <PlanPhase>[
+      for (final PlanPhase p in plan.timelinePhases)
+        PlanPhase(
+          phase: p.phase,
+          durationDays: p.durationDays,
+          dependsOn: List<String>.from(p.dependsOn),
+        ),
+    ],
+    validation: plan.validation == null
+        ? null
+        : PlanValidation(
+            successMetrics: List<String>.from(plan.validation!.successMetrics),
+            failureMetrics: List<String>.from(plan.validation!.failureMetrics),
+            miqeCompliance: plan.validation!.miqeCompliance,
+          ),
     stepsSectionSourceRefs:
         List<PlanSourceRef>.from(plan.stepsSectionSourceRefs),
     materialsSectionSourceRefs:
@@ -136,6 +194,17 @@ class Material {
     required this.amount,
     required this.price,
     this.sourceRefs = const <PlanSourceRef>[],
+    this.reagent,
+    this.vendor,
+    this.sku,
+    this.qty,
+    this.qtyUnit,
+    this.unitCostUsd,
+    this.notes,
+    this.tier,
+    this.verified,
+    this.verificationUrl,
+    this.confidence,
   });
 
   factory Material.blank() {
@@ -157,6 +226,18 @@ class Material {
   final double price;
   final List<PlanSourceRef> sourceRefs;
 
+  final String? reagent;
+  final String? vendor;
+  final String? sku;
+  final int? qty;
+  final String? qtyUnit;
+  final double? unitCostUsd;
+  final String? notes;
+  final String? tier;
+  final bool? verified;
+  final String? verificationUrl;
+  final String? confidence;
+
   Material copyWith({
     String? id,
     String? title,
@@ -165,6 +246,18 @@ class Material {
     int? amount,
     double? price,
     List<PlanSourceRef>? sourceRefs,
+    String? reagent,
+    String? vendor,
+    String? sku,
+    int? qty,
+    String? qtyUnit,
+    double? unitCostUsd,
+    String? notes,
+    String? tier,
+    bool? verified,
+    String? verificationUrl,
+    String? confidence,
+    bool clearBeFields = false,
   }) {
     return Material(
       id: id ?? this.id,
@@ -174,6 +267,18 @@ class Material {
       amount: amount ?? this.amount,
       price: price ?? this.price,
       sourceRefs: sourceRefs ?? this.sourceRefs,
+      reagent: clearBeFields ? null : (reagent ?? this.reagent),
+      vendor: clearBeFields ? null : (vendor ?? this.vendor),
+      sku: clearBeFields ? null : (sku ?? this.sku),
+      qty: clearBeFields ? null : (qty ?? this.qty),
+      qtyUnit: clearBeFields ? null : (qtyUnit ?? this.qtyUnit),
+      unitCostUsd: clearBeFields ? null : (unitCostUsd ?? this.unitCostUsd),
+      notes: clearBeFields ? null : (notes ?? this.notes),
+      tier: clearBeFields ? null : (tier ?? this.tier),
+      verified: clearBeFields ? null : (verified ?? this.verified),
+      verificationUrl:
+          clearBeFields ? null : (verificationUrl ?? this.verificationUrl),
+      confidence: clearBeFields ? null : (confidence ?? this.confidence),
     );
   }
 }

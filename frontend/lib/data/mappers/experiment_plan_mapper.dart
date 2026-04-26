@@ -13,16 +13,35 @@ class ExperimentPlanMapper {
 
   static ExperimentPlan toDomain(ExperimentPlanDto dto) {
     return ExperimentPlan(
+      hypothesis: dto.hypothesis,
       description: dto.description,
       budget: _budgetToDomain(dto.budget),
       timePlan: _timePlanToDomain(dto.timePlan),
+      timelinePhases: dto.timelinePhases
+          .map(
+            (TimelinePhaseDto p) => PlanPhase(
+              phase: p.phase,
+              durationDays: p.durationDays,
+              dependsOn: p.dependsOn,
+            ),
+          )
+          .toList(),
+      validation: dto.validation == null
+          ? null
+          : PlanValidation(
+              successMetrics: dto.validation!.successMetrics,
+              failureMetrics: dto.validation!.failureMetrics,
+              miqeCompliance: dto.validation!.miqeCompliance,
+            ),
       stepsSectionSourceRefs:
           PlanSourceRefDto.listFromJson(dto.stepsSectionSourceRefs),
       materialsSectionSourceRefs:
           PlanSourceRefDto.listFromJson(dto.materialsSectionSourceRefs),
-      risks: dto.risks.map(_riskToDomain).toList(),
+      risks: dto.risks.map(planRiskFromDto).toList(),
     );
   }
+
+  static PlanRisk planRiskFromDto(RiskDto dto) => _riskToDomain(dto);
 
   /// Inverse of [toDomain]. Preserves stable step/material ids so that
   /// snapshots round-trip via JSON (used when embedding a plan inside a
@@ -32,6 +51,7 @@ class ExperimentPlanMapper {
     String currency = 'USD',
   }) {
     return ExperimentPlanDto(
+      hypothesis: plan.hypothesis,
       description: plan.description,
       budget: BudgetDto(
         total: plan.budget.total,
@@ -42,6 +62,22 @@ class ExperimentPlanMapper {
         totalDurationSeconds: plan.timePlan.totalDuration.inSeconds,
         steps: plan.timePlan.steps.map(_stepFromDomain).toList(),
       ),
+      timelinePhases: plan.timelinePhases
+          .map(
+            (PlanPhase p) => TimelinePhaseDto(
+              phase: p.phase,
+              durationDays: p.durationDays,
+              dependsOn: p.dependsOn,
+            ),
+          )
+          .toList(),
+      validation: plan.validation == null
+          ? null
+          : PlanValidationSnapshotDto(
+              successMetrics: plan.validation!.successMetrics,
+              failureMetrics: plan.validation!.failureMetrics,
+              miqeCompliance: plan.validation!.miqeCompliance,
+            ),
       stepsSectionSourceRefs:
           PlanSourceRefDto.listToJson(plan.stepsSectionSourceRefs),
       materialsSectionSourceRefs:
@@ -66,6 +102,17 @@ class ExperimentPlanMapper {
       amount: dto.amount,
       price: dto.price,
       sourceRefs: PlanSourceRefDto.listFromJson(dto.sourceRefs),
+      reagent: dto.reagent,
+      vendor: dto.vendor,
+      sku: dto.sku,
+      qty: dto.qty,
+      qtyUnit: dto.qtyUnit,
+      unitCostUsd: dto.unitCostUsd,
+      notes: dto.notes,
+      tier: dto.tier,
+      verified: dto.verified,
+      verificationUrl: dto.verificationUrl,
+      confidence: dto.confidence,
     );
   }
 
@@ -78,6 +125,17 @@ class ExperimentPlanMapper {
       amount: material.amount,
       price: material.price,
       sourceRefs: PlanSourceRefDto.listToJson(material.sourceRefs),
+      reagent: material.reagent,
+      vendor: material.vendor,
+      sku: material.sku,
+      qty: material.qty,
+      qtyUnit: material.qtyUnit,
+      unitCostUsd: material.unitCostUsd,
+      notes: material.notes,
+      tier: material.tier,
+      verified: material.verified,
+      verificationUrl: material.verificationUrl,
+      confidence: material.confidence,
     );
   }
 

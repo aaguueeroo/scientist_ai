@@ -33,11 +33,16 @@ class SourceTile extends StatelessWidget {
     return '${_months[value.month - 1]} ${value.year}';
   }
 
+  bool get _startsWithUnverifiedPrefix {
+    return source.abstractText.startsWith('[Unverified');
+  }
+
   @override
   Widget build(BuildContext context) {
     final TextTheme textTheme = Theme.of(context).textTheme;
     final ColorScheme scheme = context.appColorScheme;
-    return AppSurface(
+    final bool similarity = source.unverifiedSimilaritySuggestion;
+    final Widget body = AppSurface(
       padding: const EdgeInsets.all(kSpace16),
       child: Row(
         crossAxisAlignment: CrossAxisAlignment.start,
@@ -61,6 +66,28 @@ class SourceTile extends StatelessWidget {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
+                if (similarity) ...<Widget>[
+                  Container(
+                    width: double.infinity,
+                    padding: const EdgeInsets.all(kSpace8),
+                    decoration: BoxDecoration(
+                      color: scheme.errorContainer.withValues(alpha: 0.35),
+                      borderRadius: BorderRadius.circular(kRadius - 4),
+                      border: Border.all(
+                        color: scheme.error.withValues(alpha: 0.45),
+                      ),
+                    ),
+                    child: Text(
+                      'Similar content only — not HTTP-verified. Treat as a '
+                      'starting point, not a confirmed reference.',
+                      style: textTheme.labelMedium?.copyWith(
+                        color: scheme.onErrorContainer,
+                        height: 1.35,
+                      ),
+                    ),
+                  ),
+                  const SizedBox(height: kSpace12),
+                ],
                 Text(source.title, style: textTheme.titleMedium),
                 const SizedBox(height: kSpace4),
                 Text(
@@ -72,7 +99,11 @@ class SourceTile extends StatelessWidget {
                   source.abstractText,
                   maxLines: 3,
                   overflow: TextOverflow.ellipsis,
-                  style: context.scientist.bodySecondary,
+                  style: context.scientist.bodySecondary.copyWith(
+                    fontWeight: _startsWithUnverifiedPrefix
+                        ? FontWeight.w500
+                        : null,
+                  ),
                 ),
                 const SizedBox(height: kSpace8),
                 Text(
@@ -88,13 +119,32 @@ class SourceTile extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.end,
             mainAxisSize: MainAxisSize.min,
             children: <Widget>[
-              SourceVerifiedBadge(isVerified: source.isVerified),
-              const SizedBox(height: kSpace8),
+              if (source.tier != null && source.tier!.isNotEmpty) ...<Widget>[
+                SourceTierChip(tier: source.tier!),
+                const SizedBox(height: kSpace8),
+              ],
+              if (!similarity)
+                SourceVerifiedBadge(isVerified: source.isVerified),
+              if (!similarity) const SizedBox(height: kSpace8),
               SourceScoreBadge(score: source.score),
             ],
           ),
         ],
       ),
+    );
+
+    if (!similarity) {
+      return body;
+    }
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        borderRadius: BorderRadius.circular(kRadius),
+        border: Border.all(
+          color: scheme.outlineVariant.withValues(alpha: 0.9),
+          width: 1.5,
+        ),
+      ),
+      child: body,
     );
   }
 }
