@@ -16,11 +16,17 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 from datetime import UTC, datetime
+from typing import Any
 
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker
 
-from app.schemas.feedback import DomainTag, FeedbackRecord, FewShotExample
+from app.schemas.feedback import (
+    DomainTag,
+    FEW_SHOT_PLAN_REVIEW_FIELD_MARKER,
+    FeedbackRecord,
+    FewShotExample,
+)
 from app.storage.models import FEEDBACK_SCHEMA_VERSION, FeedbackRow
 
 
@@ -87,7 +93,10 @@ class FeedbackRepo:
         async with self.session_factory() as session:
             result = await session.execute(
                 select(FeedbackRow)
-                .where(FeedbackRow.domain_tag == domain_tag.value)
+                .where(
+                    FeedbackRow.domain_tag == domain_tag.value,
+                    FeedbackRow.review_envelope.is_(None),
+                )
                 .order_by(FeedbackRow.created_at.desc())
                 .limit(k)
             )
@@ -110,3 +119,52 @@ class FeedbackRepo:
                 )
             )
         return examples
+
+    async def save_plan_review(
+        self,
+        *,
+        feedback_id: str,
+        plan_id: str,
+        request_id: str,
+        prompt_versions: dict[str, str],
+        review_envelope: dict[str, Any],
+    ) -> FeedbackRow:
+        row = FeedbackRow(
+            feedback_id=feedback_id,
+            plan_id=plan_id,
+            request_id=request_id,
+            schema_version=FEEDBACK_SCHEMA_VERSION,
+            prompt_versions=dict(prompt_versions),
+            domain_tag=DomainTag.OTHER.value,
+            corrected_field=FEW_SHOT_PLAN_REVIEW_FIELD_MARKER,
+            before_text="",
+            after_text="",
+            reason="",
+            review_envelope=review_envelope,
+            created_at=datetime.now(UTC).replace(tzinfo=None),
+        )
+
+        async with self.session_factory() as session, session.begin():
+            session.add(row)
+        return row
+
+    async def list_plan_reviews(self, limit: int = 200) -> list[dict[str, Any]]:
+        """Return stored plan reviews (not legacy few-shots), newest first."""
+
+        if limit <= 0:
+            return []
+        async with self.session_factory() as session:
+            result = await session.execute(
+                select(FeedbackRow)
+                .where(FeedbackRow.review_envelope.is_not(None))
+                .order_by(FeedbackRow.created_at.desc())
+                .limit(limit)
+            )
+            rows = list(result.scalars().all())
+        out: list[dict[str, Any]] = []
+        for row in rows:
+            env = row.review_envelope
+            if not isinstance(env, dict):
+                continue
+            out.append({**env, "id": row.feedback_id})
+        return out

@@ -61,6 +61,7 @@ class PlanScreen extends StatelessWidget {
                   planFetchQc: controller.planFetchQc,
                   currentQuery: controller.currentQuery,
                   conversationId: controller.currentConversationId,
+                  usedPriorFeedback: controller.usedPriorFeedback,
                   onRetry: controller.loadExperimentPlan,
                   onLivePlanChanged: controller.applyCorrectedPlan,
                 ),
@@ -82,6 +83,7 @@ class _PlanBody extends StatelessWidget {
     this.planFetchQc,
     required this.currentQuery,
     required this.conversationId,
+    required this.usedPriorFeedback,
     required this.onRetry,
     required this.onLivePlanChanged,
   });
@@ -93,6 +95,7 @@ class _PlanBody extends StatelessWidget {
   final LiteratureQcResult? planFetchQc;
   final String? currentQuery;
   final String? conversationId;
+  final bool usedPriorFeedback;
   final VoidCallback onRetry;
   final void Function(ExperimentPlan) onLivePlanChanged;
 
@@ -127,6 +130,7 @@ class _PlanBody extends StatelessWidget {
       query: currentQuery,
       conversationId: conversationId ?? currentQuery ?? '',
       onLivePlanChanged: onLivePlanChanged,
+      usedPriorFeedback: usedPriorFeedback,
     );
   }
 }

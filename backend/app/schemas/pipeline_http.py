@@ -14,7 +14,7 @@ _LITERATURE_REQUEST_EXAMPLE: dict[str, str] = {
     "request_id": "req_1745619123456_flutter",
 }
 
-_SSE_SOURCE_EXAMPLE_SIMILARITY: dict[str, str | bool] = {
+_SSE_SOURCE_EXAMPLE_SIMILARITY: dict[str, Any] = {
     "author": "Unverified (similarity suggestion)",
     "title": "Related work on disaccharide cryoprotectants",
     "date_of_publication": "1970-01-01",
@@ -26,9 +26,10 @@ _SSE_SOURCE_EXAMPLE_SIMILARITY: dict[str, str | bool] = {
     "verified": False,
     "unverified_similarity_suggestion": True,
     "tier": "tier_3_general_web",
+    "tavily_score": 0.45,
 }
 
-_SSE_SOURCE_EXAMPLE_VERIFIED: dict[str, str | bool] = {
+_SSE_SOURCE_EXAMPLE_VERIFIED: dict[str, Any] = {
     "author": "Verified source (tier-assigned)",
     "title": "Trehalose as a cryoprotectant for HeLa cells",
     "date_of_publication": "1970-01-01",
@@ -37,6 +38,7 @@ _SSE_SOURCE_EXAMPLE_VERIFIED: dict[str, str | bool] = {
     "verified": True,
     "unverified_similarity_suggestion": False,
     "tier": "tier_1_peer_reviewed",
+    "tavily_score": 0.88,
 }
 
 _EXPERIMENT_PLAN_REQUEST_EXAMPLE: dict[str, str] = {
@@ -124,6 +126,13 @@ class LiteratureReviewSseSource(BaseModel):
     )
     tier: str = Field(
         description="Trust tier (``SourceTier``), e.g. ``tier_1_peer_reviewed`` or ``tier_3_general_web``."
+    )
+    tavily_score: float | None = Field(
+        default=None,
+        description=(
+            "Tavily search relevance score in ``[0, 1]`` for this work when the URL was "
+            "returned in a Tavily result; ``null`` when not applicable or unknown."
+        ),
     )
 
     model_config = ConfigDict(

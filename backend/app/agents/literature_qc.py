@@ -242,6 +242,7 @@ class LiteratureQCAgent:
                         confidence="high" if t_score >= 0.8 else "medium",
                         verification_url=url,
                         is_similarity_suggestion=False,
+                        tavily_score=t_score,
                     )
                     out_key = _reference_identity_key(t3)
                     if out_key not in seen_verified_keys:
@@ -263,6 +264,7 @@ class LiteratureQCAgent:
                 doi=ref_claim.doi,
                 why_relevant=ref_claim.why_relevant,
                 tier=tier,
+                tavily_score=t_score if t_score > 0 else None,
             )
             cr_index += 1
             _log.info(
@@ -291,7 +293,13 @@ class LiteratureQCAgent:
                 tier_0_drops += 1
                 continue
             if outcome.reference and outcome.reference.verified:
-                resolved = outcome.reference
+                resolved = outcome.reference.model_copy(
+                    update={
+                        "tavily_score": t_score
+                        if t_score > 0
+                        else outcome.reference.tavily_score
+                    }
+                )
             elif _tavily_relevance_strong(t_score):
                 base = outcome.reference if outcome.reference is not None else candidate
                 _log.info(
@@ -541,6 +549,7 @@ def _promote_reference_with_tavily_score(
             "is_similarity_suggestion": False,
             "confidence": "high" if tavily_score >= 0.8 else "medium",
             "verification_url": verification_url,
+            "tavily_score": tavily_score,
         }
     )
 
@@ -591,6 +600,7 @@ def _reference_from_tavily_hit_tavily_verified(
         confidence="high" if tavily_score >= 0.8 else "medium",
         verification_url=u,
         is_similarity_suggestion=False,
+        tavily_score=tavily_score,
     )
 
 
@@ -618,6 +628,7 @@ def _pick_similarity_suggestion(
     def _from_tavily_hit_unverified(hit: TavilyHit) -> Reference:
         u = str(hit.url)
         why = (hit.snippet or hit.title or "")[:400]
+        t_one = _score_for(hit)
         return Reference(
             title=hit.title[:500],
             url=u,
@@ -627,6 +638,7 @@ def _pick_similarity_suggestion(
             verified=False,
             confidence="low",
             is_similarity_suggestion=True,
+            tavily_score=t_one if t_one > 0 else None,
         )
 
     for hit in sorted(kept_hits, key=lambda h: h.score, reverse=True):
@@ -645,6 +657,7 @@ def _pick_similarity_suggestion(
         tid = source_tiers.classify(u)
         if tid is SourceTier.TIER_0_FORBIDDEN:
             continue
+        t_s = _tavily_score_for_url(ts, u)
         return Reference(
             title=claim.title,
             url=claim.url,
@@ -654,6 +667,7 @@ def _pick_similarity_suggestion(
             verified=False,
             confidence="low",
             is_similarity_suggestion=True,
+            tavily_score=t_s if t_s > 0 else None,
         )
     return None
 

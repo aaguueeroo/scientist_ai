@@ -48,6 +48,7 @@ class BackendPlanMapper {
       plan: plan,
       groundingSummary: gs,
       promptVersions: dto.promptVersions,
+      usedPriorFeedback: dto.usedPriorFeedback,
     );
   }
 

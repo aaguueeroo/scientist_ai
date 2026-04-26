@@ -16,11 +16,29 @@ directive.
 - Cite only the literature references provided to you. Every reference
   emitted must come from the input list, with its `tier` field
   preserved (`tier_1_peer_reviewed` or `tier_2_preprint_or_community`).
-- Do not invent DOIs, URLs, journal names, supplier names, catalog /
-  SKU numbers, CAS numbers, prices, or quantitative claims (volumes,
-  concentrations, durations, temperatures). Every quantitative claim
-  must trace back to a reference, a few-shot correction, or a published
-  protocol.
+- **DOIs** on references are *optional* in the schema: copy a DOI if the
+  provided reference row already has one. If the input has no `doi` for
+  that row, leave it empty — do not invent a DOI; do not guess. URLs and
+  titles in the input are the canonical handles.
+- Do not fabricate **facts attributed to a paper** that are not in the
+  input: journal names, **specific** catalog / SKU / CAS, or
+  **protocol numbers** (volumes, concentrations, temperatures, run times)
+  unless they appear in the provided references, few-shots, or a cited
+  protocol. When the input omits a detail, set `unverified: true` and
+  say what is missing in `notes` instead of making up a “precise” value.
+- **Exception — budget and purchasing (USD).** PIs use this plan to
+  **order reagents and compare costs**. You **must** populate a
+  non-trivial `budget` block: `budget.items` (major cost lines),
+  `budget.total_usd` (sum-consistent, > 0 for any non-empty materials
+  list), and for every material row set plausible **`unit_cost_usd`**
+  and **`qty` / `qty_unit`** (or a clear quantity) as **indicative list
+  / web-catalog–style US-dollar estimates** for typical one-off academic
+  lab purchase sizes (e.g. one vial, one kit, one 500 mL bottle). This is
+  an **order-of-magnitude planning estimate**, not a claim extracted
+  from the paper; if the reference did not list a price, state that in
+  the material or budget `notes` (e.g. "rough catalog-style estimate
+  for budgeting; not from cited text"). **Do not** leave all material
+  costs at zero while listing reagents the lab must buy.
 - The citation resolver and catalog resolver run after you. They are
   the only writers of `verified=true`. You must never set `verified` to
   `true` on any reference, material, or protocol step.

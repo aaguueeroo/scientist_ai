@@ -18,7 +18,7 @@ void main() {
       'kind': 'previous_learning',
     };
 
-    ExperimentPlanDto _buildDto({
+    ExperimentPlanDto buildDto({
       List<Map<String, dynamic>> stepsSectionRefs =
           const <Map<String, dynamic>>[],
       List<Map<String, dynamic>> materialsSectionRefs =
@@ -62,7 +62,7 @@ void main() {
 
     test('maps literature source ref on step', () {
       final ExperimentPlanDto inputDto =
-          _buildDto(stepRefs: <Map<String, dynamic>>[inputLiteratureRef]);
+          buildDto(stepRefs: <Map<String, dynamic>>[inputLiteratureRef]);
 
       final ExperimentPlan actualPlan = ExperimentPlanMapper.toDomain(inputDto);
 
@@ -76,7 +76,7 @@ void main() {
 
     test('maps previous-learning source ref on material', () {
       final ExperimentPlanDto inputDto =
-          _buildDto(materialRefs: <Map<String, dynamic>>[inputPreviousLearningRef]);
+          buildDto(materialRefs: <Map<String, dynamic>>[inputPreviousLearningRef]);
 
       final ExperimentPlan actualPlan = ExperimentPlanMapper.toDomain(inputDto);
 
@@ -87,7 +87,7 @@ void main() {
     });
 
     test('maps section-level source refs on ExperimentPlan', () {
-      final ExperimentPlanDto inputDto = _buildDto(
+      final ExperimentPlanDto inputDto = buildDto(
         stepsSectionRefs: <Map<String, dynamic>>[inputLiteratureRef],
         materialsSectionRefs: <Map<String, dynamic>>[inputPreviousLearningRef],
       );
@@ -107,7 +107,7 @@ void main() {
     });
 
     test('empty source_refs when field is absent', () {
-      final ExperimentPlanDto inputDto = _buildDto();
+      final ExperimentPlanDto inputDto = buildDto();
 
       final ExperimentPlan actualPlan = ExperimentPlanMapper.toDomain(inputDto);
 
@@ -187,7 +187,7 @@ void main() {
         'kind': 'external_database',
       };
       final ExperimentPlanDto inputDto =
-          _buildDto(stepRefs: <Map<String, dynamic>>[inputUnknownRef]);
+          buildDto(stepRefs: <Map<String, dynamic>>[inputUnknownRef]);
 
       final ExperimentPlan actualPlan = ExperimentPlanMapper.toDomain(inputDto);
 

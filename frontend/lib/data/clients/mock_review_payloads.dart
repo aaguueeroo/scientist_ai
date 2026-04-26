@@ -158,7 +158,7 @@ const Map<String, dynamic> _kSeedPlan3 = <String, dynamic>{
   },
 };
 
-/// Seed reviews returned by `GET /reviews` on a fresh app load.
+/// Seed reviews returned by `GET /feedback` on a fresh app load.
 const List<Map<String, dynamic>> kMockSeedReviews = <Map<String, dynamic>>[
   <String, dynamic>{
     'id': 'review_seed_1',

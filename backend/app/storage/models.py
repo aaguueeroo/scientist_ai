@@ -73,4 +73,7 @@ class FeedbackRow(Base):
     before_text: Mapped[str] = mapped_column(String(4000))
     after_text: Mapped[str] = mapped_column(String(4000))
     reason: Mapped[str] = mapped_column(String(2000))
+    # Full mobile `Review` JSON when the row is a plan-review event (A1). Null for
+    # legacy few-shot `FeedbackRequest` rows used by Agent 2.
+    review_envelope: Mapped[dict[str, Any] | None] = mapped_column(JSON, nullable=True)
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)

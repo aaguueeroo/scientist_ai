@@ -135,11 +135,47 @@ def _reference_to_fe_source(ref: Reference) -> dict[str, Any]:
         "verified": not ref.is_similarity_suggestion and ref.verified,
         "unverified_similarity_suggestion": ref.is_similarity_suggestion,
         "tier": ref.tier.value,
+        "tavily_score": ref.tavily_score,
     }
 
 
 def _does_similar_work_exist(novelty: NoveltyLabel) -> bool:
     return novelty in (NoveltyLabel.SIMILAR_WORK_EXISTS, NoveltyLabel.EXACT_MATCH)
+
+
+def _qc_sse_sources(
+    qc: LiteratureQCResult,
+) -> tuple[list[dict[str, Any]], int, bool]:
+    """FE-shaped sources list, count, and novelty flag (shared by stream and replay)."""
+    display_refs: list[Reference] = list(qc.references)
+    if qc.similarity_suggestion is not None:
+        display_refs.append(qc.similarity_suggestion)
+    sources = [_reference_to_fe_source(r) for r in display_refs]
+    n = len(sources)
+    does_similar = _does_similar_work_exist(qc.novelty)
+    return sources, n, does_similar
+
+
+def _final_review_data_from_qc(
+    qc: LiteratureQCResult, literature_review_id: str
+) -> dict[str, Any]:
+    """Payload for the final `review_update` (also used for GET replay of stored QC)."""
+    sources, n, does_similar = _qc_sse_sources(qc)
+    if n == 0:
+        return {
+            "is_final": True,
+            "does_similar_work_exist": does_similar,
+            "expected_total_sources": 0,
+            "sources": [],
+            "literature_review_id": literature_review_id,
+        }
+    return {
+        "is_final": True,
+        "does_similar_work_exist": does_similar,
+        "expected_total_sources": n,
+        "sources": sources,
+        "literature_review_id": literature_review_id,
+    }
 
 
 def _stream_review_events(
@@ -149,35 +185,25 @@ def _stream_review_events(
 ) -> Iterator[bytes]:
     """Emit cumulative `review_update` envelopes, then a final one with the stored id."""
 
-    display_refs: list[Reference] = list(qc.references)
-    if qc.similarity_suggestion is not None:
-        display_refs.append(qc.similarity_suggestion)
-    sources = [_reference_to_fe_source(r) for r in display_refs]
-    n = len(sources)
-    does_similar = _does_similar_work_exist(qc.novelty)
+    sources, n, does_similar = _qc_sse_sources(qc)
     if n == 0:
         env = {
             "event": "review_update",
-            "data": {
-                "is_final": True,
-                "does_similar_work_exist": does_similar,
-                "expected_total_sources": 0,
-                "sources": [],
-                "literature_review_id": literature_review_id,
-            },
+            "data": _final_review_data_from_qc(qc, literature_review_id),
         }
         yield f"data: {json.dumps(env, ensure_ascii=False)}\n\n".encode()
         return
     for i in range(1, n + 1):
         is_final = i == n
-        data_obj: dict[str, Any] = {
-            "is_final": is_final,
-            "does_similar_work_exist": does_similar,
-            "expected_total_sources": n,
-            "sources": sources[:i],
-        }
         if is_final:
-            data_obj["literature_review_id"] = literature_review_id
+            data_obj = _final_review_data_from_qc(qc, literature_review_id)
+        else:
+            data_obj = {
+                "is_final": False,
+                "does_similar_work_exist": does_similar,
+                "expected_total_sources": n,
+                "sources": sources[:i],
+            }
         env = {"event": "review_update", "data": data_obj}
         yield f"data: {json.dumps(env, ensure_ascii=False)}\n\n".encode()
 

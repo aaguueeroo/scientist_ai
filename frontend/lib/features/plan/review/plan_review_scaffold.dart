@@ -13,6 +13,7 @@ import 'editable_review_body.dart';
 import 'plan_review_controller.dart';
 import 'read_only_review_body.dart';
 import 'review_history_drawer.dart';
+import 'widgets/learned_from_feedback_bar.dart';
 import 'widgets/review_action_bar.dart';
 import 'widgets/send_plan_to_lab_bar.dart';
 
@@ -25,12 +26,16 @@ class PlanReviewScaffold extends StatefulWidget {
     required this.onLivePlanChanged,
     required this.conversationId,
     this.query,
+    this.usedPriorFeedback = false,
   });
 
   final ExperimentPlan plan;
   final ValueChanged<ExperimentPlan> onLivePlanChanged;
   final String conversationId;
   final String? query;
+
+  /// When true, a hint line is shown: prior corrections influenced this plan.
+  final bool usedPriorFeedback;
 
   @override
   State<PlanReviewScaffold> createState() => _PlanReviewScaffoldState();
@@ -127,6 +132,7 @@ class _PlanReviewScaffoldState extends State<PlanReviewScaffold> {
       value: _controller,
       child: _ReviewScaffoldShell(
         query: widget.query,
+        usedPriorFeedback: widget.usedPriorFeedback,
         onToggleHistory: _toggleHistory,
         historyOpen: _historyOpen,
         onCloseHistory: () => setState(() => _historyOpen = false),
@@ -138,12 +144,14 @@ class _PlanReviewScaffoldState extends State<PlanReviewScaffold> {
 class _ReviewScaffoldShell extends StatelessWidget {
   const _ReviewScaffoldShell({
     required this.query,
+    this.usedPriorFeedback = false,
     required this.onToggleHistory,
     required this.historyOpen,
     required this.onCloseHistory,
   });
 
   final String? query;
+  final bool usedPriorFeedback;
   final VoidCallback onToggleHistory;
   final bool historyOpen;
   final VoidCallback onCloseHistory;
@@ -180,6 +188,10 @@ class _ReviewScaffoldShell extends StatelessWidget {
                         onReturn: controller.returnToCurrentVersion,
                       ),
                     Expanded(child: _bodyForMode(controller)),
+                    if (usedPriorFeedback) ...<Widget>[
+                      const SizedBox(height: kSpace12),
+                      const LearnedFromFeedbackBar(),
+                    ],
                     SendPlanToLabBar(query: query),
                   ],
                 ),
