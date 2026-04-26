@@ -17,13 +17,12 @@ from typing import cast
 
 from fastapi import Request
 
-from app.clients.openai_client import (
-    AbstractOpenAIClient,
-    CostTracker,
-    PriceTable,
-    RealOpenAIClient,
+from app.clients.openai_client import AbstractOpenAIClient, PriceTable
+from app.clients.switching_clients import (
+    build_switching_openai_client,
+    build_switching_tavily_client,
 )
-from app.clients.tavily_client import AbstractTavilyClient, RealTavilyClient
+from app.clients.tavily_client import AbstractTavilyClient
 from app.config.settings import Settings
 from app.config.source_tiers import SourceTiersConfig
 from app.storage.feedback_repo import FeedbackRepo
@@ -55,34 +54,18 @@ def build_price_table(settings: Settings) -> PriceTable:
 
 
 def build_openai_client(settings: Settings) -> AbstractOpenAIClient:
-    """Build a `RealOpenAIClient` with a per-process cost tracker.
+    """Build a switching OpenAI client (per-request keys from context or env)."""
 
-    The cost tracker enforces `MAX_REQUEST_USD` from settings; in v1 the
-    tracker is process-scoped (later steps may move it per-request).
-    """
-
-    cost_tracker = CostTracker(
-        ceiling_usd=settings.MAX_REQUEST_USD,
-        prices=build_price_table(settings),
-    )
-    return RealOpenAIClient(
-        api_key=settings.OPENAI_API_KEY.get_secret_value(),
-        cost_tracker=cost_tracker,
-    )
+    return build_switching_openai_client(settings)
 
 
 def build_tavily_client(
     settings: Settings,
     source_tiers: SourceTiersConfig,
 ) -> AbstractTavilyClient:
-    """Build a `RealTavilyClient` with the tier-derived domain allowlist."""
+    """Build a switching Tavily client (per-request keys from context or env)."""
 
-    return RealTavilyClient(
-        api_key=settings.TAVILY_API_KEY.get_secret_value(),
-        source_tiers=source_tiers,
-        retrieval_mode=settings.TAVILY_RETRIEVAL_MODE,
-        research_model=settings.TAVILY_RESEARCH_MODEL,
-    )
+    return build_switching_tavily_client(settings, source_tiers)
 
 
 def build_citation_resolver(source_tiers: SourceTiersConfig) -> AbstractCitationResolver:

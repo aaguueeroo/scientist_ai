@@ -3,7 +3,6 @@ from __future__ import annotations
 import logging
 
 import pytest
-from pydantic import ValidationError
 
 from app.config.settings import Settings, get_settings
 
@@ -36,15 +35,15 @@ def test_settings_loads_from_env_returns_expected_keys(
     assert settings.TAVILY_API_KEY.get_secret_value() == "tvly-test"
 
 
-def test_settings_missing_openai_key_raises_clear_error(
+def test_settings_openai_key_may_be_empty(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     _clear_env_keys(monkeypatch)
     monkeypatch.setenv("TAVILY_API_KEY", "tvly-test")
     get_settings.cache_clear()
-    with pytest.raises(ValidationError) as exc_info:
-        Settings(_env_file=None)
-    assert "OPENAI_API_KEY" in str(exc_info.value)
+    settings = Settings(_env_file=None)
+    assert settings.OPENAI_API_KEY.get_secret_value() == ""
+    assert settings.TAVILY_API_KEY.get_secret_value() == "tvly-test"
 
 
 def test_settings_default_max_request_usd_is_zero_point_six(

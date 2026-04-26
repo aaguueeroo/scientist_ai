@@ -280,4 +280,30 @@ class ScientistRepositoryImpl implements ScientistRepository {
   String _newRequestId() {
     return 'req_${DateTime.now().microsecondsSinceEpoch}';
   }
+
+  @override
+  Future<Map<String, dynamic>> fetchProviderApiKeysStatus() async {
+    try {
+      return await _client.fetchProviderApiKeysStatus();
+    } catch (err, stackTrace) {
+      debugPrint('Provider API keys status error: $err\n$stackTrace');
+      throw _translateTransportError(err);
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> putProviderApiKeys({
+    String? openaiApiKey,
+    String? tavilyApiKey,
+  }) async {
+    try {
+      return await _client.putProviderApiKeys(
+        openaiApiKey: openaiApiKey,
+        tavilyApiKey: tavilyApiKey,
+      );
+    } catch (err, stackTrace) {
+      debugPrint('putProviderApiKeys error: $err\n$stackTrace');
+      throw _translateTransportError(err);
+    }
+  }
 }

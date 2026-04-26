@@ -40,6 +40,17 @@ abstract class ScientistBackendClient {
   //
   // Returns normally when the row was deleted (204) or was already absent (404).
   Future<void> deletePlan(String planId);
+
+  /// GET /settings/provider-api-keys — `{ openai_configured, tavily_configured }`.
+  Future<Map<String, dynamic>> fetchProviderApiKeysStatus();
+
+  /// PUT /settings/provider-api-keys — persist keys on the server.
+  /// Pass empty string to clear a stored key; omit a key in the map to leave it unchanged
+  /// (this implementation sends both [openaiApiKey] and [tavilyApiKey] when non-null).
+  Future<Map<String, dynamic>> putProviderApiKeys({
+    String? openaiApiKey,
+    String? tavilyApiKey,
+  });
 }
 
 class ScientistTransportException implements Exception {

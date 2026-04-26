@@ -44,6 +44,13 @@ OPENAPI_TAGS: list[dict[str, str]] = [
         "description": "Liveness for load balancers and smoke tests.",
     },
     {
+        "name": "Settings",
+        "description": (
+            "Persist OpenAI and Tavily API keys in the server database "
+            "(`GET`/`PUT /settings/provider-api-keys`)."
+        ),
+    },
+    {
         "name": "Debug",
         "description": (
             "Operator endpoints (Tavily probe). `GET /debug/tavily` is raw upstream JSON; "

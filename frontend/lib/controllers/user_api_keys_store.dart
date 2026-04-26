@@ -4,6 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 import '../core/api_config.dart';
 import '../core/user_api_keys_constants.dart';
+import '../repositories/scientist_repository.dart';
 import '../models/app_provider_api_key_kind.dart';
 
 /// Persists user-supplied OpenAI and Tavily API keys (secure storage + in-memory cache for HTTP).
@@ -18,6 +19,32 @@ class UserApiKeysStore extends ChangeNotifier {
 
   String? _cachedOpenAi;
   String? _cachedTavily;
+  ScientistRepository? _repository;
+
+  void bindRepository(ScientistRepository repository) {
+    _repository = repository;
+  }
+
+  Future<void> _pushKeysToServerIfRealApi() async {
+    if (!kUseRealScientistApi) {
+      return;
+    }
+    final ScientistRepository? r = _repository;
+    if (r == null) {
+      return;
+    }
+    try {
+      await r.putProviderApiKeys(
+        openaiApiKey: _cachedOpenAi ?? '',
+        tavilyApiKey: _cachedTavily ?? '',
+      );
+    } catch (e, st) {
+      if (kDebugMode) {
+        // ignore: avoid_print
+        print('UserApiKeysStore: could not sync API keys to server: $e\n$st');
+      }
+    }
+  }
 
   static Future<UserApiKeysStore> open() async {
     final SharedPreferences prefs = await SharedPreferences.getInstance();
@@ -206,6 +233,7 @@ class UserApiKeysStore extends ChangeNotifier {
         }
       }
       notifyListeners();
+      await _pushKeysToServerIfRealApi();
       return null;
     } catch (e, st) {
       // ignore: avoid_print
@@ -226,6 +254,7 @@ class UserApiKeysStore extends ChangeNotifier {
           break;
       }
       notifyListeners();
+      await _pushKeysToServerIfRealApi();
       return null;
     } catch (e, st) {
       // ignore: avoid_print
