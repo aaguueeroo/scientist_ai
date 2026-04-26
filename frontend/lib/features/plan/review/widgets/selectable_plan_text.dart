@@ -51,6 +51,14 @@ class _SelectablePlanTextState extends State<SelectablePlanText> {
   Offset? _popoverGlobal;
   PlanComment? _editingComment;
   bool _isCreatingComment = false;
+  /// Captured when opening the "new comment" popover. [TapRegion] clears
+  /// [SelectableText] selection on any tap outside the text (including the
+  /// popover), so we must not rely on [_selection] at save time.
+  int? _pendingCreateStart;
+  int? _pendingCreateEnd;
+  /// When [false], an opened existing comment is shown in read-only
+  /// [CommentReadPopover], switching to [true] for [CommentPopover] edit.
+  bool _isEditingOpenComment = false;
 
   @override
   void dispose() {
@@ -102,13 +110,17 @@ class _SelectablePlanTextState extends State<SelectablePlanText> {
   void _openCreateCommentPopover() {
     final TextSelection? sel = _selection;
     if (sel == null) return;
-    final String quote =
-        widget.text.substring(sel.start.clamp(0, widget.text.length),
-            sel.end.clamp(0, widget.text.length));
+    final int len = widget.text.length;
+    final int s = sel.start.clamp(0, len);
+    final int e = sel.end.clamp(0, len);
+    final String quote = widget.text.substring(s, e);
     if (quote.isEmpty) return;
     setState(() {
       _editingComment = null;
       _isCreatingComment = true;
+      _isEditingOpenComment = false;
+      _pendingCreateStart = s;
+      _pendingCreateEnd = e;
       _popoverGlobal = _resolveAnchorPosition();
     });
     _hideCommentChip();
@@ -119,6 +131,9 @@ class _SelectablePlanTextState extends State<SelectablePlanText> {
     setState(() {
       _editingComment = comment;
       _isCreatingComment = false;
+      _isEditingOpenComment = false;
+      _pendingCreateStart = null;
+      _pendingCreateEnd = null;
       _popoverGlobal = globalPos;
     });
     if (!_popoverController.isShowing) _popoverController.show();
@@ -128,8 +143,33 @@ class _SelectablePlanTextState extends State<SelectablePlanText> {
     setState(() {
       _editingComment = null;
       _isCreatingComment = false;
+      _isEditingOpenComment = false;
+      _pendingCreateStart = null;
+      _pendingCreateEnd = null;
     });
     if (_popoverController.isShowing) _popoverController.hide();
+  }
+
+  void _openCommentForEdit() {
+    setState(() {
+      _isEditingOpenComment = true;
+    });
+  }
+
+  void _returnCommentToViewMode() {
+    setState(() {
+      _isEditingOpenComment = false;
+    });
+  }
+
+  String _authorIdForPopover(PlanComment? comment, bool isCreating) {
+    if (isCreating) {
+      return PlanReviewController.kLocalAuthorId;
+    }
+    if (comment != null) {
+      return comment.authorId;
+    }
+    return PlanReviewController.kLocalAuthorId;
   }
 
   Offset? _resolveAnchorPosition() {
@@ -172,7 +212,12 @@ class _SelectablePlanTextState extends State<SelectablePlanText> {
             child: selectableEnabled
                 ? TapRegion(
                     groupId: this,
-                    onTapOutside: (_) => _dismissChip(),
+                    onTapOutside: (_) {
+                      if (_popoverController.isShowing) {
+                        return;
+                      }
+                      _dismissChip();
+                    },
                     child: SelectableText.rich(
                       span,
                       maxLines: widget.maxLines,
@@ -210,46 +255,61 @@ class _SelectablePlanTextState extends State<SelectablePlanText> {
           ),
           OverlayPortal(
             controller: _popoverController,
-            overlayChildBuilder: (BuildContext ctx) => _CommentPopoverOverlay(
-              anchorGlobal: _popoverGlobal,
-              comment: _editingComment,
-              isCreating: _isCreatingComment,
-              quote: _selectedQuote(),
-              onSaveCreate: (String body) {
-                final TextSelection? sel = _selection;
-                if (sel == null) {
+            overlayChildBuilder: (BuildContext ctx) {
+              final String authorId = _authorIdForPopover(
+                _editingComment,
+                _isCreatingComment,
+              );
+              return _CommentPopoverOverlay(
+                anchorGlobal: _popoverGlobal,
+                comment: _editingComment,
+                isCreating: _isCreatingComment,
+                isEditingOpenComment: _isEditingOpenComment,
+                quote: _selectedQuote(),
+                onSaveCreate: (String body) {
+                  final int? start = _pendingCreateStart ?? _selection?.start;
+                  final int? end = _pendingCreateEnd ?? _selection?.end;
+                  if (start == null || end == null) {
+                    _closePopover();
+                    return;
+                  }
+                  final int len = widget.text.length;
+                  final int s = start.clamp(0, len);
+                  final int e = end.clamp(0, len);
+                  if (s >= e) {
+                    _closePopover();
+                    return;
+                  }
+                  controller.addComment(
+                    target: widget.target,
+                    quote: widget.text.substring(s, e),
+                    start: s,
+                    end: e,
+                    body: body,
+                  );
                   _closePopover();
-                  return;
-                }
-                controller.addComment(
-                  target: widget.target,
-                  quote: widget.text.substring(sel.start, sel.end),
-                  start: sel.start,
-                  end: sel.end,
-                  body: body,
-                );
-                _closePopover();
-              },
-              onSaveEdit: (String body) {
-                final PlanComment? c = _editingComment;
-                if (c != null) {
-                  controller.updateComment(c.id, body);
-                }
-                _closePopover();
-              },
-              onDelete: () {
-                final PlanComment? c = _editingComment;
-                if (c != null) {
-                  controller.removeComment(c.id);
-                }
-                _closePopover();
-              },
-              onCancel: _closePopover,
-              authorLabel: controller.authorLabel(
-                _editingComment?.authorId ??
-                    PlanReviewController.kLocalAuthorId,
-              ),
-            ),
+                },
+                onSaveEdit: (String body) {
+                  final PlanComment? c = _editingComment;
+                  if (c != null) {
+                    controller.updateComment(c.id, body);
+                  }
+                  _closePopover();
+                },
+                onDelete: () {
+                  final PlanComment? c = _editingComment;
+                  if (c != null) {
+                    controller.removeComment(c.id);
+                  }
+                  _closePopover();
+                },
+                onCancel: _closePopover,
+                onEnterEdit: _openCommentForEdit,
+                onLeaveEdit: _returnCommentToViewMode,
+                authorDisplayName: controller.authorDisplayName(authorId),
+                authorImageUrl: controller.authorAvatarUrl(authorId),
+              );
+            },
           ),
         ],
       ),
@@ -312,9 +372,6 @@ class _CommentChipOverlay extends StatelessWidget {
                   decoration: BoxDecoration(
                     color: scheme.surface,
                     borderRadius: BorderRadius.circular(kRadius),
-                    border: Border.all(
-                      color: kCommentMarkerColor.withValues(alpha: 0.5),
-                    ),
                     boxShadow: <BoxShadow>[
                       BoxShadow(
                         color: Colors.black.withValues(alpha: 0.4),
@@ -356,30 +413,69 @@ class _CommentPopoverOverlay extends StatelessWidget {
     required this.anchorGlobal,
     required this.comment,
     required this.isCreating,
+    required this.isEditingOpenComment,
     required this.quote,
     required this.onSaveCreate,
     required this.onSaveEdit,
     required this.onDelete,
     required this.onCancel,
-    required this.authorLabel,
+    required this.onEnterEdit,
+    required this.onLeaveEdit,
+    required this.authorDisplayName,
+    required this.authorImageUrl,
   });
 
   final Offset? anchorGlobal;
   final PlanComment? comment;
   final bool isCreating;
+  final bool isEditingOpenComment;
   final String? quote;
   final ValueChanged<String> onSaveCreate;
   final ValueChanged<String> onSaveEdit;
   final VoidCallback onDelete;
   final VoidCallback onCancel;
-  final String authorLabel;
+  final VoidCallback onEnterEdit;
+  final VoidCallback onLeaveEdit;
+  final String authorDisplayName;
+  final String authorImageUrl;
 
   @override
   Widget build(BuildContext context) {
     final Size screen = MediaQuery.of(context).size;
     final Offset anchor = anchorGlobal ?? Offset.zero;
-    final double left = anchor.dx.clamp(kSpace16, screen.width - 296);
-    final double top = anchor.dy.clamp(kSpace16, screen.height - 240);
+    final double left = anchor.dx.clamp(kSpace16, screen.width - 320);
+    final double top = anchor.dy.clamp(kSpace16, screen.height - 360);
+    final Widget popoverChild;
+    if (isCreating) {
+      popoverChild = CommentPopover(
+        initialBody: '',
+        quote: quote,
+        authorLabel: authorDisplayName,
+        title: 'New comment',
+        onSave: onSaveCreate,
+        onCancel: onCancel,
+        onDelete: null,
+      );
+    } else if (comment != null && !isEditingOpenComment) {
+      popoverChild = CommentReadPopover(
+        comment: comment!,
+        authorName: authorDisplayName,
+        authorImageUrl: authorImageUrl,
+        onEdit: onEnterEdit,
+        onDelete: onDelete,
+      );
+    } else {
+      final PlanComment c = comment!;
+      popoverChild = CommentPopover(
+        initialBody: c.body,
+        quote: c.anchor.quote,
+        authorLabel: authorDisplayName,
+        title: 'Edit comment',
+        onSave: onSaveEdit,
+        onCancel: onLeaveEdit,
+        onDelete: onDelete,
+      );
+    }
     return Stack(
       children: <Widget>[
         Positioned.fill(
@@ -391,15 +487,7 @@ class _CommentPopoverOverlay extends StatelessWidget {
         Positioned(
           left: left,
           top: top,
-          child: CommentPopover(
-            initialBody: comment?.body ?? '',
-            quote: comment?.anchor.quote ?? quote,
-            authorLabel: authorLabel,
-            title: isCreating ? 'New comment' : 'Comment',
-            onSave: isCreating ? onSaveCreate : onSaveEdit,
-            onCancel: onCancel,
-            onDelete: comment == null ? null : onDelete,
-          ),
+          child: popoverChild,
         ),
       ],
     );

@@ -731,6 +731,23 @@ class PlanReviewController extends ChangeNotifier {
     return authorId;
   }
 
+  static const String _kLocalUserAvatarUrl = 'https://i.pravatar.cc/120?u=jane-doe';
+  static const String _kMarieAvatarUrl = 'https://i.pravatar.cc/120?u=marie-lab';
+
+  /// Shown in comment UI (e.g. next to an avatar) — matches the sidebar name for the
+  /// local user.
+  String authorDisplayName(String authorId) {
+    if (authorId == _localAuthorId) return 'Jane Doe';
+    if (authorId == _baselineAuthorId) return 'Marie';
+    return authorId;
+  }
+
+  String authorAvatarUrl(String authorId) {
+    if (authorId == _localAuthorId) return _kLocalUserAvatarUrl;
+    if (authorId == _baselineAuthorId) return _kMarieAvatarUrl;
+    return 'https://i.pravatar.cc/120?u=${Uri.encodeComponent(authorId)}';
+  }
+
   // --- Editing helpers (operate on _draft) ---------------------------------
 
   void updateTotalDuration(Duration value) {

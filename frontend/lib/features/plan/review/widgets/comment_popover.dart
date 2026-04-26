@@ -3,6 +3,7 @@ import 'package:flutter/material.dart' as m show Material;
 
 import '../../../../core/app_constants.dart';
 import '../../../../core/theme/theme_context.dart';
+import '../../../shell/widgets/user_avatar.dart';
 import '../models/plan_comment.dart';
 import '../review_color_palette.dart';
 
@@ -78,114 +79,104 @@ class _CommentPopoverState extends State<CommentPopover> {
         color: scheme.surface,
         borderRadius: BorderRadius.circular(kRadius),
         clipBehavior: Clip.antiAlias,
-        child: Container(
-          width: 280,
+        child: Padding(
           padding: const EdgeInsets.all(kSpace12),
-          decoration: BoxDecoration(
-            border: Border.all(
-              color: kCommentMarkerColor.withValues(alpha: 0.4),
-            ),
-            borderRadius: BorderRadius.circular(kRadius),
-          ),
-          child: Column(
-            mainAxisSize: MainAxisSize.min,
-            crossAxisAlignment: CrossAxisAlignment.start,
-            children: <Widget>[
-              Row(
-                children: <Widget>[
-                  Icon(Icons.chat_bubble_outline_rounded,
-                      size: 16, color: kCommentMarkerColor),
-                  const SizedBox(width: kSpace8),
-                  Text(
-                    widget.title ?? 'Comment',
-                    style: textTheme.labelMedium,
-                  ),
-                  const Spacer(),
-                  if (widget.authorLabel != null)
+          child: SizedBox(
+            width: 280,
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Row(
+                  children: <Widget>[
+                    Icon(Icons.chat_bubble_outline_rounded,
+                        size: 16, color: kCommentMarkerColor),
+                    const SizedBox(width: kSpace8),
                     Text(
-                      widget.authorLabel!,
-                      style: textTheme.labelSmall?.copyWith(
+                      widget.title ?? 'Comment',
+                      style: textTheme.labelMedium,
+                    ),
+                    const Spacer(),
+                    if (widget.authorLabel != null)
+                      Text(
+                        widget.authorLabel!,
+                        style: textTheme.labelSmall?.copyWith(
+                          color: context.scientist.onSurfaceFaint,
+                        ),
+                      ),
+                  ],
+                ),
+                if (widget.quote != null) ...<Widget>[
+                  const SizedBox(height: kSpace8),
+                  Container(
+                    padding: const EdgeInsets.symmetric(
+                      horizontal: kSpace8,
+                      vertical: kSpace4,
+                    ),
+                    decoration: BoxDecoration(
+                      color: kCommentMarkerColor.withValues(alpha: 0.1),
+                      borderRadius: BorderRadius.circular(kRadius),
+                    ),
+                    child: Text(
+                      '"${widget.quote!}"',
+                      maxLines: 3,
+                      overflow: TextOverflow.ellipsis,
+                      style: textTheme.bodySmall?.copyWith(
                         color: context.scientist.onSurfaceFaint,
+                        fontStyle: FontStyle.italic,
                       ),
                     ),
+                  ),
                 ],
-              ),
-              if (widget.quote != null) ...<Widget>[
-                const SizedBox(height: kSpace8),
-                Container(
-                  padding: const EdgeInsets.symmetric(
-                    horizontal: kSpace8,
-                    vertical: kSpace4,
-                  ),
-                  decoration: BoxDecoration(
-                    color: kCommentMarkerColor.withValues(alpha: 0.08),
-                    borderRadius: BorderRadius.circular(kRadius - 4),
-                    border: Border(
-                      left: BorderSide(
-                        color: kCommentMarkerColor.withValues(alpha: 0.5),
-                        width: 2,
-                      ),
-                    ),
-                  ),
-                  child: Text(
-                    '"${widget.quote!}"',
-                    maxLines: 3,
-                    overflow: TextOverflow.ellipsis,
-                    style: textTheme.bodySmall?.copyWith(
+                const SizedBox(height: kSpace12),
+                TextField(
+                  controller: _controller,
+                  focusNode: _focusNode,
+                  minLines: 2,
+                  maxLines: 5,
+                  style: textTheme.bodyMedium,
+                  decoration: InputDecoration(
+                    hintText: 'Write a comment...',
+                    hintStyle: textTheme.bodyMedium?.copyWith(
                       color: context.scientist.onSurfaceFaint,
-                      fontStyle: FontStyle.italic,
+                    ),
+                    filled: true,
+                    fillColor: scheme.surfaceContainerHighest
+                        .withValues(alpha: 0.4),
+                    border: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(kRadius),
+                      borderSide: BorderSide.none,
                     ),
                   ),
+                ),
+                const SizedBox(height: kSpace12),
+                Row(
+                  children: <Widget>[
+                    if (widget.onDelete != null)
+                      IconButton(
+                        tooltip: 'Delete comment',
+                        onPressed: widget.onDelete,
+                        icon: Icon(
+                          Icons.delete_outline_rounded,
+                          size: 18,
+                          color: scheme.error,
+                        ),
+                      ),
+                    const Spacer(),
+                    if (widget.onCancel != null)
+                      TextButton(
+                        onPressed: widget.onCancel,
+                        child: const Text('Cancel'),
+                      ),
+                    const SizedBox(width: kSpace8),
+                    FilledButton(
+                      onPressed: _handleSave,
+                      child: const Text('Save'),
+                    ),
+                  ],
                 ),
               ],
-              const SizedBox(height: kSpace12),
-              TextField(
-                controller: _controller,
-                focusNode: _focusNode,
-                minLines: 2,
-                maxLines: 5,
-                style: textTheme.bodyMedium,
-                decoration: InputDecoration(
-                  hintText: 'Write a comment...',
-                  hintStyle: textTheme.bodyMedium?.copyWith(
-                    color: context.scientist.onSurfaceFaint,
-                  ),
-                  filled: true,
-                  fillColor: scheme.surfaceContainerHighest
-                      .withValues(alpha: 0.4),
-                  border: OutlineInputBorder(
-                    borderRadius: BorderRadius.circular(kRadius - 2),
-                    borderSide: BorderSide.none,
-                  ),
-                ),
-              ),
-              const SizedBox(height: kSpace12),
-              Row(
-                children: <Widget>[
-                  if (widget.onDelete != null)
-                    IconButton(
-                      tooltip: 'Delete comment',
-                      onPressed: widget.onDelete,
-                      icon: Icon(
-                        Icons.delete_outline_rounded,
-                        size: 18,
-                        color: scheme.error,
-                      ),
-                    ),
-                  const Spacer(),
-                  if (widget.onCancel != null)
-                    TextButton(
-                      onPressed: widget.onCancel,
-                      child: const Text('Cancel'),
-                    ),
-                  const SizedBox(width: kSpace8),
-                  FilledButton(
-                    onPressed: _handleSave,
-                    child: const Text('Save'),
-                  ),
-                ],
-              ),
-            ],
+            ),
           ),
         ),
       ),
@@ -193,19 +184,21 @@ class _CommentPopoverState extends State<CommentPopover> {
   }
 }
 
-/// Read-only popover that shows an existing comment's body with optional
-/// edit / delete affordances.
+/// Read-only popover: author avatar + name, quoted text, body, and actions
+/// to edit (pen) or delete.
 class CommentReadPopover extends StatelessWidget {
   const CommentReadPopover({
     super.key,
     required this.comment,
-    required this.authorLabel,
+    required this.authorName,
+    required this.authorImageUrl,
     this.onEdit,
     this.onDelete,
   });
 
   final PlanComment comment;
-  final String authorLabel;
+  final String authorName;
+  final String authorImageUrl;
   final VoidCallback? onEdit;
   final VoidCallback? onDelete;
 
@@ -218,61 +211,81 @@ class CommentReadPopover extends StatelessWidget {
       color: scheme.surface,
       borderRadius: BorderRadius.circular(kRadius),
       clipBehavior: Clip.antiAlias,
-      child: Container(
-        width: 280,
-        padding: const EdgeInsets.all(kSpace12),
-        decoration: BoxDecoration(
-          border: Border.all(
-            color: kCommentMarkerColor.withValues(alpha: 0.4),
-          ),
-          borderRadius: BorderRadius.circular(kRadius),
-        ),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.start,
-          children: <Widget>[
-            Row(
-              children: <Widget>[
-                Icon(Icons.chat_bubble_outline_rounded,
-                    size: 16, color: kCommentMarkerColor),
-                const SizedBox(width: kSpace8),
-                Text(authorLabel, style: textTheme.labelMedium),
-                const Spacer(),
-                Text(
-                  '"${comment.anchor.quote}"',
-                  maxLines: 1,
-                  overflow: TextOverflow.ellipsis,
-                  style: textTheme.labelSmall?.copyWith(
-                    color: context.scientist.onSurfaceFaint,
+      child: SizedBox(
+        width: 300,
+        child: Padding(
+          padding: const EdgeInsets.all(kSpace12),
+          child: Column(
+            mainAxisSize: MainAxisSize.min,
+            crossAxisAlignment: CrossAxisAlignment.start,
+            children: <Widget>[
+              Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: <Widget>[
+                  UserAvatar(
+                    name: authorName,
+                    imageUrl: authorImageUrl,
+                    size: 40,
                   ),
-                ),
-              ],
-            ),
-            const SizedBox(height: kSpace8),
-            Text(comment.body, style: textTheme.bodyMedium),
-            const SizedBox(height: kSpace8),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.end,
-              children: <Widget>[
-                if (onDelete != null)
-                  IconButton(
-                    tooltip: 'Delete',
-                    onPressed: onDelete,
-                    icon: Icon(
-                      Icons.delete_outline_rounded,
-                      size: 18,
-                      color: scheme.error,
+                  const SizedBox(width: kSpace12),
+                  Expanded(
+                    child: Text(
+                      authorName,
+                      style: textTheme.titleSmall?.copyWith(
+                        fontWeight: FontWeight.w600,
+                        letterSpacing: -0.1,
+                      ),
                     ),
                   ),
-                if (onEdit != null)
-                  TextButton.icon(
-                    onPressed: onEdit,
-                    icon: const Icon(Icons.edit_outlined, size: 14),
-                    label: const Text('Edit'),
+                  if (onEdit != null)
+                    IconButton(
+                      tooltip: 'Edit',
+                      onPressed: onEdit,
+                      icon: const Icon(
+                        Icons.edit_outlined,
+                        size: 20,
+                      ),
+                    ),
+                  if (onDelete != null)
+                    IconButton(
+                      tooltip: 'Delete',
+                      onPressed: onDelete,
+                      icon: Icon(
+                        Icons.delete_outline_rounded,
+                        size: 20,
+                        color: scheme.error,
+                      ),
+                    ),
+                ],
+              ),
+              const SizedBox(height: kSpace8),
+              Container(
+                width: double.infinity,
+                padding: const EdgeInsets.symmetric(
+                  horizontal: kSpace8,
+                  vertical: kSpace4,
+                ),
+                decoration: BoxDecoration(
+                  color: kCommentMarkerColor.withValues(alpha: 0.1),
+                  borderRadius: BorderRadius.circular(kRadius),
+                ),
+                child: Text(
+                  '"${comment.anchor.quote}"',
+                  maxLines: 3,
+                  overflow: TextOverflow.ellipsis,
+                  style: textTheme.bodySmall?.copyWith(
+                    color: context.scientist.onSurfaceFaint,
+                    fontStyle: FontStyle.italic,
                   ),
-              ],
-            ),
-          ],
+                ),
+              ),
+              const SizedBox(height: kSpace12),
+              Text(
+                comment.body,
+                style: textTheme.bodyMedium,
+              ),
+            ],
+          ),
         ),
       ),
     );

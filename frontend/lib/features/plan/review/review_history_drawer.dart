@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 
 import '../../../core/app_constants.dart';
 import '../../../core/theme/theme_context.dart';
+import '../../../ui/app_surface.dart';
 import 'models/plan_version.dart';
 import 'models/suggestion_batch.dart';
 import 'plan_review_controller.dart';
@@ -73,76 +74,130 @@ class _DrawerContent extends StatelessWidget {
     final ColorScheme scheme = context.appColorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
     final List<PlanVersion> versions = controller.versions.reversed.toList();
+    final Color batchFallback = context.scientist.onSurfaceFaint;
     return m.Material(
       color: scheme.surface,
-      elevation: 12,
+      elevation: 16,
+      shadowColor: Colors.black.withValues(alpha: 0.45),
+      shape: const RoundedRectangleBorder(
+        borderRadius: BorderRadius.only(
+          topLeft: Radius.circular(kRadius),
+          bottomLeft: Radius.circular(kRadius),
+        ),
+      ),
+      clipBehavior: Clip.antiAlias,
       child: SafeArea(
         child: Column(
           crossAxisAlignment: CrossAxisAlignment.stretch,
           children: <Widget>[
-            Padding(
-              padding: const EdgeInsets.all(kSpace16),
+            Container(
+              color: scheme.surface,
+              padding: const EdgeInsets.fromLTRB(
+                kSpace16,
+                kSpace16,
+                kSpace4,
+                kSpace12,
+              ),
               child: Row(
+                crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Icon(Icons.history_rounded,
-                      size: 18, color: scheme.onSurface),
-                  const SizedBox(width: kSpace8),
-                  Text('Marie\'s revisions', style: textTheme.titleMedium),
-                  const Spacer(),
+                  Padding(
+                    padding: const EdgeInsets.only(top: 2),
+                    child: Icon(
+                      Icons.history_rounded,
+                      size: 20,
+                      color: scheme.primary,
+                    ),
+                  ),
+                  const SizedBox(width: kSpace12),
+                  Expanded(
+                    child: Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: <Widget>[
+                        Text(
+                          'Version history',
+                          style: textTheme.titleMedium?.copyWith(
+                            fontWeight: FontWeight.w600,
+                            letterSpacing: -0.2,
+                          ),
+                        ),
+                        const SizedBox(height: kSpace4),
+                        Text(
+                          'Preview Marie\'s revisions or restore an earlier state.',
+                          style: textTheme.bodySmall?.copyWith(
+                            color: context.scientist.onSurfaceFaint,
+                            height: 1.35,
+                          ),
+                        ),
+                      ],
+                    ),
+                  ),
                   IconButton(
-                    icon: const Icon(Icons.close_rounded, size: 18),
+                    icon: Icon(
+                      Icons.close_rounded,
+                      size: 20,
+                      color: scheme.onSurfaceVariant,
+                    ),
+                    tooltip: 'Close',
                     onPressed: onClose,
                   ),
                 ],
               ),
             ),
-            Divider(height: 1, color: scheme.outlineVariant),
             Expanded(
-              child: ListView.separated(
-                padding: const EdgeInsets.symmetric(vertical: kSpace8),
-                itemCount: versions.length,
-                separatorBuilder: (BuildContext context, int index) =>
-                    const SizedBox(height: 4),
-                itemBuilder: (BuildContext context, int index) {
-                  final PlanVersion version = versions[index];
-                  final SuggestionBatch? batch = controller.acceptedBatches
-                      .where((SuggestionBatch b) => b.id == version.batchId)
-                      .cast<SuggestionBatch?>()
-                      .firstWhere(
-                        (SuggestionBatch? b) => b != null,
-                        orElse: () => null,
-                      );
-                  final bool isCurrent = index == 0 &&
-                      !controller.isHistoricalView;
-                  final bool isViewing =
-                      controller.viewingVersionId == version.id;
-                  final bool canRestore =
-                      isViewing && !isCurrent && !version.isOriginal;
-                  return _VersionTile(
-                    version: version,
-                    versionLabel: 'v${versions.length - 1 - index}',
-                    color: batch?.color ?? scheme.outlineVariant,
-                    authorLabel: controller.authorLabel(version.authorId),
-                    isCurrent: isCurrent,
-                    isViewing: isViewing,
-                    onTap: () {
-                      if (version.isOriginal && !controller.isHistoricalView) {
-                        controller.viewVersion(version.id);
-                      } else if (isCurrent) {
-                        // No-op; already showing current.
-                      } else {
-                        controller.viewVersion(version.id);
-                      }
-                    },
-                    onRestore: canRestore
-                        ? () => controller.restoreVersion(version.id)
-                        : null,
-                  );
-                },
+              child: ColoredBox(
+                color: context.scientist.sidebarBackground,
+                child: ListView.separated(
+                  padding: const EdgeInsets.symmetric(
+                    horizontal: kSpace12,
+                    vertical: kSpace12,
+                  ),
+                  itemCount: versions.length,
+                  separatorBuilder: (BuildContext context, int index) =>
+                      const SizedBox(height: kSpace8),
+                  itemBuilder: (BuildContext context, int index) {
+                    final PlanVersion version = versions[index];
+                    final SuggestionBatch? batch = controller.acceptedBatches
+                        .where((SuggestionBatch b) => b.id == version.batchId)
+                        .cast<SuggestionBatch?>()
+                        .firstWhere(
+                          (SuggestionBatch? b) => b != null,
+                          orElse: () => null,
+                        );
+                    final bool isCurrent = index == 0 &&
+                        !controller.isHistoricalView;
+                    final bool isViewing =
+                        controller.viewingVersionId == version.id;
+                    final bool canRestore =
+                        isViewing && !isCurrent && !version.isOriginal;
+                    return _VersionTile(
+                      version: version,
+                      versionLabel: 'v${versions.length - 1 - index}',
+                      color: batch?.color ?? batchFallback,
+                      authorLabel: controller.authorLabel(version.authorId),
+                      isCurrent: isCurrent,
+                      isViewing: isViewing,
+                      onTap: () {
+                        if (version.isOriginal &&
+                            !controller.isHistoricalView) {
+                          controller.viewVersion(version.id);
+                        } else if (isCurrent) {
+                          // No-op; already showing current.
+                        } else {
+                          controller.viewVersion(version.id);
+                        }
+                      },
+                      onRestore: canRestore
+                          ? () => controller.restoreVersion(version.id)
+                          : null,
+                    );
+                  },
+                ),
               ),
             ),
-            if (controller.isHistoricalView)
-              Padding(
+            if (controller.isHistoricalView) ...<Widget>[
+              Container(
+                color: scheme.surface,
                 padding: const EdgeInsets.all(kSpace12),
                 child: SizedBox(
                   width: double.infinity,
@@ -153,6 +208,7 @@ class _DrawerContent extends StatelessWidget {
                   ),
                 ),
               ),
+            ],
           ],
         ),
       ),
@@ -194,89 +250,129 @@ class _VersionTile extends StatelessWidget {
   Widget build(BuildContext context) {
     final ColorScheme scheme = Theme.of(context).colorScheme;
     final TextTheme textTheme = Theme.of(context).textTheme;
-    final Color tileColor = isViewing
-        ? scheme.primaryContainer
-        : Colors.transparent;
-    return InkWell(
+    final bool isActiveCard = isViewing;
+    return AppSurface(
       onTap: onTap,
-      child: Container(
-        padding: const EdgeInsets.symmetric(
-          horizontal: kSpace16,
-          vertical: kSpace12,
-        ),
-        color: tileColor,
-        child: Row(
-          children: <Widget>[
-            BatchColorChip(color: color, size: 10),
-            const SizedBox(width: kSpace12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  Row(
-                    children: <Widget>[
-                      Text(
+      padding: const EdgeInsets.symmetric(
+        horizontal: kSpace12,
+        vertical: kSpace12,
+      ),
+      color: isActiveCard
+          ? scheme.primaryContainer
+          : scheme.surface,
+      child: Row(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: <Widget>[
+          Padding(
+            padding: const EdgeInsets.only(top: 3),
+            child: BatchColorChip(color: color, size: 12),
+          ),
+          const SizedBox(width: kSpace12),
+          Expanded(
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                Row(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: <Widget>[
+                    Expanded(
+                      child: Text(
                         versionLabel,
-                        style: textTheme.titleSmall,
+                        style: textTheme.titleSmall?.copyWith(
+                          fontWeight: FontWeight.w600,
+                          letterSpacing: -0.1,
+                        ),
                       ),
-                      const SizedBox(width: kSpace8),
-                      Text(
-                        authorLabel,
-                        style: textTheme.bodySmall,
-                      ),
-                      const Spacer(),
-                      if (isCurrent)
-                        Text(
+                    ),
+                    if (isCurrent)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: kSpace8,
+                          vertical: kSpace4,
+                        ),
+                        decoration: BoxDecoration(
+                          color: scheme.primary.withValues(alpha: 0.24),
+                          borderRadius: BorderRadius.circular(kRadius),
+                        ),
+                        child: Text(
                           'Current',
                           style: textTheme.labelSmall?.copyWith(
                             color: scheme.primary,
+                            fontWeight: FontWeight.w500,
                           ),
                         ),
-                    ],
-                  ),
-                  const SizedBox(height: kSpace4),
-                  Text(
-                    version.isOriginal
-                        ? 'Marie\'s first draft'
-                        : '${version.changeCount} change${version.changeCount == 1 ? '' : 's'}',
-                    style: textTheme.bodySmall?.copyWith(
-                      color: context.scientist.onSurfaceFaint,
-                    ),
-                  ),
-                  Text(
-                    _formatRelative(version.at),
-                    style: textTheme.labelSmall?.copyWith(
-                      color: context.scientist.onSurfaceFaint,
-                    ),
-                  ),
-                  if (onRestore != null) ...<Widget>[
-                    const SizedBox(height: kSpace8),
-                    Align(
-                      alignment: Alignment.centerLeft,
-                      child: FilledButton.tonalIcon(
-                        onPressed: onRestore,
-                        icon: const Icon(
-                          Icons.restore_rounded,
-                          size: 14,
+                      )
+                    else if (isViewing)
+                      Container(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: kSpace8,
+                          vertical: kSpace4,
                         ),
-                        label: const Text('Restore this version'),
-                        style: FilledButton.styleFrom(
-                          padding: const EdgeInsets.symmetric(
-                            horizontal: kSpace12,
-                            vertical: kSpace8,
+                        decoration: BoxDecoration(
+                          color: scheme.surface.withValues(alpha: 0.55),
+                          borderRadius: BorderRadius.circular(kRadius),
+                        ),
+                        child: Text(
+                          'Previewing',
+                          style: textTheme.labelSmall?.copyWith(
+                            color: scheme.primary,
+                            fontWeight: FontWeight.w500,
                           ),
-                          textStyle: textTheme.labelSmall,
-                          minimumSize: Size.zero,
-                          tapTargetSize: MaterialTapTargetSize.shrinkWrap,
                         ),
                       ),
-                    ),
                   ],
+                ),
+                const SizedBox(height: kSpace4),
+                Text(
+                  authorLabel,
+                  style: textTheme.bodySmall?.copyWith(
+                    color: scheme.onSurfaceVariant,
+                  ),
+                ),
+                const SizedBox(height: kSpace4),
+                Text(
+                  version.isOriginal
+                      ? 'Marie\'s first draft'
+                      : '${version.changeCount} change${version.changeCount == 1 ? '' : 's'}',
+                  style: textTheme.bodySmall?.copyWith(
+                    color: context.scientist.onSurfaceFaint,
+                    height: 1.3,
+                  ),
+                ),
+                const SizedBox(height: kSpace4),
+                Text(
+                  _formatRelative(version.at),
+                  style: textTheme.labelSmall?.copyWith(
+                    color: context.scientist.onSurfaceFaint,
+                  ),
+                ),
+                if (onRestore != null) ...<Widget>[
+                  const SizedBox(height: kSpace8),
+                  Align(
+                    alignment: Alignment.centerLeft,
+                    child: FilledButton.tonalIcon(
+                      onPressed: onRestore,
+                      icon: const Icon(
+                        Icons.restore_rounded,
+                        size: 14,
+                      ),
+                      label: const Text('Restore this version'),
+                      style: FilledButton.styleFrom(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: kSpace12,
+                          vertical: kSpace8,
+                        ),
+                        textStyle: textTheme.labelSmall,
+                        minimumSize: Size.zero,
+                        tapTargetSize: MaterialTapTargetSize.shrinkWrap,
+                      ),
+                    ),
+                  ),
                 ],
-              ),
+              ],
             ),
-          ],
-        ),
+          ),
+        ],
       ),
     );
   }

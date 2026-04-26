@@ -41,33 +41,23 @@ class _InlineEditableTextState extends State<InlineEditableText> {
   late FocusNode _focusNode;
   bool _isEditing = false;
   bool _openEditScheduled = false;
-  /// Shown in the label after commit while [widget.value] has not yet caught
-  /// up from the parent (commit callback is not synchronous).
-  String? _pendingCommittedLabel;
-  /// Label (or last pending) the user had when the current edit session started.
+  /// [widget.value] when the user last opened the editor; used to undo on cancel.
   late String _editSessionBaseline;
 
   @override
   void initState() {
     super.initState();
     _controller = TextEditingController(text: widget.value);
+    _editSessionBaseline = widget.value;
     _focusNode = FocusNode()..addListener(_handleFocusChange);
   }
 
   @override
   void didUpdateWidget(covariant InlineEditableText oldWidget) {
     super.didUpdateWidget(oldWidget);
-    if (_pendingCommittedLabel != null) {
-      if (widget.value == _pendingCommittedLabel) {
-        _pendingCommittedLabel = null;
-      } else if (oldWidget.value != widget.value) {
-        _pendingCommittedLabel = null;
-      }
-    }
     if (!_isEditing && oldWidget.value != widget.value) {
-      if (_pendingCommittedLabel == null) {
-        _controller.text = widget.value;
-      }
+      // Parent (e.g. [PlanReviewController] draft) updated this field.
+      _controller.text = widget.value;
     }
   }
 
@@ -99,9 +89,10 @@ class _InlineEditableTextState extends State<InlineEditableText> {
         return;
       }
       setState(() {
-        _editSessionBaseline = _pendingCommittedLabel ?? widget.value;
+        // Label display uses [_controller] when not editing, so the buffer is
+        // the visible string at tap time (and matches [widget.value] when in sync).
+        _editSessionBaseline = _controller.text;
         _isEditing = true;
-        _controller.text = _editSessionBaseline;
         _controller.selection = TextSelection(
           baseOffset: 0,
           extentOffset: _controller.text.length,
@@ -118,14 +109,14 @@ class _InlineEditableTextState extends State<InlineEditableText> {
   void _commit() {
     final String next = _controller.text;
     if (next != widget.value) {
+      // [next] is already in [_controller]. Leave editing mode: the label uses
+      // [_controller], so the new text is visible before [onSubmitted] runs
+      // (e.g. deferred to avoid pointer/mouse-reentrancy) and the parent
+      // rebuilds with a new [widget.value].
       setState(() {
         _isEditing = false;
-        _pendingCommittedLabel = next;
       });
       final String submitted = next;
-      // Not synchronous with focus/pointer, but before next frame; avoids
-      // mouse-tracker re-entrance. Optimistic [ _pendingCommittedLabel ] keeps
-      // the label correct until the parent rebuilds.
       Future.microtask(() {
         if (mounted) {
           widget.onSubmitted(submitted);
@@ -140,11 +131,6 @@ class _InlineEditableTextState extends State<InlineEditableText> {
     setState(() {
       _isEditing = false;
       _controller.text = _editSessionBaseline;
-      if (_editSessionBaseline == widget.value) {
-        _pendingCommittedLabel = null;
-      } else {
-        _pendingCommittedLabel = _editSessionBaseline;
-      }
     });
     _focusNode.unfocus();
   }
@@ -160,7 +146,9 @@ class _InlineEditableTextState extends State<InlineEditableText> {
   Widget _buildLabel(BuildContext context) {
     final TextStyle effectiveStyle =
         widget.style ?? Theme.of(context).textTheme.bodyMedium!;
-    final String valueForLabel = _pendingCommittedLabel ?? widget.value;
+    // Use the controller, not [widget.value], so commits show immediately
+    // even when [onSubmitted] and the parent are handled asynchronously.
+    final String valueForLabel = _controller.text;
     final bool isEmpty = valueForLabel.trim().isEmpty;
     final String shown = isEmpty
         ? (widget.placeholderWhenEmpty ?? widget.hintText ?? '')

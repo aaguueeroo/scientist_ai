@@ -5,6 +5,7 @@ import '../../../controllers/plan_review_session_snapshot.dart';
 import '../../../controllers/review_store_controller.dart';
 import '../../../controllers/scientist_controller.dart';
 import '../../../core/app_constants.dart';
+import '../../../core/theme/theme_context.dart';
 import '../../../models/experiment_plan.dart';
 import '../../review/models/review.dart' as global_review;
 import 'editable_review_body.dart';
@@ -160,20 +161,27 @@ class _ReviewScaffoldShell extends StatelessWidget {
   Widget build(BuildContext context) {
     final PlanReviewController controller =
         context.watch<PlanReviewController>();
+    final Color schemeSurface = context.appColorScheme.surface;
     return Stack(
       children: <Widget>[
         Positioned.fill(
           child: Padding(
             padding: const EdgeInsets.only(top: 56),
-            child: Column(
-              children: <Widget>[
-                if (controller.isHistoricalView)
-                  _HistoricalBanner(
-                    onReturn: controller.returnToCurrentVersion,
-                  ),
-                Expanded(child: _bodyForMode(controller)),
-                SendPlanToLabBar(query: query),
-              ],
+            child: ClipRRect(
+              borderRadius: BorderRadius.circular(kRadius),
+              child: ColoredBox(
+                color: schemeSurface,
+                child: Column(
+                  children: <Widget>[
+                    if (controller.isHistoricalView)
+                      _HistoricalBanner(
+                        onReturn: controller.returnToCurrentVersion,
+                      ),
+                    Expanded(child: _bodyForMode(controller)),
+                    SendPlanToLabBar(query: query),
+                  ],
+                ),
+              ),
             ),
           ),
         ),
@@ -208,11 +216,8 @@ class _HistoricalBanner extends StatelessWidget {
         vertical: kSpace12,
       ),
       decoration: BoxDecoration(
-        color: scheme.surface,
+        color: scheme.primaryContainer,
         borderRadius: BorderRadius.circular(kRadius),
-        border: Border.all(
-          color: scheme.primary.withValues(alpha: 0.4),
-        ),
       ),
       child: Row(
         children: <Widget>[
