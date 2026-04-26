@@ -15,17 +15,18 @@ import structlog
 from fastapi import FastAPI
 
 from app.api import deps as api_deps
-from app.api.debug_tavily import router as debug_tavily_router
-from app.api.openapi_extra import enrich_openapi_schema
-from app.api.errors import register_exception_handlers
 from app.api.conversations import router as conversations_router
+from app.api.debug_tavily import router as debug_tavily_router
+from app.api.errors import register_exception_handlers
 from app.api.experiment_plan import router as experiment_plan_router
 from app.api.feedback import router as feedback_router
 from app.api.health import router as health_router
 from app.api.literature_review import router as literature_review_router
 from app.api.middleware import RateLimitMiddleware, RequestContextMiddleware
+from app.api.openapi_extra import enrich_openapi_schema
 from app.api.openapi_meta import API_DESCRIPTION, OPENAPI_TAGS
 from app.api.plans import router as plans_router
+from app.api.provider_settings import router as provider_settings_router
 from app.config.settings import get_settings
 from app.config.source_tiers import load_source_tiers
 from app.observability.logging import configure_logging
@@ -110,6 +111,7 @@ def create_app() -> FastAPI:
     app.add_middleware(RequestContextMiddleware)
     register_exception_handlers(app)
     app.include_router(health_router)
+    app.include_router(provider_settings_router)
     app.include_router(debug_tavily_router)
     app.include_router(literature_review_router)
     app.include_router(experiment_plan_router)

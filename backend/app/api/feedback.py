@@ -21,6 +21,7 @@ from pydantic import BaseModel, ConfigDict, Field, ValidationError
 from app.agents.feedback_relevance import FeedbackRelevanceAgent
 from app.api.deps import get_feedback_repo, get_openai_client
 from app.api.middleware import RequestContext
+from app.api.provider_key_context import install_provider_keys
 from app.clients.openai_client import AbstractOpenAIClient
 from app.prompts.loader import prompt_versions
 from app.schemas.feedback import (
@@ -91,6 +92,7 @@ async def list_plan_feedback(
 
 @router.post(
     "/feedback",
+    dependencies=[Depends(install_provider_keys)],
     response_model=FeedbackResponse,
     summary="Store feedback: few-shot correction or plan review",
     description=(

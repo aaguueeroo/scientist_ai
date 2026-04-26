@@ -32,6 +32,15 @@ abstract class ScientistRepository {
 
   /// DELETE /plans/{plan_id}. Treats 404 as success (already removed).
   Future<void> deleteSavedPlan(String planId);
+
+  /// GET /settings/provider-api-keys
+  Future<Map<String, dynamic>> fetchProviderApiKeysStatus();
+
+  /// PUT /settings/provider-api-keys (persist on server; empty string clears a key).
+  Future<Map<String, dynamic>> putProviderApiKeys({
+    String? openaiApiKey,
+    String? tavilyApiKey,
+  });
 }
 
 class ScientistApiException implements Exception {

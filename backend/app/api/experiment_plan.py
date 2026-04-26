@@ -20,6 +20,7 @@ from app.api.deps import (
 )
 from app.api.errors import DomainError
 from app.api.middleware import RequestContext
+from app.api.provider_key_context import install_provider_keys
 from app.clients.openai_client import AbstractOpenAIClient
 from app.clients.tavily_client import AbstractTavilyClient
 from app.config.settings import get_settings
@@ -54,6 +55,7 @@ class _LiteratureQueryMismatch(DomainError):
 
 @router.post(
     "/experiment-plan",
+    dependencies=[Depends(install_provider_keys)],
     response_model=GeneratePlanResponse,
     summary="Generate or short-circuit experiment plan (Agents 2-3)",
     description=(

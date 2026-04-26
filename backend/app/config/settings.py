@@ -26,12 +26,20 @@ class Settings(BaseSettings):
     )
 
     OPENAI_API_KEY: SecretStr = Field(
-        ...,
-        description="API key for OpenAI (required).",
+        default=SecretStr(""),
+        description=(
+            "Default API key for OpenAI when no per-request header and no DB row. "
+            "May be empty if keys are supplied via `X-OpenAI-API-Key` or "
+            "`PUT /settings/provider-api-keys`."
+        ),
     )
     TAVILY_API_KEY: SecretStr = Field(
-        ...,
-        description="API key for Tavily web search (required).",
+        default=SecretStr(""),
+        description=(
+            "Default API key for Tavily when no per-request header and no DB row. "
+            "May be empty if keys are supplied via `X-Tavily-API-Key` or "
+            "`PUT /settings/provider-api-keys`."
+        ),
     )
     TAVILY_RETRIEVAL_MODE: Literal["search", "research"] = Field(
         default="search",

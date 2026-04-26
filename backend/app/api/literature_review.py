@@ -22,6 +22,7 @@ from app.api.deps import (
 )
 from app.api.errors import DomainError
 from app.api.middleware import RequestContext
+from app.api.provider_key_context import install_provider_keys
 from app.clients.openai_client import AbstractOpenAIClient
 from app.clients.tavily_client import AbstractTavilyClient
 from app.config.settings import get_settings
@@ -229,6 +230,7 @@ async def list_literature_reviews(
 
 @router.post(
     "/literature-review",
+    dependencies=[Depends(install_provider_keys)],
     summary="Literature triage (Agent 1) — stream via SSE",
     response_class=StreamingResponse,
     description=(

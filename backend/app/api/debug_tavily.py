@@ -7,6 +7,7 @@ from typing import Annotated, Any, Literal
 from fastapi import APIRouter, Depends, Query
 
 from app.api.deps import get_source_tiers, get_tavily_client
+from app.api.provider_key_context import install_provider_keys
 from app.clients.tavily_client import AbstractTavilyClient, TavilyResearchModel
 from app.config.settings import Settings, get_settings
 from app.config.source_tiers import SourceTiersConfig
@@ -16,6 +17,7 @@ router = APIRouter(tags=["Debug"])
 
 @router.get(
     "/debug/tavily",
+    dependencies=[Depends(install_provider_keys)],
     summary="Raw Tavily Search or Research call",
     description=(
         "Debug/operator only. Returns upstream Tavily JSON (search or research) only — "

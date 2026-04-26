@@ -170,4 +170,25 @@ class MockScientistBackendClient implements ScientistBackendClient {
   bool _isErrorQuery(String query) {
     return query.toLowerCase().contains('error');
   }
+
+  @override
+  Future<Map<String, dynamic>> fetchProviderApiKeysStatus() async {
+    await Future<void>.delayed(_kReviewLatency);
+    return <String, dynamic>{
+      'openai_configured': true,
+      'tavily_configured': true,
+    };
+  }
+
+  @override
+  Future<Map<String, dynamic>> putProviderApiKeys({
+    String? openaiApiKey,
+    String? tavilyApiKey,
+  }) async {
+    await Future<void>.delayed(_kReviewLatency);
+    return <String, dynamic>{
+      'openai_configured': (openaiApiKey ?? '').trim().isNotEmpty,
+      'tavily_configured': (tavilyApiKey ?? '').trim().isNotEmpty,
+    };
+  }
 }

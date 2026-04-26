@@ -53,6 +53,17 @@ class LiteratureReviewRow(Base):
     created_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
 
 
+class ProviderApiKeysRow(Base):
+    """Singleton row (id=1) holding user-supplied OpenAI and Tavily keys for the server."""
+
+    __tablename__ = "provider_api_keys"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=False)
+    openai_key: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    tavily_key: Mapped[str | None] = mapped_column(String(500), nullable=True)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, nullable=False)
+
+
 class FeedbackRow(Base):
     """Persisted feedback record + its provenance metadata.
 

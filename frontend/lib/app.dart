@@ -96,6 +96,11 @@ class _ScientistAppState extends State<ScientistApp> {
           themeMode: ThemeMode.dark,
           routerConfig: _router,
           builder: (BuildContext context, Widget? child) {
+            if (kUseRealScientistApi) {
+              widget.userApiKeysStore.bindRepository(
+                context.read<ScientistRepository>(),
+              );
+            }
             Widget body = UserApiKeysSetupHost(
               child: child ?? const SizedBox.shrink(),
             );

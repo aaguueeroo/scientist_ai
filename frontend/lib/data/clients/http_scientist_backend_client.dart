@@ -329,6 +329,91 @@ class HttpScientistBackendClient implements ScientistBackendClient {
   }
 
   @override
+  Future<Map<String, dynamic>> fetchProviderApiKeysStatus() async {
+    final HttpClient client = HttpClient();
+    try {
+      final HttpClientRequest request =
+          await client.getUrl(_resolve('settings/provider-api-keys'));
+      request.headers.set(HttpHeaders.acceptHeader, 'application/json');
+      final HttpClientResponse response = await request.close();
+      final String body = await response.transform(utf8.decoder).join();
+      final String? headerRequestId =
+          response.headers.value('x-request-id') ??
+              response.headers.value('X-Request-ID');
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final Object? decoded = jsonDecode(body);
+        if (decoded is Map<String, dynamic>) {
+          return decoded;
+        }
+      }
+      throw _transportFromHttp(
+        response.statusCode,
+        body,
+        headerRequestId: headerRequestId,
+      );
+    } on ScientistTransportException {
+      rethrow;
+    } on SocketException catch (e) {
+      throw ScientistTransportException(
+        code: 'network_error',
+        message: e.message,
+      );
+    } finally {
+      client.close(force: true);
+    }
+  }
+
+  @override
+  Future<Map<String, dynamic>> putProviderApiKeys({
+    String? openaiApiKey,
+    String? tavilyApiKey,
+  }) async {
+    final HttpClient client = HttpClient();
+    try {
+      final Map<String, dynamic> payload = <String, dynamic>{};
+      if (openaiApiKey != null) {
+        payload['openai_api_key'] = openaiApiKey;
+      }
+      if (tavilyApiKey != null) {
+        payload['tavily_api_key'] = tavilyApiKey;
+      }
+      final HttpClientRequest request =
+          await client.putUrl(_resolve('settings/provider-api-keys'));
+      request.headers.set(
+        HttpHeaders.contentTypeHeader,
+        'application/json; charset=utf-8',
+      );
+      request.headers.set(HttpHeaders.acceptHeader, 'application/json');
+      request.write(jsonEncode(payload));
+      final HttpClientResponse response = await request.close();
+      final String body = await response.transform(utf8.decoder).join();
+      final String? headerRequestId =
+          response.headers.value('x-request-id') ??
+              response.headers.value('X-Request-ID');
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final Object? decoded = jsonDecode(body);
+        if (decoded is Map<String, dynamic>) {
+          return decoded;
+        }
+      }
+      throw _transportFromHttp(
+        response.statusCode,
+        body,
+        headerRequestId: headerRequestId,
+      );
+    } on ScientistTransportException {
+      rethrow;
+    } on SocketException catch (e) {
+      throw ScientistTransportException(
+        code: 'network_error',
+        message: e.message,
+      );
+    } finally {
+      client.close(force: true);
+    }
+  }
+
+  @override
   Future<Map<String, dynamic>> fetchReviews() async {
     final HttpClient client = HttpClient();
     try {
