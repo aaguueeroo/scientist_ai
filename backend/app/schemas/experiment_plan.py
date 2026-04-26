@@ -128,6 +128,14 @@ class GroundingSummary(OpenAIStructuredModel):
     verified_count: int = Field(ge=0)
     unverified_count: int = Field(ge=0)
     tier_0_drops: int = Field(default=0, ge=0)
+    grounding_caveat: str | None = Field(
+        default=None,
+        max_length=2000,
+        description=(
+            "Set by the server when every grounding slot is unverified: the plan is still "
+            "returned, but citations and materials were not auto-confirmed."
+        ),
+    )
 
 
 class ExperimentPlan(OpenAIStructuredModel):

@@ -66,14 +66,16 @@ class _LiteratureQueryMismatch(DomainError):
     responses={
         200: {
             "description": (
-                "GeneratePlanResponse: qc, optional plan, grounding_summary, prompt_versions."
+                "GeneratePlanResponse: qc, optional plan, grounding_summary, prompt_versions. "
+                "If no citation or catalog slot verified, `grounding_summary.grounding_caveat` "
+                "is set and the plan still returns 200 (rows remain unverified)."
             ),
         },
         422: {
             "model": ErrorResponse,
             "description": (
                 "Validation, unknown literature_review_id, query mismatch, "
-                "grounding_failed_refused, or other domain errors. Check code in body."
+                "or other domain errors. Check code in body."
             ),
         },
     },

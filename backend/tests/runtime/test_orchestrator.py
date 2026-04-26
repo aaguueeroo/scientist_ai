@@ -21,7 +21,6 @@ from app.agents.feedback_relevance import (
     RelevanceItem,
 )
 from app.agents.literature_qc import NoveltyClaim, ReferenceClaim
-from app.api.errors import GroundingFailedRefused
 from app.clients.openai_client import (
     ChatMessage,
     ChatResult,
@@ -269,7 +268,7 @@ async def test_orchestrator_full_path_runs_agent_3_when_continue() -> None:
 
 
 @pytest.mark.asyncio
-async def test_orchestrator_grounding_failed_refused_when_zero_verified() -> None:
+async def test_orchestrator_returns_plan_with_grounding_caveat_when_zero_verified() -> None:
     plan = _experiment_plan_canned()
     openai = FakeOpenAIClient(
         chat_responses=[_keyword_chat()],
@@ -301,8 +300,14 @@ async def test_orchestrator_grounding_failed_refused_when_zero_verified() -> Non
         catalog_resolver=catalog_resolver,
         source_tiers=load_source_tiers(),
     )
-    with pytest.raises(GroundingFailedRefused):
-        await orch.run(hypothesis="x" * 20, request_id="r-orch-3")
+    response = await orch.run(hypothesis="x" * 20, request_id="r-orch-3")
+
+    assert response.plan is not None
+    assert response.grounding_summary.verified_count == 0
+    assert response.grounding_summary.grounding_caveat
+    assert "Automated verification" in (response.grounding_summary.grounding_caveat or "")
+    assert not any(m.verified for m in response.plan.materials)
+    assert not response.plan.references[0].verified
 
 
 @pytest.mark.asyncio

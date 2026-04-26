@@ -495,7 +495,7 @@ async def test_experiment_plan_full_path_returns_plan_with_grounded_references(
 
 
 @pytest.mark.asyncio
-async def test_experiment_plan_grounding_failed_status(
+async def test_experiment_plan_all_unverified_returns_200_with_grounding_caveat(
     grounding_failed_app: FastAPI,
 ) -> None:
     transport = ASGITransport(app=grounding_failed_app, raise_app_exceptions=False)
@@ -511,10 +511,13 @@ async def test_experiment_plan_grounding_failed_status(
             json={"query": SAMPLE_HYPOTHESIS, "literature_review_id": lr},
         )
 
-    assert response.status_code == 422
+    assert response.status_code == 200, response.text
     res_body = response.json()
-    assert res_body["code"] == ErrorCode.GROUNDING_FAILED_REFUSED.value
     assert res_body["request_id"]
+    assert res_body["plan"] is not None
+    assert res_body["grounding_summary"]["verified_count"] == 0
+    assert res_body["grounding_summary"].get("grounding_caveat")
+    assert "Automated verification" in res_body["grounding_summary"]["grounding_caveat"]
 
 
 @pytest.mark.asyncio

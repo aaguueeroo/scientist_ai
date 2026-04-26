@@ -47,9 +47,12 @@ class GroundingSummary {
     required this.verifiedCount,
     required this.unverifiedCount,
     this.tier0Drops = 0,
+    this.groundingCaveat,
   });
 
   final int verifiedCount;
   final int unverifiedCount;
   final int tier0Drops;
+  /// Set when the server could not auto-verify any citation or catalog link.
+  final String? groundingCaveat;
 }

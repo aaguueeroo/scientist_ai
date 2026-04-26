@@ -62,6 +62,7 @@ class PlanScreen extends StatelessWidget {
                   currentQuery: controller.currentQuery,
                   conversationId: controller.currentConversationId,
                   usedPriorFeedback: controller.usedPriorFeedback,
+                  planGroundingCaveat: controller.planGroundingCaveat,
                   onRetry: controller.loadExperimentPlan,
                   onLivePlanChanged: controller.applyCorrectedPlan,
                 ),
@@ -84,6 +85,7 @@ class _PlanBody extends StatelessWidget {
     required this.currentQuery,
     required this.conversationId,
     required this.usedPriorFeedback,
+    this.planGroundingCaveat,
     required this.onRetry,
     required this.onLivePlanChanged,
   });
@@ -96,6 +98,7 @@ class _PlanBody extends StatelessWidget {
   final String? currentQuery;
   final String? conversationId;
   final bool usedPriorFeedback;
+  final String? planGroundingCaveat;
   final VoidCallback onRetry;
   final void Function(ExperimentPlan) onLivePlanChanged;
 
@@ -131,6 +134,7 @@ class _PlanBody extends StatelessWidget {
       conversationId: conversationId ?? currentQuery ?? '',
       onLivePlanChanged: onLivePlanChanged,
       usedPriorFeedback: usedPriorFeedback,
+      groundingCaveat: planGroundingCaveat,
     );
   }
 }

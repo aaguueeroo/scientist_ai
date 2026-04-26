@@ -38,6 +38,7 @@ class BackendPlanMapper {
             verifiedCount: dto.groundingSummary!.verifiedCount,
             unverifiedCount: dto.groundingSummary!.unverifiedCount,
             tier0Drops: dto.groundingSummary!.tier0Drops,
+            groundingCaveat: dto.groundingSummary!.groundingCaveat,
           );
     final ExperimentPlan? plan =
         dto.plan == null ? null : backendPlanToDomain(dto.plan!);

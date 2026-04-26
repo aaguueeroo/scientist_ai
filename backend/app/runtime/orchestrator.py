@@ -1,7 +1,7 @@
 """Runtime orchestrator (Steps 33 + 43).
 
 Sequences Agent 1 → novelty gate → (if not `exact_match`) Agent 2 →
-Agent 3 → `apply_resolvers` → `refuse_if_ungrounded` → MIQE block.
+Agent 3 → `apply_resolvers` → `apply_grounding_caveat_if_all_unverified` → MIQE block.
 
 Agent 2 is wired in only when a `feedback_repo` is supplied; if omitted
 the orchestrator behaves exactly as it did in Step 33 (empty few-shots
@@ -32,7 +32,10 @@ from app.schemas.responses import GeneratePlanResponse
 from app.storage.feedback_repo import FeedbackRepo
 from app.verification.catalog_resolver import AbstractCatalogResolver
 from app.verification.citation_resolver import AbstractCitationResolver
-from app.verification.grounding import apply_resolvers, refuse_if_ungrounded
+from app.verification.grounding import (
+    apply_grounding_caveat_if_all_unverified,
+    apply_resolvers,
+)
 from app.verification.miqe_checklist import populate_miqe_if_qpcr
 
 _log = structlog.get_logger("pipeline")
@@ -198,7 +201,14 @@ class Orchestrator:
                 )
             }
         )
-        refuse_if_ungrounded(grounded, grounded.grounding_summary)
+        grounded = apply_grounding_caveat_if_all_unverified(grounded)
+        if grounded.grounding_summary.grounding_caveat:
+            _log.warning(
+                "pipeline.grounding.all_unverified",
+                request_id=request_id,
+                verified=grounded.grounding_summary.verified_count,
+                unverified=grounded.grounding_summary.unverified_count,
+            )
         _log.info(
             "pipeline.grounding.done",
             request_id=request_id,
