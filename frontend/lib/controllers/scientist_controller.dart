@@ -44,6 +44,7 @@ class ScientistController extends ChangeNotifier {
     }
     experimentPlan = null;
     planError = null;
+    isLoadingPlan = false;
     await loadLiteratureReview();
   }
 

@@ -37,6 +37,34 @@ class ProjectLabInfoCard extends StatelessWidget {
     return '$monthLabel ${value.day}, ${value.year}';
   }
 
+  String _formatRelativeDate(DateTime value) {
+    final DateTime now = DateTime.now();
+    final DateTime today = DateTime(now.year, now.month, now.day);
+    final DateTime dateOnly = DateTime(value.year, value.month, value.day);
+    final int daysDiff = today.difference(dateOnly).inDays;
+    if (daysDiff == 0) {
+      return 'Today';
+    }
+    if (daysDiff == 1) {
+      return 'Yesterday';
+    }
+    if (daysDiff < 7) {
+      return '$daysDiff days ago';
+    }
+    if (daysDiff < 14) {
+      return 'Last week';
+    }
+    final int weeks = daysDiff ~/ 7;
+    if (daysDiff < 30) {
+      return '$weeks weeks ago';
+    }
+    final int months = daysDiff ~/ 30;
+    if (months == 1) {
+      return 'Last month';
+    }
+    return '$months months ago';
+  }
+
   @override
   Widget build(BuildContext context) {
     final TextTheme textTheme = Theme.of(context).textTheme;
@@ -76,7 +104,7 @@ class ProjectLabInfoCard extends StatelessWidget {
           const SizedBox(width: kSpace24),
           _LabInfoStat(
             label: 'LAST UPDATE',
-            value: _formatDate(project.lastUpdatedAt),
+            value: _formatRelativeDate(project.lastUpdatedAt),
             scheme: scheme,
             textTheme: textTheme,
           ),

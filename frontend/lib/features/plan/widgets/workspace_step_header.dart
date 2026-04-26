@@ -2,6 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 
 import '../../../core/app_colors.dart';
+import '../../../models/experiment_plan.dart' show ExperimentPlan;
 import '../../../core/app_constants.dart';
 import '../../../core/app_routes.dart';
 import '../../../core/theme/theme_context.dart';
@@ -34,17 +35,42 @@ void navigateToWorkspaceStep(BuildContext context, int index) {
   }
 }
 
+/// Gating for workspace tabs: step 0 is always [true]; step 1 after a research
+/// question exists; step 2 after the user has started or received a plan load.
+List<bool> workspaceStepEnabled({
+  required String? currentQuery,
+  required bool isLoadingPlan,
+  required ExperimentPlan? experimentPlan,
+  required String? planError,
+}) {
+  final bool hasQuery = (currentQuery ?? '').trim().isNotEmpty;
+  final bool canUsePlan = hasQuery &&
+      (isLoadingPlan ||
+          experimentPlan != null ||
+          (planError != null && planError.isNotEmpty));
+  return <bool>[
+    true,
+    hasQuery,
+    canUsePlan,
+  ];
+}
+
 class WorkspaceStepHeader extends StatelessWidget {
   const WorkspaceStepHeader({
     super.key,
     required this.stepIndex,
     required this.stepLabels,
     required this.onSelect,
-  });
+    this.stepEnabled,
+  }) : assert(
+          stepEnabled == null || stepEnabled.length == stepLabels.length,
+        );
 
   final int stepIndex;
   final List<String> stepLabels;
   final ValueChanged<int> onSelect;
+  /// When null, every step is tappable. Otherwise must match [stepLabels] length.
+  final List<bool>? stepEnabled;
 
   @override
   Widget build(BuildContext context) {
@@ -63,6 +89,7 @@ class WorkspaceStepHeader extends StatelessWidget {
           child: _WorkspaceSegmentedTrack(
             stepLabels: stepLabels,
             stepIndex: stepIndex,
+            stepEnabled: stepEnabled,
             onSelect: onSelect,
           ),
         );
@@ -85,11 +112,13 @@ class _WorkspaceSegmentedTrack extends StatelessWidget {
   const _WorkspaceSegmentedTrack({
     required this.stepLabels,
     required this.stepIndex,
+    required this.stepEnabled,
     required this.onSelect,
   });
 
   final List<String> stepLabels;
   final int stepIndex;
+  final List<bool>? stepEnabled;
   final ValueChanged<int> onSelect;
 
   @override
@@ -143,6 +172,7 @@ class _WorkspaceSegmentedTrack extends StatelessWidget {
                                   : Icons.tab_outlined,
                               label: stepLabels[i],
                               isSelected: i == stepIndex,
+                              isEnabled: stepEnabled == null || stepEnabled![i],
                               showLeadingDivider: i > 0,
                               onTap: () => onSelect(i),
                             ),
@@ -228,6 +258,7 @@ class _WorkspaceStepTab extends StatefulWidget {
     required this.icon,
     required this.label,
     required this.isSelected,
+    required this.isEnabled,
     required this.showLeadingDivider,
     required this.onTap,
   });
@@ -235,6 +266,7 @@ class _WorkspaceStepTab extends StatefulWidget {
   final IconData icon;
   final String label;
   final bool isSelected;
+  final bool isEnabled;
   final bool showLeadingDivider;
   final VoidCallback onTap;
 
@@ -250,61 +282,70 @@ class _WorkspaceStepTabState extends State<_WorkspaceStepTab> {
     final TextTheme textTheme = Theme.of(context).textTheme;
     final ColorScheme scheme = context.appColorScheme;
     final bool selected = widget.isSelected;
-    final Color fg = selected ? scheme.onPrimaryContainer : scheme.onSurfaceVariant;
-    final bool showHover = _isHovered && !selected;
+    final bool enabled = widget.isEnabled;
+    final Color unselectedLabelColor = scheme.onSurfaceVariant;
+    final bool showHover = enabled && _isHovered && !selected;
     return Semantics(
       button: true,
       selected: selected,
+      enabled: enabled,
       label: widget.label,
-      child: Material(
-        color: showHover
-            ? AppColors.skeleton.withValues(alpha: 0.2)
-            : Colors.transparent,
-        child: MouseRegion(
-          onEnter: (_) => setState(() => _isHovered = true),
-          onExit: (_) => setState(() => _isHovered = false),
-          child: Stack(
-            fit: StackFit.expand,
-            children: <Widget>[
-              
-              InkWell(
-                onTap: widget.onTap,
-                hoverColor: AppColors.skeleton.withValues(alpha: 0.12),
-                splashColor: scheme.primary.withValues(alpha: 0.1),
-                child: Center(
-                  child: Padding(
-                    padding: const EdgeInsets.symmetric(horizontal: kSpace8),
-                    child: Column(
-                      mainAxisSize: MainAxisSize.min,
-                      crossAxisAlignment: CrossAxisAlignment.center,
-                      children: <Widget>[
-                        Icon(
-                          widget.icon,
-                          size: 22,
-                          color: selected ? scheme.primary : fg,
-                        ),
-                        const SizedBox(height: kSpace4),
-                        Text(
-                          widget.label,
-                          textAlign: TextAlign.center,
-                          maxLines: 2,
-                          overflow: TextOverflow.ellipsis,
-                          style: textTheme.labelMedium?.copyWith(
+      child: Opacity(
+        opacity: enabled ? 1 : 0.4,
+        child: Material(
+          color: showHover
+              ? AppColors.skeleton.withValues(alpha: 0.2)
+              : Colors.transparent,
+          child: MouseRegion(
+            cursor: enabled
+                ? SystemMouseCursors.click
+                : SystemMouseCursors.basic,
+            onEnter: (_) => setState(() => _isHovered = true),
+            onExit: (_) => setState(() => _isHovered = false),
+            child: Stack(
+              fit: StackFit.expand,
+              children: <Widget>[
+                InkWell(
+                  onTap: enabled ? widget.onTap : null,
+                  hoverColor: AppColors.skeleton.withValues(alpha: 0.12),
+                  splashColor: scheme.primary.withValues(alpha: 0.1),
+                  child: Center(
+                    child: Padding(
+                      padding: const EdgeInsets.symmetric(horizontal: kSpace8),
+                      child: Column(
+                        mainAxisSize: MainAxisSize.min,
+                        crossAxisAlignment: CrossAxisAlignment.center,
+                        children: <Widget>[
+                          Icon(
+                            widget.icon,
+                            size: 22,
                             color: selected
-                                ? scheme.onPrimaryContainer
-                                : scheme.onSurfaceVariant,
-                            fontWeight: selected
-                                ? FontWeight.w700
-                                : FontWeight.w500,
-                            height: 1.2,
+                                ? scheme.primary
+                                : unselectedLabelColor,
                           ),
-                        ),
-                      ],
+                          const SizedBox(height: kSpace4),
+                          Text(
+                            widget.label,
+                            textAlign: TextAlign.center,
+                            maxLines: 2,
+                            overflow: TextOverflow.ellipsis,
+                            style: textTheme.labelMedium?.copyWith(
+                              color: selected
+                                  ? scheme.onPrimaryContainer
+                                  : unselectedLabelColor,
+                              fontWeight: selected
+                                  ? FontWeight.w700
+                                  : FontWeight.w500,
+                              height: 1.2,
+                            ),
+                          ),
+                        ],
+                      ),
                     ),
                   ),
                 ),
-              ),
-            ],
+              ],
+            ),
           ),
         ),
       ),

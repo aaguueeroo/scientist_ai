@@ -13,6 +13,6 @@ void main() {
   testWidgets('Renders Marie Query home', (WidgetTester tester) async {
     await tester.pumpWidget(const ScientistApp());
     expect(find.text('Marie Query'), findsOneWidget);
-    expect(find.text('What are we investigating today?'), findsOneWidget);
+    expect(find.text('Hi! What are we investigating today?'), findsOneWidget);
   });
 }

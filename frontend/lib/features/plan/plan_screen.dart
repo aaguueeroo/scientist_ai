@@ -28,51 +28,86 @@ class PlanScreen extends StatelessWidget {
         kSpace40,
         kSpace40,
       ),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.stretch,
-        children: <Widget>[
-          WorkspaceStepHeader(
-            stepIndex: 2,
-            stepLabels: kWorkspaceStepLabels,
-            onSelect: (int i) => navigateToWorkspaceStep(context, i),
-          ),
-          const SizedBox(height: kSpace32),
-          Expanded(
-            child: Consumer<ScientistController>(
-              builder: (
-                BuildContext context,
-                ScientistController controller,
-                Widget? child,
-              ) {
-                final ExperimentPlan? plan = controller.experimentPlan;
-                if (controller.isLoadingPlan && plan == null) {
-                  return const ExperimentPlanLoadingView();
-                }
-                if (controller.planError != null) {
-                  return ExperimentPlanErrorView(
-                    message: controller.planError!,
-                    onRetry: controller.loadExperimentPlan,
-                  );
-                }
-                if (plan == null) {
-                  return Center(
-                    child: Text(
-                      'Marie hasn\'t prepared an experiment plan yet.',
-                      style: context.scientist.bodySecondary,
-                    ),
-                  );
-                }
-                return PlanReviewScaffold(
-                  plan: plan,
-                  query: controller.currentQuery,
-                  conversationId: controller.currentQuery ?? '',
+      child: Consumer<ScientistController>(
+        builder: (
+          BuildContext context,
+          ScientistController controller,
+          Widget? child,
+        ) {
+          return Column(
+            crossAxisAlignment: CrossAxisAlignment.stretch,
+            children: <Widget>[
+              WorkspaceStepHeader(
+                stepIndex: 2,
+                stepLabels: kWorkspaceStepLabels,
+                stepEnabled: workspaceStepEnabled(
+                  currentQuery: controller.currentQuery,
+                  isLoadingPlan: controller.isLoadingPlan,
+                  experimentPlan: controller.experimentPlan,
+                  planError: controller.planError,
+                ),
+                onSelect: (int i) => navigateToWorkspaceStep(context, i),
+              ),
+              const SizedBox(height: kSpace32),
+              Expanded(
+                child: _PlanBody(
+                  isLoadingPlan: controller.isLoadingPlan,
+                  planError: controller.planError,
+                  plan: controller.experimentPlan,
+                  currentQuery: controller.currentQuery,
+                  onRetry: controller.loadExperimentPlan,
                   onLivePlanChanged: controller.applyCorrectedPlan,
-                );
-              },
-            ),
-          ),
-        ],
+                ),
+              ),
+            ],
+          );
+        },
       ),
+    );
+  }
+}
+
+class _PlanBody extends StatelessWidget {
+  const _PlanBody({
+    required this.isLoadingPlan,
+    required this.planError,
+    required this.plan,
+    required this.currentQuery,
+    required this.onRetry,
+    required this.onLivePlanChanged,
+  });
+
+  final bool isLoadingPlan;
+  final String? planError;
+  final ExperimentPlan? plan;
+  final String? currentQuery;
+  final VoidCallback onRetry;
+  final void Function(ExperimentPlan) onLivePlanChanged;
+
+  @override
+  Widget build(BuildContext context) {
+    if (isLoadingPlan && plan == null) {
+      return const ExperimentPlanLoadingView();
+    }
+    if (planError != null) {
+      return ExperimentPlanErrorView(
+        message: planError!,
+        onRetry: onRetry,
+      );
+    }
+    if (plan == null) {
+      return Center(
+        child: Text(
+          'Marie hasn\'t prepared an experiment plan yet.',
+          style: context.scientist.bodySecondary,
+        ),
+      );
+    }
+    return PlanReviewScaffold(
+      plan: plan!,
+      query: currentQuery,
+      conversationId: currentQuery ?? '',
+      onLivePlanChanged: onLivePlanChanged,
     );
   }
 }

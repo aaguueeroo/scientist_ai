@@ -42,6 +42,12 @@ class LiteratureScreen extends StatelessWidget {
               WorkspaceStepHeader(
                 stepIndex: 1,
                 stepLabels: kWorkspaceStepLabels,
+                stepEnabled: workspaceStepEnabled(
+                  currentQuery: controller.currentQuery,
+                  isLoadingPlan: controller.isLoadingPlan,
+                  experimentPlan: controller.experimentPlan,
+                  planError: controller.planError,
+                ),
                 onSelect: (int i) => navigateToWorkspaceStep(context, i),
               ),
               const SizedBox(height: kSpace32),

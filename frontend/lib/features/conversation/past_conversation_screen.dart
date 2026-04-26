@@ -6,7 +6,6 @@ import '../../core/app_constants.dart';
 import '../../core/theme/theme_context.dart';
 import '../../models/experiment_plan.dart';
 import '../../models/literature_review.dart';
-import '../../ui/app_surface.dart';
 import '../literature/widgets/source_tile.dart';
 import '../plan/review/plan_review_scaffold.dart';
 import '../plan/widgets/workspace_step_header.dart';
@@ -49,6 +48,12 @@ class _PastConversationScreenState extends State<PastConversationScreen> {
               WorkspaceStepHeader(
                 stepIndex: _stepIndex,
                 stepLabels: kWorkspaceStepLabels,
+                stepEnabled: workspaceStepEnabled(
+                  currentQuery: controller.currentQuery,
+                  isLoadingPlan: controller.isLoadingPlan,
+                  experimentPlan: controller.experimentPlan,
+                  planError: controller.planError,
+                ),
                 onSelect: _goToStep,
               ),
               const SizedBox(height: kSpace32),
@@ -77,6 +82,8 @@ class _PastConversationScreenState extends State<PastConversationScreen> {
   }
 }
 
+const String _kBlackboardAsset = 'lib/assets/marie-query-blackboard.png';
+
 class _PromptPane extends StatelessWidget {
   const _PromptPane({required this.query});
 
@@ -84,7 +91,6 @@ class _PromptPane extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final TextTheme textTheme = Theme.of(context).textTheme;
     if (query == null || query!.isEmpty) {
       return Center(
         child: Text(
@@ -93,22 +99,45 @@ class _PromptPane extends StatelessWidget {
         ),
       );
     }
-    return SingleChildScrollView(
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: <Widget>[
-          Text('Prompt', style: textTheme.headlineMedium),
-          const SizedBox(height: kSpace8),
-          Text(
-            'The research question you asked Marie.',
-            style: context.scientist.bodySecondary,
-          ),
-          const SizedBox(height: kSpace24),
-          AppSurface(
-            padding: const EdgeInsets.all(kSpace24),
-            child: Text(query!, style: textTheme.bodyLarge),
-          ),
-        ],
+    return Center(
+      child: ConstrainedBox(
+        constraints: const BoxConstraints(maxWidth: 700, maxHeight: 560),
+        child: Stack(
+          fit: StackFit.passthrough,
+          children: <Widget>[
+            Image.asset(
+              _kBlackboardAsset,
+              fit: BoxFit.contain,
+            ),
+            Positioned(
+              left: 0,
+              top: 0,
+              right: 0,
+              bottom: 0,
+              child: FractionallySizedBox(
+                widthFactor: 0.52,
+                heightFactor: 0.40,
+                alignment: const Alignment(-0.72, -0.62),
+                child: Padding(
+                  padding: const EdgeInsets.all(kSpace16),
+                  child: Center(
+                    child: Text(
+                      query!,
+                      textAlign: TextAlign.center,
+                      style: const TextStyle(
+                        color: Color(0xDDEEEEE8),
+                        fontSize: 16,
+                        fontWeight: FontWeight.w400,
+                        height: 1.5,
+                        letterSpacing: 0.3,
+                      ),
+                    ),
+                  ),
+                ),
+              ),
+            ),
+          ],
+        ),
       ),
     );
   }
