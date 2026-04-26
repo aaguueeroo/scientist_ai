@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart' hide Material, Step;
+import 'package:lottie/lottie.dart';
 
 import '../../core/app_constants.dart';
 import '../../core/theme/theme_context.dart';
 import '../../models/experiment_plan.dart';
 import '../../ui/app_section_header.dart';
 import '../../ui/app_surface.dart';
-import '../../ui/skeleton_bar.dart';
 import 'widgets/material_tile.dart';
 import 'widgets/plan_hero_metrics.dart';
 import 'widgets/plan_risks_section.dart';
@@ -165,106 +165,63 @@ class ExperimentPlanView extends StatelessWidget {
   }
 }
 
+const String kPlanLoadingLottieAsset = 'lib/assets/animations/plan_loading.lottie';
+
 class ExperimentPlanLoadingView extends StatelessWidget {
   const ExperimentPlanLoadingView({super.key});
 
   @override
   Widget build(BuildContext context) {
-    return ListView(
-      padding: EdgeInsets.zero,
-      children: <Widget>[
-        const SkeletonBar(height: 26, width: 240),
-        const SizedBox(height: kSpace8),
-        const SkeletonBar(height: 14, width: 360),
-        const SizedBox(height: kSpace24),
-        const Center(
-          child: Row(
-            mainAxisSize: MainAxisSize.min,
-            children: <Widget>[
-              SkeletonBlock(
-                children: <Widget>[
-                  SkeletonBar(height: 40, width: 100),
-                  SizedBox(height: kSpace4),
-                  SkeletonBar(height: 12, width: 80),
-                ],
-              ),
-              SizedBox(width: kSpace40),
-              SkeletonBlock(
-                children: <Widget>[
-                  SkeletonBar(height: 40, width: 88),
-                  SizedBox(height: kSpace4),
-                  SkeletonBar(height: 12, width: 64),
-                ],
-              ),
-            ],
-          ),
-        ),
-        const SizedBox(height: kSpace32),
-        AppSurface(
-          padding: const EdgeInsets.symmetric(
-            horizontal: kSpace24,
-            vertical: kSpace24,
-          ),
-          child: SkeletonBlock(
-            children: const <Widget>[
-              SkeletonBar(height: 12),
-              SizedBox(height: kSpace12),
-              SkeletonBar(height: 2),
-              SizedBox(height: kSpace8),
-              SkeletonBar(height: 10, width: 200),
-            ],
-          ),
-        ),
-        const SizedBox(height: kSpace16),
-        const SkeletonBar(height: 12, width: 480),
-        const SizedBox(height: kSpace8),
-        const SkeletonBar(height: 12, width: 320),
-        const SizedBox(height: kSpace32),
-        Row(
-          crossAxisAlignment: CrossAxisAlignment.start,
+    return Center(
+      child: SingleChildScrollView(
+        padding: const EdgeInsets.symmetric(vertical: kSpace32),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  const SkeletonBar(height: 16, width: 72),
-                  const SizedBox(height: kSpace12),
-                  AppSurface(
-                    padding: const EdgeInsets.all(kSpace16),
-                    child: const SkeletonBlock(
-                      children: <Widget>[
-                        SkeletonBar(height: 12),
-                        SizedBox(height: kSpace8),
-                        SkeletonBar(height: 10, width: 220),
-                      ],
-                    ),
-                  ),
-                ],
+            SizedBox(
+              width: kLottiePlanLoadingSize,
+              height: kLottiePlanLoadingSize,
+              child: Lottie.asset(
+                kPlanLoadingLottieAsset,
+                fit: BoxFit.contain,
+                repeat: true,
+                errorBuilder: (
+                  BuildContext context,
+                  Object error,
+                  StackTrace? stackTrace,
+                ) {
+                  // ignore: avoid_print
+                  print('Experiment plan Lottie: $error');
+                  return const _PlanLoadingLottieFallback();
+                },
               ),
             ),
-            const SizedBox(width: kSpace32),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: <Widget>[
-                  const SkeletonBar(height: 16, width: 88),
-                  const SizedBox(height: kSpace12),
-                  AppSurface(
-                    padding: EdgeInsets.zero,
-                    child: SkeletonBlock(
-                      children: const <Widget>[
-                        SkeletonBar(height: 12),
-                        SizedBox(height: kSpace8),
-                        SkeletonBar(height: 12, width: 200),
-                      ],
-                    ),
-                  ),
-                ],
-              ),
+            const SizedBox(height: kSpace24),
+            Text(
+              'Drafting your experiment plan…',
+              style: context.scientist.bodySecondary,
+              textAlign: TextAlign.center,
             ),
           ],
         ),
-      ],
+      ),
+    );
+  }
+}
+
+class _PlanLoadingLottieFallback extends StatelessWidget {
+  const _PlanLoadingLottieFallback();
+
+  @override
+  Widget build(BuildContext context) {
+    return Center(
+      child: SizedBox(
+        width: kSpace32 * 2,
+        height: kSpace32 * 2,
+        child: CircularProgressIndicator(
+          color: Theme.of(context).colorScheme.primary,
+        ),
+      ),
     );
   }
 }

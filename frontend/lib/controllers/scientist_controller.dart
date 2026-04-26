@@ -65,7 +65,7 @@ class ScientistController extends ChangeNotifier {
     planErrorRequestId = null;
     literatureReviewId = null;
     isLoadingPlan = false;
-    await loadLiteratureReview();
+    unawaited(loadLiteratureReview());
   }
 
   Future<void> loadLiteratureReview() async {

@@ -13,6 +13,7 @@ const double kSidebarMinWidth = 200;
 const double kSidebarMaxWidth = 400;
 const double kContentMaxWidth = 1200;
 const double kHomeMaxWidth = 720;
+const double kLottiePlanLoadingSize = 240;
 
 const double kPlanHeroMetricValueSize = 52;
 const double kPlanTimelineLineThickness = 2;
