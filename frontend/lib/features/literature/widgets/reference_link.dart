@@ -1,69 +1,42 @@
 import 'dart:async';
-import 'dart:developer' as developer;
 
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 
-/// Opens [url] in the platform browser. Logs and no-ops on failure.
+/// Opens an http(s) URL in the platform browser.
 Future<void> launchReferenceUrl(String url) async {
-  final Uri? uri = Uri.tryParse(url);
-  if (uri == null ||
-      !uri.hasScheme ||
-      (uri.scheme != 'http' && uri.scheme != 'https')) {
-    developer.log(
-      'launchReferenceUrl: invalid url "$url"',
-      name: 'reference_link',
-    );
+  final String t = url.trim();
+  if (t.isEmpty) {
     return;
   }
-  try {
-    final bool launched = await launchUrl(
-      uri,
-      mode: LaunchMode.externalApplication,
-    );
-    if (!launched) {
-      developer.log(
-        'launchReferenceUrl: could not launch "$url"',
-        name: 'reference_link',
-      );
-    }
-  } catch (err, stackTrace) {
-    developer.log(
-      'launchReferenceUrl: error for "$url": $err',
-      error: err,
-      stackTrace: stackTrace,
-      name: 'reference_link',
-    );
+  final Uri? u = Uri.tryParse(t);
+  if (u == null || !(u.isScheme('http') || u.isScheme('https'))) {
+    return;
+  }
+  if (await canLaunchUrl(u)) {
+    await launchUrl(u, mode: LaunchMode.externalApplication);
   }
 }
 
-/// Resolver URL for [doi], or null if it cannot be normalized to a link.
+/// `https://doi.org/...` for a raw DOI string, or null if not linkable.
 String? doiToResolverUrl(String doi) {
-  String normalized = doi.trim();
-  if (normalized.isEmpty) {
+  final String t = doi.trim();
+  if (t.isEmpty) {
     return null;
   }
-  final String lower = normalized.toLowerCase();
-  if (lower.startsWith('doi:')) {
-    normalized = normalized.substring(normalized.indexOf(':') + 1).trim();
-  } else if (lower.startsWith('https://doi.org/')) {
-    return normalized;
-  } else if (lower.startsWith('http://doi.org/')) {
-    return 'https://doi.org/${normalized.substring('http://doi.org/'.length)}';
-  }
-  if (normalized.isEmpty) {
+  if (t == '10.0000/unspecified') {
     return null;
   }
-  return 'https://doi.org/$normalized';
+  return 'https://doi.org/${Uri.encodeComponent(t)}';
 }
 
-/// Tappable title when [pageUrl] is a valid http(s) URL; otherwise plain text.
+/// Title that opens [pageUrl] when set; otherwise plain [Text].
 class ReferenceTitleLink extends StatelessWidget {
   const ReferenceTitleLink({
     super.key,
     required this.title,
     this.pageUrl,
-    this.style,
+    required this.style,
   });
 
   final String title;
@@ -72,30 +45,21 @@ class ReferenceTitleLink extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final String? raw = pageUrl?.trim();
-    if (raw == null || raw.isEmpty) {
-      return Text(title, style: style);
-    }
-    final Uri? uri = Uri.tryParse(raw);
-    final bool canLaunch = uri != null &&
-        uri.hasScheme &&
-        (uri.scheme == 'http' || uri.scheme == 'https');
-    if (!canLaunch) {
-      return Text(title, style: style);
-    }
-    final Color c = Theme.of(context).colorScheme.primary;
-    final TextStyle base =
-        style ?? DefaultTextStyle.of(context).style;
-    return InkWell(
-      onTap: () => unawaited(launchReferenceUrl(uri.toString())),
-      child: Text(
-        title,
-        style: base.copyWith(
-          color: c,
-          decoration: TextDecoration.underline,
-          decorationColor: c,
+    final String? u = pageUrl?.trim();
+    if (u != null && u.isNotEmpty) {
+      final Color c = Theme.of(context).colorScheme.primary;
+      return InkWell(
+        onTap: () => unawaited(launchReferenceUrl(u)),
+        child: Text(
+          title,
+          style: style?.copyWith(
+            color: c,
+            decoration: TextDecoration.underline,
+            decorationColor: c,
+          ),
         ),
-      ),
-    );
+      );
+    }
+    return Text(title, style: style);
   }
 }

@@ -50,6 +50,9 @@ class ScientistController extends ChangeNotifier {
   /// Shown in the plan UI when the backend used prior few-shot corrections.
   bool usedPriorFeedback = false;
 
+  /// Server text when no citation or catalog line auto-verified (still 200 + plan).
+  String? planGroundingCaveat;
+
   Future<void> submitQuestion(String query) async {
     final String normalizedQuery = query.trim();
     if (normalizedQuery.isEmpty) {
@@ -69,6 +72,7 @@ class ScientistController extends ChangeNotifier {
     literatureReviewId = null;
     isLoadingPlan = false;
     usedPriorFeedback = false;
+    planGroundingCaveat = null;
     unawaited(loadLiteratureReview());
   }
 
@@ -197,6 +201,7 @@ class ScientistController extends ChangeNotifier {
       planId = null;
       lastPlanRequestId = null;
       usedPriorFeedback = false;
+      planGroundingCaveat = null;
       literatureReview = null;
       literatureReviewId = _litReviewIdByQueryKey[qk];
       notifyListeners();
@@ -218,6 +223,7 @@ class ScientistController extends ChangeNotifier {
       planId = null;
       lastPlanRequestId = null;
       usedPriorFeedback = false;
+      planGroundingCaveat = null;
       literatureReview = null;
       literatureReviewId = null;
     } finally {
@@ -236,6 +242,7 @@ class ScientistController extends ChangeNotifier {
     planId = (r.planId != null && r.planId!.isNotEmpty) ? r.planId : resolvedPlanId;
     lastPlanRequestId = r.requestId.isNotEmpty ? r.requestId : null;
     usedPriorFeedback = r.usedPriorFeedback;
+    planGroundingCaveat = r.groundingSummary?.groundingCaveat;
     planError = null;
     literatureReviewId = _litReviewIdByQueryKey[queryKey];
     literatureReview = LiteratureReviewFromQc.fromQc(
@@ -263,6 +270,7 @@ class ScientistController extends ChangeNotifier {
       planId = result.planId;
       lastPlanRequestId = result.requestId.isNotEmpty ? result.requestId : null;
       usedPriorFeedback = result.usedPriorFeedback;
+      planGroundingCaveat = result.groundingSummary?.groundingCaveat;
       final String k = conversationQueryKey(query);
       final String? outPid = result.planId;
       if (outPid != null && outPid.isNotEmpty) {
@@ -281,6 +289,7 @@ class ScientistController extends ChangeNotifier {
       planId = null;
       lastPlanRequestId = null;
       usedPriorFeedback = false;
+      planGroundingCaveat = null;
     } finally {
       isLoadingPlan = false;
       notifyListeners();
@@ -389,6 +398,7 @@ class ScientistController extends ChangeNotifier {
     planError = null;
     planErrorRequestId = null;
     usedPriorFeedback = false;
+    planGroundingCaveat = null;
     _literatureSubscription?.cancel();
     _literatureSubscription = null;
     _planReviewSessions.clear();

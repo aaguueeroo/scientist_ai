@@ -11,7 +11,6 @@ in its per-request log line.
 
 from __future__ import annotations
 
-from app.api.errors import GroundingFailedRefused
 from app.schemas.experiment_plan import (
     ExperimentPlan,
     GroundingSummary,
@@ -123,41 +122,29 @@ def _unverified_step(step: ProtocolStep) -> ProtocolStep:
     )
 
 
-def refuse_if_ungrounded(plan: ExperimentPlan, summary: GroundingSummary) -> None:
-    """Raise `GroundingFailedRefused` when the plan has no grounding to stand on.
+_GROUNDING_ALL_UNVERIFIED_CAVEAT = (
+    "Automated verification did not confirm any citation link or product catalog match. "
+    "Treat references, protocol sources, and materials as unverified; validate before use."
+)
 
-    Refuses only when `verified_count == 0` — nothing in the plan was
-    verifiable. When at least one reference, step, or material verifies,
-    the plan is returned with unverified rows marked for review; there
-    is no separate refusal based on the ratio of unverified rows.
+
+def apply_grounding_caveat_if_all_unverified(plan: ExperimentPlan) -> ExperimentPlan:
+    """If every grounding slot failed verification, attach a user-visible caveat.
+
+    The plan is still returned (HTTP 200); rows remain marked unverified. When at
+    least one reference, step, or material verifies, no caveat is added.
     """
 
-    total_materials = len(plan.materials)
-    total_slots = max(0, summary.verified_count + summary.unverified_count)
-    if summary.verified_count == 0:
-        msg = (
-            "After automated verification, nothing in the plan could be marked verified: "
-            f"0 verified, {summary.unverified_count} unverified, "
-            f"{summary.tier_0_drops} reference(s) dropped as forbidden Tier-0, "
-            f"{len(plan.references)} ref(s) / {len(plan.protocol)} step(s) / "
-            f"{len(plan.materials)} material(s) in the plan. "
-            "Citations need HTTP 200 and title match; material SKUs must appear on the "
-            "supplier product page (Sigma / Thermo patterns)."
-        )
-        raise GroundingFailedRefused(
-            message=msg,
-            details={
-                "reason": "zero_verified_items",
-                "verified_count": summary.verified_count,
-                "unverified_count": summary.unverified_count,
-                "tier_0_drops": summary.tier_0_drops,
-                "total_materials": total_materials,
-                "references_in_plan": len(plan.references),
-                "protocol_steps": len(plan.protocol),
-                "materials_in_plan": len(plan.materials),
-                "total_grounding_slots": total_slots,
-            },
-        )
+    s = plan.grounding_summary
+    if s.verified_count > 0 or s.unverified_count == 0:
+        return plan
+    return plan.model_copy(
+        update={
+            "grounding_summary": s.model_copy(
+                update={"grounding_caveat": _GROUNDING_ALL_UNVERIFIED_CAVEAT}
+            )
+        }
+    )
 
 
 def _step_reference_or_none(step: ProtocolStep) -> Reference | None:

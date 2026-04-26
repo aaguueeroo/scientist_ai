@@ -73,6 +73,7 @@ class _PastConversationScreenState extends State<PastConversationScreen> {
                       query: controller.currentQuery,
                       conversationId: controller.currentConversationId,
                       usedPriorFeedback: controller.usedPriorFeedback,
+                      planGroundingCaveat: controller.planGroundingCaveat,
                       onLivePlanChanged: controller.applyCorrectedPlan,
                     ),
                   ],
@@ -329,6 +330,7 @@ class _ExperimentPlanStepPane extends StatelessWidget {
     required this.query,
     required this.conversationId,
     required this.usedPriorFeedback,
+    this.planGroundingCaveat,
     required this.onLivePlanChanged,
   });
 
@@ -336,6 +338,7 @@ class _ExperimentPlanStepPane extends StatelessWidget {
   final String? query;
   final String? conversationId;
   final bool usedPriorFeedback;
+  final String? planGroundingCaveat;
   final ValueChanged<ExperimentPlan> onLivePlanChanged;
 
   @override
@@ -355,6 +358,7 @@ class _ExperimentPlanStepPane extends StatelessWidget {
       conversationId: conversationId ?? query ?? '',
       onLivePlanChanged: onLivePlanChanged,
       usedPriorFeedback: usedPriorFeedback,
+      groundingCaveat: planGroundingCaveat,
     );
   }
 }

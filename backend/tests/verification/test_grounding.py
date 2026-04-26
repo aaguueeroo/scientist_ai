@@ -28,7 +28,7 @@ from app.schemas.literature_qc import (
 )
 from app.verification.catalog_resolver import FakeCatalogResolver
 from app.verification.citation_resolver import CitationOutcome, FakeCitationResolver
-from app.verification.grounding import apply_resolvers, refuse_if_ungrounded
+from app.verification.grounding import apply_grounding_caveat_if_all_unverified, apply_resolvers
 
 NATURE_URL = "https://www.nature.com/articles/abc"
 FAKE_DOI_URL = "https://doi.org/10.9999/FAKE-fake-fake"
@@ -206,26 +206,32 @@ def _plan_with_materials(*, total: int) -> ExperimentPlan:
     return _build_plan(references=[], materials=materials)
 
 
-def test_grounding_refuses_when_zero_verified_items() -> None:
+def test_grounding_sets_caveat_when_zero_verified_items() -> None:
     plan = _plan_with_materials(total=2)
     summary = GroundingSummary(verified_count=0, unverified_count=2, tier_0_drops=0)
+    plan = plan.model_copy(update={"grounding_summary": summary})
 
-    with pytest.raises(GroundingFailedRefused):
-        refuse_if_ungrounded(plan, summary)
+    out = apply_grounding_caveat_if_all_unverified(plan)
+    assert out.grounding_summary.grounding_caveat
+    assert "Automated verification" in (out.grounding_summary.grounding_caveat or "")
 
 
-def test_grounding_does_not_refuse_when_some_verified_despite_unverified_rows() -> None:
+def test_grounding_no_caveat_when_some_verified_despite_unverified_rows() -> None:
     plan = _plan_with_materials(total=4)
     summary = GroundingSummary(verified_count=1, unverified_count=2, tier_0_drops=0)
+    plan = plan.model_copy(update={"grounding_summary": summary})
 
-    refuse_if_ungrounded(plan, summary)
+    out = apply_grounding_caveat_if_all_unverified(plan)
+    assert out.grounding_summary.grounding_caveat is None
 
 
-def test_grounding_does_not_refuse_when_majority_verified() -> None:
+def test_grounding_no_caveat_when_majority_verified() -> None:
     plan = _plan_with_materials(total=4)
     summary = GroundingSummary(verified_count=3, unverified_count=1, tier_0_drops=0)
+    plan = plan.model_copy(update={"grounding_summary": summary})
 
-    refuse_if_ungrounded(plan, summary)
+    out = apply_grounding_caveat_if_all_unverified(plan)
+    assert out.grounding_summary.grounding_caveat is None
 
 
 @pytest_asyncio.fixture

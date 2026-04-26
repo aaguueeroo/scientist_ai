@@ -13,6 +13,7 @@ import 'editable_review_body.dart';
 import 'plan_review_controller.dart';
 import 'read_only_review_body.dart';
 import 'review_history_drawer.dart';
+import 'widgets/grounding_caveat_bar.dart';
 import 'widgets/learned_from_feedback_bar.dart';
 import 'widgets/review_action_bar.dart';
 import 'widgets/send_plan_to_lab_bar.dart';
@@ -27,6 +28,7 @@ class PlanReviewScaffold extends StatefulWidget {
     required this.conversationId,
     this.query,
     this.usedPriorFeedback = false,
+    this.groundingCaveat,
   });
 
   final ExperimentPlan plan;
@@ -36,6 +38,9 @@ class PlanReviewScaffold extends StatefulWidget {
 
   /// When true, a hint line is shown: prior corrections influenced this plan.
   final bool usedPriorFeedback;
+
+  /// When set, a warning bar shows (no automated citation/catalog verification).
+  final String? groundingCaveat;
 
   @override
   State<PlanReviewScaffold> createState() => _PlanReviewScaffoldState();
@@ -133,6 +138,7 @@ class _PlanReviewScaffoldState extends State<PlanReviewScaffold> {
       child: _ReviewScaffoldShell(
         query: widget.query,
         usedPriorFeedback: widget.usedPriorFeedback,
+        groundingCaveat: widget.groundingCaveat,
         onToggleHistory: _toggleHistory,
         historyOpen: _historyOpen,
         onCloseHistory: () => setState(() => _historyOpen = false),
@@ -145,6 +151,7 @@ class _ReviewScaffoldShell extends StatelessWidget {
   const _ReviewScaffoldShell({
     required this.query,
     this.usedPriorFeedback = false,
+    this.groundingCaveat,
     required this.onToggleHistory,
     required this.historyOpen,
     required this.onCloseHistory,
@@ -152,6 +159,7 @@ class _ReviewScaffoldShell extends StatelessWidget {
 
   final String? query;
   final bool usedPriorFeedback;
+  final String? groundingCaveat;
   final VoidCallback onToggleHistory;
   final bool historyOpen;
   final VoidCallback onCloseHistory;
@@ -183,6 +191,10 @@ class _ReviewScaffoldShell extends StatelessWidget {
                 borderRadius: BorderRadius.circular(kRadius),
                 child: Column(
                   children: <Widget>[
+                    if (groundingCaveat != null && groundingCaveat!.isNotEmpty) ...<Widget>[
+                      GroundingCaveatBar(message: groundingCaveat!),
+                      const SizedBox(height: kSpace12),
+                    ],
                     if (controller.isHistoricalView)
                       _HistoricalBanner(
                         onReturn: controller.returnToCurrentVersion,
