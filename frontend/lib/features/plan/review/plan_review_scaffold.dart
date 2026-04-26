@@ -10,6 +10,7 @@ import 'plan_review_controller.dart';
 import 'read_only_review_body.dart';
 import 'review_history_drawer.dart';
 import 'widgets/review_action_bar.dart';
+import 'widgets/send_plan_to_lab_bar.dart';
 
 /// Top-level surface for the review feature. Owns the
 /// [PlanReviewController] for the lifetime of the screen.
@@ -134,6 +135,7 @@ class _ReviewScaffoldShell extends StatelessWidget {
                     onReturn: controller.returnToCurrentVersion,
                   ),
                 Expanded(child: _bodyForMode(controller)),
+                SendPlanToLabBar(query: query),
               ],
             ),
           ),

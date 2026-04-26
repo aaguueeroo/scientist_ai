@@ -1,5 +1,6 @@
 import 'package:flutter/material.dart' hide Material, Step;
 import 'package:provider/provider.dart';
+import 'package:toastification/toastification.dart';
 
 import 'controllers/projects_controller.dart';
 import 'controllers/review_store_controller.dart';
@@ -42,12 +43,18 @@ class ScientistApp extends StatelessWidget {
           create: (BuildContext c) => ProjectsController(),
         ),
       ],
-      child: MaterialApp.router(
-        title: 'Marie Query',
-        debugShowCheckedModeBanner: false,
-        theme: buildAppTheme(),
-        themeMode: ThemeMode.dark,
-        routerConfig: appRouter,
+      child: ToastificationWrapper(
+        config: const ToastificationConfig(
+          itemWidth: 400,
+          animationDuration: Duration(milliseconds: 400),
+        ),
+        child: MaterialApp.router(
+          title: 'Marie Query',
+          debugShowCheckedModeBanner: false,
+          theme: buildAppTheme(),
+          themeMode: ThemeMode.dark,
+          routerConfig: appRouter,
+        ),
       ),
     );
   }

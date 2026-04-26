@@ -8,6 +8,7 @@ import '../../../controllers/scientist_controller.dart';
 import '../../../core/app_constants.dart';
 import '../../../core/app_router.dart';
 import '../../../core/app_routes.dart';
+import '../../../core/app_toasts.dart';
 import '../../../core/theme/theme_context.dart';
 import '../../../models/project.dart';
 import '../../../models/user_role.dart';
@@ -76,14 +77,11 @@ class Sidebar extends StatelessWidget {
   }
 
   void _showSettingsPlaceholder(BuildContext context) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        const SnackBar(
-          content: Text('Settings are not available in this preview yet.'),
-          duration: Duration(seconds: 2),
-        ),
-      );
+    showAppToast(
+      context,
+      message: 'Settings are not available in this preview yet.',
+      autoCloseDuration: const Duration(seconds: 2),
+    );
   }
 
   @override

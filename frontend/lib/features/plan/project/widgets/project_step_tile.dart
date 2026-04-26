@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 
 import '../../../../controllers/projects_controller.dart';
 import '../../../../core/app_constants.dart';
+import '../../../../core/app_toasts.dart';
 import '../../../../core/theme/theme_context.dart';
 import '../../../../models/experiment_plan.dart';
 import '../../../../models/project.dart';
@@ -69,7 +70,6 @@ class _ProjectStepTileState extends State<ProjectStepTile> {
     }
     setState(() => _isPicking = false);
     final ProjectsController projects = context.read<ProjectsController>();
-    final ScaffoldMessengerState messenger = ScaffoldMessenger.of(context);
     switch (outcome) {
       case PickedAttachment(attachment: final ProjectAttachment a):
         projects.addAttachment(
@@ -78,26 +78,21 @@ class _ProjectStepTileState extends State<ProjectStepTile> {
           attachment: a,
         );
         setState(() => _isExpanded = true);
-        messenger
-          ..hideCurrentSnackBar()
-          ..showSnackBar(
-            SnackBar(
-              content: Text('Attached "${a.fileName}".'),
-              duration: const Duration(seconds: 2),
-            ),
-          );
+        showAppToast(
+          context,
+          message: 'Attached "${a.fileName}".',
+          variant: AppToastVariant.success,
+          autoCloseDuration: const Duration(seconds: 2),
+        );
       case PickCancelled():
         // No-op when the user cancels.
         break;
       case PickFailed(message: final String message):
-        messenger
-          ..hideCurrentSnackBar()
-          ..showSnackBar(
-            SnackBar(
-              content: Text(message),
-              duration: const Duration(seconds: 3),
-            ),
-          );
+        showAppToast(
+          context,
+          message: message,
+          variant: AppToastVariant.error,
+        );
     }
   }
 
@@ -117,14 +112,11 @@ class _ProjectStepTileState extends State<ProjectStepTile> {
   }
 
   void _mockDownload(ProjectAttachment attachment) {
-    ScaffoldMessenger.of(context)
-      ..hideCurrentSnackBar()
-      ..showSnackBar(
-        SnackBar(
-          content: Text('Download started for ${attachment.fileName}.'),
-          duration: const Duration(seconds: 2),
-        ),
-      );
+    showAppToast(
+      context,
+      message: 'Download started for ${attachment.fileName}.',
+      autoCloseDuration: const Duration(seconds: 2),
+    );
   }
 
   @override

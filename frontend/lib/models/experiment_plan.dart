@@ -24,6 +24,25 @@ class ExperimentPlan {
   }
 }
 
+/// Snapshot of [plan] so an ongoing project keeps a stable copy of the plan.
+ExperimentPlan deepCopyExperimentPlan(ExperimentPlan plan) {
+  return ExperimentPlan(
+    description: plan.description,
+    budget: Budget(
+      total: plan.budget.total,
+      materials: <Material>[
+        for (final Material m in plan.budget.materials) m.copyWith(),
+      ],
+    ),
+    timePlan: TimePlan(
+      totalDuration: plan.timePlan.totalDuration,
+      steps: <Step>[
+        for (final Step s in plan.timePlan.steps) s.copyWith(),
+      ],
+    ),
+  );
+}
+
 class Budget {
   const Budget({
     required this.total,

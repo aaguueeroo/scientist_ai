@@ -19,4 +19,7 @@ class AppColors {
 
   static const Color sidebarSurface = Color(0xFF181A1B);
   static const Color skeleton = Color(0xFF67767B);
+
+  /// Toast / inline success, distinct from [accent] on dark surfaces.
+  static const Color feedbackPositive = Color(0xFF6DAB96);
 }

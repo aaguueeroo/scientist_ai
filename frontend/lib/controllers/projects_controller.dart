@@ -69,6 +69,11 @@ class ProjectsController extends ChangeNotifier {
     notifyListeners();
   }
 
+  void addProject(Project project) {
+    _projects.insert(0, project);
+    notifyListeners();
+  }
+
   void removeAttachment({
     required String projectId,
     required String stepId,
