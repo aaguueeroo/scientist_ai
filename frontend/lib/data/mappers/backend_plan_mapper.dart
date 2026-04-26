@@ -77,6 +77,7 @@ class BackendPlanMapper {
       verificationUrl: r.verificationUrl,
       confidence: r.confidence,
       isSimilaritySuggestion: r.isSimilaritySuggestion,
+      tavilyScore: r.tavilyScore,
     );
   }
 

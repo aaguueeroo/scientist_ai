@@ -27,11 +27,13 @@ _SSE_SOURCE_EXAMPLE_SIMILARITY: dict[str, Any] = {
     "unverified_similarity_suggestion": True,
     "tier": "tier_3_general_web",
     "tavily_score": 0.45,
+    "url": "https://example.com/related",
 }
 
 _SSE_SOURCE_EXAMPLE_VERIFIED: dict[str, Any] = {
     "author": "Verified source (tier-assigned)",
     "title": "Trehalose as a cryoprotectant for HeLa cells",
+    "url": "https://www.sciencedirect.com/science/article/pii/S00112240",
     "date_of_publication": "1970-01-01",
     "abstract": "Compares disaccharide cryoprotectants and viability readouts post-thaw.",
     "doi": "10.1006/cryo.2001.2316",
@@ -102,6 +104,11 @@ class LiteratureReviewSseSource(BaseModel):
         )
     )
     title: str = Field(description="Article or page title.")
+    url: str = Field(
+        min_length=1,
+        max_length=2048,
+        description="HTTP(S) page URL (from Tavily / resolver; open in a browser for the full paper or landing page).",
+    )
     date_of_publication: str = Field(
         description="Stub date string in API responses (placeholder until enriched)."
     )

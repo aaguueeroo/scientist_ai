@@ -5,6 +5,7 @@ import '../../../core/theme/theme_context.dart';
 import '../../../models/experiment_plan.dart';
 import '../../../models/literature_review.dart';
 import '../../../models/plan_source_ref.dart';
+import '../../literature/widgets/reference_link.dart';
 import 'plan_sources_navigator.dart';
 
 /// References section appended at the bottom of the plan body.
@@ -157,8 +158,9 @@ class _LiteratureRefRow extends StatelessWidget {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: <Widget>[
-                  Text(
-                    source.title,
+                  ReferenceTitleLink(
+                    title: source.title,
+                    pageUrl: source.url,
                     style: textTheme.bodySmall?.copyWith(
                       fontWeight: FontWeight.w500,
                     ),

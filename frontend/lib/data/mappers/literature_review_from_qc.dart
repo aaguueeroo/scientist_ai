@@ -19,10 +19,11 @@ class LiteratureReviewFromQc {
         Source(
           author: '',
           title: r.title,
+          url: r.url,
           dateOfPublication: DateTime.utc(1970, 1, 1),
           abstractText: r.whyRelevant ?? '',
           doi: r.doi ?? '',
-          score: r.verified ? 0.9 : 0.35,
+          score: _displayScoreForQcRef(r),
           isVerified: r.verified,
           tier: r.tier,
           unverifiedSimilaritySuggestion: r.isSimilaritySuggestion,
@@ -34,10 +35,14 @@ class LiteratureReviewFromQc {
         Source(
           author: '',
           title: r.title,
+          url: r.url,
           dateOfPublication: DateTime.utc(1970, 1, 1),
           abstractText: r.whyRelevant ?? '',
           doi: r.doi ?? '',
-          score: 0.4,
+          score: _displayScoreForQcRef(
+            r,
+            fallbackUnverified: 0.4,
+          ),
           isVerified: r.verified,
           tier: r.tier,
           unverifiedSimilaritySuggestion: true,
@@ -51,5 +56,18 @@ class LiteratureReviewFromQc {
       isFinal: true,
       literatureReviewId: literatureReviewId,
     );
+  }
+
+  static double _displayScoreForQcRef(
+    QcReference r, {
+    double? fallbackUnverified,
+  }) {
+    if (r.tavilyScore != null) {
+      return r.tavilyScore!.clamp(0.0, 1.0);
+    }
+    if (fallbackUnverified != null) {
+      return fallbackUnverified;
+    }
+    return r.verified ? 0.9 : 0.35;
   }
 }

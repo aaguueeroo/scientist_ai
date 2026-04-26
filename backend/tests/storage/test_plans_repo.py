@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import re
 from collections.abc import AsyncIterator
 
 import pytest
@@ -127,3 +128,38 @@ async def test_plans_repo_get_by_id_returns_none_for_unknown_id(
     repo = PlansRepo(session_factory)
     assert await repo.get_by_id("plan-unknown") is None
     assert await repo.get_row_by_id("plan-unknown") is None
+
+
+@pytest.mark.asyncio
+async def test_allocate_unique_plan_id_format_and_uniqueness(
+    session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    repo = PlansRepo(session_factory)
+    ids = {await repo.allocate_unique_plan_id() for _ in range(12)}
+    assert len(ids) == 12
+    for pid in ids:
+        assert re.fullmatch(r"[A-Za-z0-9]{24}", pid)
+
+
+@pytest.mark.asyncio
+async def test_allocate_unique_plan_id_skips_taken_id(
+    session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    taken = "a" * 24
+    repo = PlansRepo(session_factory)
+    response = _response(plan_id=taken)
+    await repo.save(
+        response=response,
+        prompt_versions=response.prompt_versions,
+        request_id=response.request_id,
+    )
+
+    from unittest import mock
+
+    with mock.patch(
+        "app.storage.plans_repo.secrets.choice",
+        side_effect=(["a"] * 24) + (["b"] * 24),
+    ):
+        got = await repo.allocate_unique_plan_id()
+
+    assert got == "b" * 24

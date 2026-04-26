@@ -1,9 +1,12 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 
 import '../../../core/app_constants.dart';
 import '../../../core/theme/theme_context.dart';
 import '../../../models/literature_review.dart';
 import '../../../ui/app_surface.dart';
+import 'reference_link.dart';
 import 'source_quality_badges.dart';
 
 class SourceTile extends StatelessWidget {
@@ -88,7 +91,11 @@ class SourceTile extends StatelessWidget {
                   ),
                   const SizedBox(height: kSpace12),
                 ],
-                Text(source.title, style: textTheme.titleMedium),
+                ReferenceTitleLink(
+                  title: source.title,
+                  pageUrl: source.url,
+                  style: textTheme.titleMedium,
+                ),
                 const SizedBox(height: kSpace4),
                 Text(
                   '${source.author}  ·  ${_formatDate(source.dateOfPublication)}',
@@ -107,9 +114,9 @@ class SourceTile extends StatelessWidget {
                 ),
                 if (source.hasDisplayableDoi) ...<Widget>[
                   const SizedBox(height: kSpace8),
-                  Text(
-                    source.doi,
-                    style: context.scientist.bodyTertiaryMonospace
+                  _DoiLinkRow(
+                    doi: source.doi,
+                    textStyle: context.scientist.bodyTertiaryMonospace
                         .copyWith(fontSize: 13),
                   ),
                 ],
@@ -147,6 +154,36 @@ class SourceTile extends StatelessWidget {
         ),
       ),
       child: body,
+    );
+  }
+}
+
+class _DoiLinkRow extends StatelessWidget {
+  const _DoiLinkRow({
+    required this.doi,
+    required this.textStyle,
+  });
+
+  final String doi;
+  final TextStyle textStyle;
+
+  @override
+  Widget build(BuildContext context) {
+    final String? resolver = doiToResolverUrl(doi);
+    if (resolver == null) {
+      return Text(doi, style: textStyle);
+    }
+    final Color c = Theme.of(context).colorScheme.primary;
+    return InkWell(
+      onTap: () => unawaited(launchReferenceUrl(resolver)),
+      child: Text(
+        doi,
+        style: textStyle.copyWith(
+          color: c,
+          decoration: TextDecoration.underline,
+          decorationColor: c,
+        ),
+      ),
     );
   }
 }

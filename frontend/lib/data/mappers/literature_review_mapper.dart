@@ -19,6 +19,7 @@ class LiteratureReviewMapper {
     return Source(
       author: dto.author,
       title: dto.title,
+      url: dto.url,
       dateOfPublication: DateTime.parse(dto.dateOfPublication),
       abstractText: dto.abstractText,
       doi: dto.doi,
