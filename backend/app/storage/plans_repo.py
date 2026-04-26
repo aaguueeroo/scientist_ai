@@ -154,3 +154,50 @@ class PlansRepo:
                 }
             )
         return out
+
+    async def list_plans(self, limit: int) -> list[dict[str, Any]]:
+        """All persisted plan rows, newest first. Includes rows without a hypothesis in the payload.
+
+        Each item: ``plan_id``, ``request_id``, ``schema_version``, ``query`` (hypothesis
+        or empty string), ``literature_review_id`` (if stored on the payload), ``created_at``
+        (ISO-8601 string, UTC).
+        """
+        if limit < 1:
+            return []
+        async with self.session_factory() as session:
+            result = await session.execute(
+                select(PlanRow).order_by(PlanRow.created_at.desc()).limit(limit)
+            )
+            rows = result.scalars().all()
+        out: list[dict[str, Any]] = []
+        for row in rows:
+            p = row.payload
+            if not isinstance(p, dict):
+                p = {}
+            plan = p.get("plan")
+            query = ""
+            if isinstance(plan, dict):
+                h = plan.get("hypothesis")
+                if isinstance(h, str) and h.strip():
+                    query = h.strip()
+            plan_id = p.get("plan_id")
+            if not isinstance(plan_id, str) or not plan_id.strip():
+                plan_id = row.plan_id
+            raw_lit = p.get("literature_review_id", "")
+            lit = raw_lit if isinstance(raw_lit, str) else ""
+            created = row.created_at
+            if created.tzinfo is None:
+                created_s = f"{created.isoformat()}Z"
+            else:
+                created_s = created.astimezone(UTC).isoformat()
+            out.append(
+                {
+                    "plan_id": plan_id,
+                    "request_id": row.request_id,
+                    "schema_version": row.schema_version,
+                    "query": query,
+                    "literature_review_id": lit,
+                    "created_at": created_s,
+                }
+            )
+        return out

@@ -35,6 +35,8 @@ from app.observability.logging import configure_logging
 from app.prompts.loader import prompt_versions
 from app.schemas.errors import ErrorCode
 from app.schemas.experiment_plan import (
+    Budget,
+    BudgetLineItem,
     ExperimentPlan,
     GroundingSummary,
     Material,
@@ -295,15 +297,27 @@ def _experiment_plan_canned() -> ExperimentPlan:
                 reagent="Trehalose dihydrate",
                 vendor="Sigma-Aldrich",
                 sku="T9531",
+                qty=1.0,
+                qty_unit="g",
+                unit_cost_usd=0.5,
                 tier=SourceTier.TIER_1_PEER_REVIEWED,
             ),
             Material(
                 reagent="DMEM cell-culture medium",
                 vendor="Thermo Fisher",
                 sku="11965092",
+                qty=500.0,
+                qty_unit="mL",
+                unit_cost_usd=0.1,
                 tier=SourceTier.TIER_1_PEER_REVIEWED,
             ),
         ],
+        budget=Budget(
+            items=[
+                BudgetLineItem(label="Reagents (planning est.)", cost_usd=250.0),
+            ],
+            total_usd=250.0,
+        ),
         validation=ValidationPlan(
             success_metrics=["viability >= 80%"],
             failure_metrics=["membrane integrity drop >= 20%"],
@@ -385,6 +399,9 @@ async def full_path_app(monkeypatch: pytest.MonkeyPatch) -> AsyncIterator[FastAP
         reagent="Trehalose dihydrate",
         vendor="Sigma-Aldrich",
         sku="T9531",
+        qty=1.0,
+        qty_unit="g",
+        unit_cost_usd=0.5,
         tier=SourceTier.TIER_1_PEER_REVIEWED,
     ).model_copy(
         update={
@@ -397,6 +414,9 @@ async def full_path_app(monkeypatch: pytest.MonkeyPatch) -> AsyncIterator[FastAP
         reagent="DMEM cell-culture medium",
         vendor="Thermo Fisher",
         sku="11965092",
+        qty=500.0,
+        qty_unit="mL",
+        unit_cost_usd=0.1,
         tier=SourceTier.TIER_1_PEER_REVIEWED,
     ).model_copy(
         update={

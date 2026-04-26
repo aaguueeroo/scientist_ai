@@ -28,6 +28,8 @@ from app.clients.tavily_client import (
     TavilySearchResult,
 )
 from app.schemas.experiment_plan import (
+    Budget,
+    BudgetLineItem,
     ExperimentPlan,
     GroundingSummary,
     Material,
@@ -216,14 +218,27 @@ def make_material(
     reagent: str,
     vendor: str,
     sku: str,
+    qty: float = 1.0,
+    qty_unit: str = "each",
+    unit_cost_usd: float = 25.0,
     notes: str | None = None,
 ) -> Material:
     return Material(
         reagent=reagent,
         vendor=vendor,
         sku=sku,
+        qty=qty,
+        qty_unit=qty_unit,
+        unit_cost_usd=unit_cost_usd,
         notes=notes,
         tier=SourceTier.TIER_1_PEER_REVIEWED,
+    )
+
+
+def baseline_budget(*, label: str = "Reagents and consumables (estimate)", total: float = 500.0) -> Budget:
+    return Budget(
+        items=[BudgetLineItem(label=label, cost_usd=total)],
+        total_usd=total,
     )
 
 

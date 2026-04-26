@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import asyncio
 import re
 from collections.abc import AsyncIterator
 
@@ -184,3 +185,27 @@ async def test_allocate_unique_plan_id_skips_taken_id(
         got = await repo.allocate_unique_plan_id()
 
     assert got == "b" * 24
+
+
+@pytest.mark.asyncio
+async def test_list_plans_returns_rows_newest_first(
+    session_factory: async_sessionmaker[AsyncSession],
+) -> None:
+    repo = PlansRepo(session_factory)
+    r1 = _response(plan_id="plan-list-1")
+    r2 = _response(plan_id="plan-list-2")
+    await repo.save(
+        response=r1,
+        prompt_versions=r1.prompt_versions,
+        request_id="req-1",
+    )
+    await asyncio.sleep(0.02)
+    await repo.save(
+        response=r2,
+        prompt_versions=r2.prompt_versions,
+        request_id="req-2",
+    )
+    out = await repo.list_plans(limit=10)
+    assert len(out) == 2
+    assert [x["plan_id"] for x in out] == ["plan-list-2", "plan-list-1"]
+    assert all("created_at" in x and "request_id" in x for x in out)

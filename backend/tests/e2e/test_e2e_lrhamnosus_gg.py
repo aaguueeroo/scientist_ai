@@ -24,6 +24,7 @@ from app.schemas.experiment_plan import ExperimentPlan
 from app.schemas.literature_qc import NoveltyLabel
 from tests.e2e.conftest import (
     HypothesisFixture,
+    baseline_budget,
     baseline_grounding,
     baseline_validation,
     make_material,
@@ -114,6 +115,7 @@ def _build_lr_plan() -> ExperimentPlan:
                 sku="A25742",
             ),
         ],
+        budget=baseline_budget(label="L. rhamnosus GG / gut study (planning est.)", total=700.0),
         validation=baseline_validation(),
         grounding_summary=baseline_grounding(),
     )

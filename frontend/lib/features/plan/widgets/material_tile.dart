@@ -5,6 +5,7 @@ import '../../../core/app_constants.dart';
 import '../../../core/theme/theme_context.dart';
 import '../../../models/experiment_plan.dart';
 import '../../../ui/app_surface.dart';
+import 'material_display.dart';
 
 /// Layout mode for the materials list based on available width.
 enum PlanMaterialsDensity {
@@ -274,7 +275,11 @@ class _VerificationCell extends StatelessWidget {
     }
     if (material.verified == false) {
       return Tooltip(
-        message: material.notes ?? 'Not verified',
+        message: displayMaterialNotes(
+              material.notes,
+              vendor: material.vendor,
+            ) ??
+            'Not verified',
         child: Icon(
           Icons.help_outline,
           size: 18,
@@ -295,12 +300,16 @@ class _MaterialTileBackendFull extends StatelessWidget {
   Widget build(BuildContext context) {
     final TextTheme textTheme = Theme.of(context).textTheme;
     final TextStyle numericStyle = context.scientist.numericBody;
-    final int q = material.qty ?? material.amount;
-    final String? unit = material.qtyUnit;
+    final String qtyLabel =
+        formatMaterialQuantityString(material.qty ?? material.amount, material.qtyUnit);
     final double unitCost = material.unitCostUsd ?? material.price;
     final double line = _materialLineTotal(material);
     final String vendor = material.vendor ?? '—';
     final String sku = material.sku ?? material.catalogNumber;
+    final String? notes = displayMaterialNotes(
+      material.notes,
+      vendor: material.vendor,
+    );
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: kSpace16,
@@ -315,10 +324,10 @@ class _MaterialTileBackendFull extends StatelessWidget {
               crossAxisAlignment: CrossAxisAlignment.start,
               children: <Widget>[
                 Text(material.title, style: textTheme.titleMedium),
-                if ((material.notes ?? '').isNotEmpty) ...<Widget>[
+                if ((notes ?? '').isNotEmpty) ...<Widget>[
                   const SizedBox(height: kSpace4),
                   Text(
-                    material.notes!,
+                    notes!,
                     maxLines: 2,
                     overflow: TextOverflow.ellipsis,
                     style: textTheme.bodySmall,
@@ -344,7 +353,7 @@ class _MaterialTileBackendFull extends StatelessWidget {
           Expanded(
             flex: 2,
             child: Text(
-              unit != null ? '$q $unit' : '$q',
+              qtyLabel,
               textAlign: TextAlign.right,
               style: numericStyle,
             ),
@@ -390,8 +399,8 @@ class _MaterialTileBackendCompact extends StatelessWidget {
     final TextTheme textTheme = Theme.of(context).textTheme;
     final double line = _materialLineTotal(material);
     final TextStyle numericStyle = context.scientist.numericBody;
-    final int q = material.qty ?? material.amount;
-    final String? unit = material.qtyUnit;
+    final String qtyLabel =
+        formatMaterialQuantityString(material.qty ?? material.amount, material.qtyUnit);
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: kSpace16,
@@ -425,7 +434,7 @@ class _MaterialTileBackendCompact extends StatelessWidget {
           Expanded(
             flex: 2,
             child: Text(
-              unit != null ? '$q $unit' : '$q',
+              qtyLabel,
               textAlign: TextAlign.right,
               style: numericStyle,
             ),
@@ -454,9 +463,13 @@ class _MaterialTileBackendStacked extends StatelessWidget {
     final TextTheme textTheme = Theme.of(context).textTheme;
     final double line = _materialLineTotal(material);
     final TextStyle numericStyle = context.scientist.numericBody;
-    final int q = material.qty ?? material.amount;
-    final String? unit = material.qtyUnit;
+    final String qtyLabel =
+        formatMaterialQuantityString(material.qty ?? material.amount, material.qtyUnit);
     final double unitCost = material.unitCostUsd ?? material.price;
+    final String? notes = displayMaterialNotes(
+      material.notes,
+      vendor: material.vendor,
+    );
     return Container(
       padding: const EdgeInsets.symmetric(
         horizontal: kSpace16,
@@ -474,9 +487,9 @@ class _MaterialTileBackendStacked extends StatelessWidget {
               style: context.scientist.bodyTertiaryMonospace
                   .copyWith(fontSize: 13),
             ),
-          if ((material.notes ?? '').isNotEmpty)
+          if ((notes ?? '').isNotEmpty)
             Text(
-              material.notes!,
+              notes!,
               style: textTheme.bodySmall,
             ),
           const SizedBox(height: kSpace8),
@@ -484,9 +497,7 @@ class _MaterialTileBackendStacked extends StatelessWidget {
             children: <Widget>[
               Expanded(
                 child: Text(
-                  unit != null
-                      ? '$q $unit × \$${unitCost.toStringAsFixed(2)}'
-                      : '$q × \$${unitCost.toStringAsFixed(2)}',
+                  '$qtyLabel × \$${unitCost.toStringAsFixed(2)}',
                   style: context.scientist.numericBody.copyWith(
                     color: context.appColorScheme.onSurfaceVariant,
                   ),

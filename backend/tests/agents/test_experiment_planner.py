@@ -64,6 +64,10 @@ def test_experiment_plan_serializes_with_minimum_fields() -> None:
         plan_id="plan-001",
         hypothesis="Trehalose preserves HeLa viability better than sucrose at -80C.",
         novelty=NoveltyLabel.SIMILAR_WORK_EXISTS,
+        budget=Budget(
+            items=[BudgetLineItem(label="Core reagents (est.)", cost_usd=1.0)],
+            total_usd=1.0,
+        ),
         validation=ValidationPlan(
             success_metrics=["viability >= 80% post-thaw"],
             failure_metrics=["membrane integrity drop >= 20%"],
@@ -85,12 +89,17 @@ def test_experiment_plan_serializes_with_minimum_fields() -> None:
 def test_material_requires_tier_and_defaults_unverified() -> None:
     mat = Material(
         reagent="Trehalose",
+        vendor="Example Vendor",
+        sku="T-1",
+        qty=1.0,
+        qty_unit="g",
+        unit_cost_usd=0.0,
         tier=SourceTier.TIER_2_PREPRINT_OR_COMMUNITY,
     )
     assert mat.verified is False
     assert mat.confidence == "low"
     assert mat.verification_url is None
-    assert mat.sku is None
+    assert mat.sku == "T-1"
 
     with pytest.raises(ValidationError):
         Material(reagent="Missing tier")  # type: ignore[call-arg]
@@ -215,9 +224,16 @@ def _plan(state: PipelineState) -> ExperimentPlan:
                 reagent="Trehalose dihydrate",
                 vendor="Sigma-Aldrich",
                 sku="T9531",
+                qty=1.0,
+                qty_unit="g",
+                unit_cost_usd=0.5,
                 tier=SourceTier.TIER_1_PEER_REVIEWED,
             )
         ],
+        budget=Budget(
+            items=[BudgetLineItem(label="Reagents (est.)", cost_usd=100.0)],
+            total_usd=100.0,
+        ),
         validation=ValidationPlan(
             success_metrics=["viability >= 80% post-thaw"],
             failure_metrics=["membrane integrity drop >= 20%"],

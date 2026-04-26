@@ -34,6 +34,8 @@ from app.config.source_tiers import load_source_tiers
 from app.observability.logging import configure_logging
 from app.runtime.orchestrator import Orchestrator
 from app.schemas.experiment_plan import (
+    Budget,
+    BudgetLineItem,
     ExperimentPlan,
     GroundingSummary,
     Material,
@@ -109,15 +111,25 @@ def _experiment_plan_canned() -> ExperimentPlan:
                 reagent="Trehalose dihydrate",
                 vendor="Sigma-Aldrich",
                 sku="T9531",
+                qty=1.0,
+                qty_unit="g",
+                unit_cost_usd=0.5,
                 tier=SourceTier.TIER_1_PEER_REVIEWED,
             ),
             Material(
                 reagent="DMEM cell-culture medium",
                 vendor="Thermo Fisher",
                 sku="11965092",
+                qty=500.0,
+                qty_unit="mL",
+                unit_cost_usd=0.1,
                 tier=SourceTier.TIER_1_PEER_REVIEWED,
             ),
         ],
+        budget=Budget(
+            items=[BudgetLineItem(label="Reagents (est.)", cost_usd=200.0)],
+            total_usd=200.0,
+        ),
         validation=ValidationPlan(
             success_metrics=["viability >= 80%"],
             failure_metrics=["membrane integrity drop >= 20%"],
@@ -224,6 +236,9 @@ async def test_orchestrator_full_path_runs_agent_3_when_continue() -> None:
         reagent="Trehalose dihydrate",
         vendor="Sigma-Aldrich",
         sku="T9531",
+        qty=1.0,
+        qty_unit="g",
+        unit_cost_usd=0.5,
         tier=SourceTier.TIER_1_PEER_REVIEWED,
     ).model_copy(
         update={
@@ -236,6 +251,9 @@ async def test_orchestrator_full_path_runs_agent_3_when_continue() -> None:
         reagent="DMEM cell-culture medium",
         vendor="Thermo Fisher",
         sku="11965092",
+        qty=500.0,
+        qty_unit="mL",
+        unit_cost_usd=0.1,
         tier=SourceTier.TIER_1_PEER_REVIEWED,
     ).model_copy(
         update={
@@ -344,6 +362,9 @@ async def test_orchestrator_emits_one_log_line_per_agent_call(
         reagent="Trehalose dihydrate",
         vendor="Sigma-Aldrich",
         sku="T9531",
+        qty=1.0,
+        qty_unit="g",
+        unit_cost_usd=0.5,
         tier=SourceTier.TIER_1_PEER_REVIEWED,
     ).model_copy(
         update={
@@ -356,6 +377,9 @@ async def test_orchestrator_emits_one_log_line_per_agent_call(
         reagent="DMEM cell-culture medium",
         vendor="Thermo Fisher",
         sku="11965092",
+        qty=500.0,
+        qty_unit="mL",
+        unit_cost_usd=0.1,
         tier=SourceTier.TIER_1_PEER_REVIEWED,
     ).model_copy(
         update={
@@ -442,6 +466,9 @@ def _build_full_path_catalog_resolver() -> FakeCatalogResolver:
         reagent="Trehalose dihydrate",
         vendor="Sigma-Aldrich",
         sku="T9531",
+        qty=1.0,
+        qty_unit="g",
+        unit_cost_usd=0.5,
         tier=SourceTier.TIER_1_PEER_REVIEWED,
     ).model_copy(
         update={
@@ -454,6 +481,9 @@ def _build_full_path_catalog_resolver() -> FakeCatalogResolver:
         reagent="DMEM cell-culture medium",
         vendor="Thermo Fisher",
         sku="11965092",
+        qty=500.0,
+        qty_unit="mL",
+        unit_cost_usd=0.1,
         tier=SourceTier.TIER_1_PEER_REVIEWED,
     ).model_copy(
         update={

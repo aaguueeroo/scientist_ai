@@ -62,8 +62,16 @@ _GENERATE_PLAN_EXAMPLE: dict[str, Any] = {
                 "reagent": "D-(+)-Trehalose dihydrate",
                 "vendor": "Sigma-Aldrich",
                 "sku": "T9531",
+                "qty": 1.0,
+                "qty_unit": "g",
+                "unit_cost_usd": 12.5,
             }
         ],
+        "budget": {
+            "items": [{"label": "Trehalose and media (planning est.)", "cost_usd": 200.0}],
+            "total_usd": 200.0,
+            "currency": "USD",
+        },
     },
     "grounding_summary": {
         "verified_count": 4,

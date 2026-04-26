@@ -60,6 +60,8 @@ from app.clients.tavily_client import (
     TavilySearchResult,
 )
 from app.schemas.experiment_plan import (
+    Budget,
+    BudgetLineItem,
     ExperimentPlan,
     GroundingSummary,
     Material,
@@ -131,15 +133,25 @@ def _trehalose_plan(*, vendor: str) -> ExperimentPlan:
                 reagent="Trehalose dihydrate",
                 vendor=vendor,
                 sku="T9531",
+                qty=1.0,
+                qty_unit="g",
+                unit_cost_usd=0.5,
                 tier=SourceTier.TIER_1_PEER_REVIEWED,
             ),
             Material(
                 reagent="DMEM cell-culture medium",
                 vendor="Thermo Fisher",
                 sku="11965092",
+                qty=500.0,
+                qty_unit="mL",
+                unit_cost_usd=0.1,
                 tier=SourceTier.TIER_1_PEER_REVIEWED,
             ),
         ],
+        budget=Budget(
+            items=[BudgetLineItem(label="Reagents (est.)", cost_usd=200.0)],
+            total_usd=200.0,
+        ),
         validation=ValidationPlan(
             success_metrics=["viability >= 80%"],
             failure_metrics=["membrane integrity drop >= 20%"],

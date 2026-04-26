@@ -15,6 +15,8 @@ from fastapi import FastAPI
 from app.api.errors import GroundingFailedRefused, register_exception_handlers
 from app.schemas.errors import ErrorCode
 from app.schemas.experiment_plan import (
+    Budget,
+    BudgetLineItem,
     ExperimentPlan,
     GroundingSummary,
     Material,
@@ -48,11 +50,19 @@ def _verified(ref: Reference) -> CitationOutcome:
     )
 
 
+def _default_budget() -> Budget:
+    return Budget(
+        items=[BudgetLineItem(label="Placeholder budget line", cost_usd=1.0)],
+        total_usd=1.0,
+    )
+
+
 def _build_plan(
     *,
     references: list[Reference],
     materials: list[Material],
     protocol: list[ProtocolStep] | None = None,
+    budget: Budget | None = None,
 ) -> ExperimentPlan:
     return ExperimentPlan(
         plan_id="plan-grnd",
@@ -61,6 +71,7 @@ def _build_plan(
         references=references,
         protocol=protocol or [],
         materials=materials,
+        budget=budget or _default_budget(),
         validation=ValidationPlan(
             success_metrics=["viability >= 80% post-thaw"],
             failure_metrics=["membrane integrity drop >= 20%"],
@@ -81,6 +92,9 @@ async def test_grounding_pipeline_marks_verified_for_resolved_items() -> None:
         reagent="Trehalose dihydrate",
         vendor="Sigma-Aldrich",
         sku="T9531",
+        qty=1.0,
+        qty_unit="g",
+        unit_cost_usd=0.4,
         tier=SourceTier.TIER_1_PEER_REVIEWED,
     )
     plan = _build_plan(references=[nature_ref], materials=[trehalose])
@@ -158,12 +172,18 @@ async def test_grounding_pipeline_filters_or_flags_fabricated_sku() -> None:
         reagent="Trehalose dihydrate",
         vendor="Sigma-Aldrich",
         sku="T9531",
+        qty=1.0,
+        qty_unit="g",
+        unit_cost_usd=0.4,
         tier=SourceTier.TIER_1_PEER_REVIEWED,
     )
     fake_mat = Material(
         reagent="Made up reagent",
         vendor="Sigma-Aldrich",
         sku="SKU-FAKE-NEVER-EXISTED",
+        qty=1.0,
+        qty_unit="each",
+        unit_cost_usd=1.0,
         tier=SourceTier.TIER_1_PEER_REVIEWED,
     )
     plan = _build_plan(references=[], materials=[real_mat, fake_mat])
@@ -199,6 +219,11 @@ def _plan_with_materials(*, total: int) -> ExperimentPlan:
     materials = [
         Material(
             reagent=f"reagent-{i}",
+            vendor="Vendor",
+            sku=f"SKU{i}",
+            qty=1.0,
+            qty_unit="each",
+            unit_cost_usd=1.0,
             tier=SourceTier.TIER_1_PEER_REVIEWED,
         )
         for i in range(total)

@@ -37,6 +37,8 @@ from app.clients.openai_client import (
 from app.config.source_tiers import load_source_tiers
 from app.runtime.pipeline_state import PipelineState
 from app.schemas.experiment_plan import (
+    Budget,
+    BudgetLineItem,
     ExperimentPlan,
     GroundingSummary,
     Material,
@@ -130,12 +132,19 @@ def _plan_with_hostile_verified(state: PipelineState) -> ExperimentPlan:
                 reagent="Trehalose dihydrate",
                 vendor="Sigma-Aldrich",
                 sku="T9531",
+                qty=1.0,
+                qty_unit="g",
+                unit_cost_usd=0.5,
                 tier=SourceTier.TIER_1_PEER_REVIEWED,
                 verified=True,
                 verification_url="https://www.sigmaaldrich.com/US/en/product/sigma/T9531",
                 confidence="high",
             )
         ],
+        budget=Budget(
+            items=[BudgetLineItem(label="Hostile plan budget (est.)", cost_usd=100.0)],
+            total_usd=100.0,
+        ),
         validation=ValidationPlan(
             success_metrics=["viability >= 80%"],
             failure_metrics=["membrane integrity drop >= 20%"],
@@ -176,9 +185,16 @@ def _plan_clean(state: PipelineState, *, fabricated_doi: str | None = None) -> E
                 reagent="Trehalose dihydrate",
                 vendor="Sigma-Aldrich",
                 sku="T9531",
+                qty=1.0,
+                qty_unit="g",
+                unit_cost_usd=0.5,
                 tier=SourceTier.TIER_1_PEER_REVIEWED,
             )
         ],
+        budget=Budget(
+            items=[BudgetLineItem(label="Clean plan budget (est.)", cost_usd=100.0)],
+            total_usd=100.0,
+        ),
         validation=ValidationPlan(
             success_metrics=["viability >= 80%"],
             failure_metrics=["membrane integrity drop >= 20%"],

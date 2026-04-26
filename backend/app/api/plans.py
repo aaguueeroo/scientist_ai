@@ -6,9 +6,9 @@ pre-resolved decision: the closed `ErrorCode` enum is not extended).
 
 from __future__ import annotations
 
-from typing import Annotated
+from typing import Annotated, Any
 
-from fastapi import APIRouter, Depends, Path
+from fastapi import APIRouter, Depends, Path, Query
 
 from app.api.deps import get_plans_repo
 from app.api.errors import DomainError
@@ -24,6 +24,23 @@ class _PlanNotFound(DomainError):
 
 
 router = APIRouter(tags=["Plans"])
+
+
+@router.get(
+    "/plans",
+    summary="List saved experiment plans",
+    description=(
+        "Returns up to `limit` persisted plan rows (newest first), with identifiers, "
+        "query/hypothesis when present in the stored payload, and `literature_review_id` "
+        "when stored. Unlike `GET /conversations`, this includes every plan row, not only "
+        "rows that pass the sidebar filter."
+    ),
+)
+async def list_plans(
+    plans_repo: Annotated[PlansRepo, Depends(get_plans_repo)],
+    limit: Annotated[int, Query(ge=1, le=200, description="Max rows to return.")] = 100,
+) -> dict[str, Any]:
+    return {"plans": await plans_repo.list_plans(limit=limit)}
 
 
 @router.get(

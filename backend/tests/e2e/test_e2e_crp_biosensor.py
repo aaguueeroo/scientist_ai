@@ -23,6 +23,7 @@ from app.schemas.experiment_plan import ExperimentPlan
 from app.schemas.literature_qc import NoveltyLabel
 from tests.e2e.conftest import (
     HypothesisFixture,
+    baseline_budget,
     baseline_grounding,
     baseline_validation,
     make_material,
@@ -104,6 +105,7 @@ def _build_crp_plan() -> ExperimentPlan:
                 sku="34577",
             ),
         ],
+        budget=baseline_budget(label="CRP paper biosensor (planning est.)", total=900.0),
         validation=baseline_validation(),
         grounding_summary=baseline_grounding(),
     )
