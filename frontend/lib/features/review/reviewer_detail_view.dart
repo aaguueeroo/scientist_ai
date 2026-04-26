@@ -175,30 +175,37 @@ class _ReviewerDetailViewState extends State<ReviewerDetailView> {
   }
 
   void _scheduleScrollToFocus() {
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      if (!mounted) return;
-      _executeScrollToFocus();
-    });
+    void runAttempt(int index) {
+      WidgetsBinding.instance.addPostFrameCallback((_) {
+        if (!mounted) return;
+        final bool didScroll = _tryScrollToFocusOnce();
+        if (!didScroll && index < 10) {
+          runAttempt(index + 1);
+        }
+      });
+    }
+    runAttempt(0);
   }
 
-  void _executeScrollToFocus() {
+  /// Returns true if a target was found and [Scrollable.ensureVisible] ran.
+  bool _tryScrollToFocusOnce() {
     final Review review = widget.review;
-    GlobalKey? key;
-    if (review is CorrectionReview) {
-      key = _targetKeys[review.target];
-    } else if (review is CommentReview) {
-      key = _targetKeys[review.target];
-    } else if (review is FeedbackReview) {
-      key = _sectionKeys[review.section];
-    }
+    final GlobalKey? key = switch (review) {
+      CorrectionReview r => _targetKeys[r.target],
+      CommentReview r => _targetKeys[r.target],
+      FeedbackReview r => _sectionKeys[r.section],
+    };
     final BuildContext? targetContext = key?.currentContext;
-    if (targetContext == null) return;
+    if (targetContext == null) {
+      return false;
+    }
     Scrollable.ensureVisible(
       targetContext,
-      alignment: 0.3,
-      duration: const Duration(milliseconds: 350),
+      alignment: 0.5,
+      duration: const Duration(milliseconds: 400),
       curve: Curves.easeOut,
     );
+    return true;
   }
 
   @override

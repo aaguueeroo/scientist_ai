@@ -4,7 +4,7 @@ import '../../../core/app_constants.dart';
 import '../../../core/theme/theme_context.dart';
 import '../../plan/review/models/feedback_polarity.dart';
 import '../models/review.dart';
-import '../reviewer_screen.dart' show describeReview;
+import '../review_description.dart' show describeReview;
 
 /// One row in the Reviewer list pane. Displays a kind-specific icon, a
 /// short title, and the conversation query as subtitle.

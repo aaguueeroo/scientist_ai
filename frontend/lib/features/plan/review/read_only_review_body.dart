@@ -6,6 +6,7 @@ import '../../../models/experiment_plan.dart';
 import '../../../ui/app_section_header.dart';
 import '../../../ui/plan_source_badges.dart';
 import '../../review/widgets/focus_highlight_container.dart';
+import '../../review/widgets/focus_target_registry.dart';
 import '../experiment_plan_view.dart'
     show
         formatExperimentPlanTotalDuration,
@@ -41,7 +42,11 @@ class ReadOnlyReviewBody extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     final String hero = planHeroHeadline(plan);
+    // Reviewer needs every section built so [GlobalKey]s for scroll-to-target
+    // exist for off-surface items. Default sliver list layout defers them.
+    final bool isReviewer = FocusTargetRegistry.maybeOf(context) != null;
     return ListView(
+      cacheExtent: isReviewer ? double.infinity : null,
       padding: EdgeInsets.zero,
       children: <Widget>[
         Text(
