@@ -1,57 +1,243 @@
+import 'dart:async';
+import 'dart:convert';
+import 'dart:io';
+
+import '../dto/api_error_dto.dart';
 import 'scientist_backend_client.dart';
 
-// Real-network implementation against the backend.
-//
-// This is a stub today. Once the BE exists, the body of each method should:
-//
-// 1. POST `requestBody` (json-encoded) to `<baseUrl>/literature-review` or
-//    `<baseUrl>/experiment-plan`.
-// 2. For `streamLiteratureReview`, parse the `text/event-stream` response and
-//    yield one map per SSE event of the form
-//    `{ "event": <eventName>, "data": <decodedJson> }`.
-// 3. For `postExperimentPlan`, decode the JSON response body and return it.
-// 4. Translate transport-level failures (timeouts, non-2xx, parse errors) into
-//    `ScientistTransportException`.
+/// Real-network implementation against the FastAPI backend.
 class HttpScientistBackendClient implements ScientistBackendClient {
-  const HttpScientistBackendClient({required this.baseUrl});
+  HttpScientistBackendClient({required this.baseUrl});
 
   final Uri baseUrl;
+
+  Uri _resolve(String path) {
+    final String base = baseUrl.toString().replaceAll(RegExp(r'/+$'), '');
+    final String p = path.startsWith('/') ? path : '/$path';
+    return Uri.parse('$base$p');
+  }
 
   @override
   Stream<Map<String, dynamic>> streamLiteratureReview(
     Map<String, dynamic> requestBody,
-  ) {
-    throw UnimplementedError(
-      'HttpScientistBackendClient.streamLiteratureReview is not wired yet. '
-      'Implement once the backend exposes POST /literature-review (SSE).',
-    );
+  ) async* {
+    final HttpClient client = HttpClient();
+    try {
+      final HttpClientRequest request =
+          await client.postUrl(_resolve('literature-review'));
+      request.headers.set(
+        HttpHeaders.contentTypeHeader,
+        'application/json; charset=utf-8',
+      );
+      request.headers.set(HttpHeaders.acceptHeader, 'text/event-stream');
+      request.write(jsonEncode(requestBody));
+      final HttpClientResponse response = await request.close();
+      final String? headerRequestId =
+          response.headers.value('x-request-id') ??
+              response.headers.value('X-Request-ID');
+      if (response.statusCode != HttpStatus.ok) {
+        final String body =
+            await response.transform(utf8.decoder).join();
+        throw _transportFromHttp(
+          response.statusCode,
+          body,
+          headerRequestId: headerRequestId,
+        );
+      }
+      final Stream<String> lines = response
+          .transform(utf8.decoder)
+          .transform(const LineSplitter());
+      await for (final String line in lines) {
+        if (line.isEmpty) {
+          continue;
+        }
+        if (line.startsWith('data:')) {
+          final String payload = line.substring(5).trim();
+          if (payload.isEmpty) {
+            continue;
+          }
+          try {
+            final Object? decoded = jsonDecode(payload);
+            if (decoded is Map<String, dynamic>) {
+              yield decoded;
+            }
+          } on FormatException {
+            throw ScientistTransportException(
+              code: 'parse_error',
+              message: 'Malformed SSE payload from literature review.',
+              statusCode: response.statusCode,
+              requestId: headerRequestId,
+            );
+          }
+        }
+      }
+    } on ScientistTransportException {
+      rethrow;
+    } on SocketException catch (e) {
+      throw ScientistTransportException(
+        code: 'network_error',
+        message: e.message,
+      );
+    } finally {
+      client.close(force: true);
+    }
   }
 
   @override
   Future<Map<String, dynamic>> postExperimentPlan(
     Map<String, dynamic> requestBody,
-  ) {
-    throw UnimplementedError(
-      'HttpScientistBackendClient.postExperimentPlan is not wired yet. '
-      'Implement once the backend exposes POST /experiment-plan.',
-    );
+  ) async {
+    final HttpClient client = HttpClient();
+    try {
+      final HttpClientRequest request =
+          await client.postUrl(_resolve('experiment-plan'));
+      request.headers.set(
+        HttpHeaders.contentTypeHeader,
+        'application/json; charset=utf-8',
+      );
+      request.headers.set(HttpHeaders.acceptHeader, 'application/json');
+      request.write(jsonEncode(requestBody));
+      final HttpClientResponse response = await request.close();
+      final String body = await response.transform(utf8.decoder).join();
+      final String? headerRequestId =
+          response.headers.value('x-request-id') ??
+              response.headers.value('X-Request-ID');
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        try {
+          final Object? decoded = jsonDecode(body);
+          if (decoded is Map<String, dynamic>) {
+            return decoded;
+          }
+        } on FormatException {
+          throw ScientistTransportException(
+            code: 'parse_error',
+            message: 'Experiment plan response was not valid JSON.',
+            statusCode: response.statusCode,
+            requestId: headerRequestId,
+          );
+        }
+        throw ScientistTransportException(
+          code: 'parse_error',
+          message: 'Experiment plan response was not a JSON object.',
+          statusCode: response.statusCode,
+          requestId: headerRequestId,
+        );
+      }
+      throw _transportFromHttp(
+        response.statusCode,
+        body,
+        headerRequestId: headerRequestId,
+      );
+    } on ScientistTransportException {
+      rethrow;
+    } on SocketException catch (e) {
+      throw ScientistTransportException(
+        code: 'network_error',
+        message: e.message,
+      );
+    } finally {
+      client.close(force: true);
+    }
   }
 
   @override
   Future<Map<String, dynamic>> postReview(
     Map<String, dynamic> requestBody,
-  ) {
-    throw UnimplementedError(
-      'HttpScientistBackendClient.postReview is not wired yet. '
-      'Implement once the backend exposes POST /reviews.',
-    );
+  ) async {
+    final HttpClient client = HttpClient();
+    try {
+      final HttpClientRequest request = await client.postUrl(_resolve('reviews'));
+      request.headers.set(
+        HttpHeaders.contentTypeHeader,
+        'application/json; charset=utf-8',
+      );
+      request.write(jsonEncode(requestBody));
+      final HttpClientResponse response = await request.close();
+      final String body = await response.transform(utf8.decoder).join();
+      final String? headerRequestId =
+          response.headers.value('x-request-id') ??
+              response.headers.value('X-Request-ID');
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final Object? decoded = jsonDecode(body);
+        if (decoded is Map<String, dynamic>) {
+          return decoded;
+        }
+      }
+      throw _transportFromHttp(
+        response.statusCode,
+        body,
+        headerRequestId: headerRequestId,
+      );
+    } on ScientistTransportException {
+      rethrow;
+    } on SocketException catch (e) {
+      throw ScientistTransportException(
+        code: 'network_error',
+        message: e.message,
+      );
+    } finally {
+      client.close(force: true);
+    }
   }
 
   @override
-  Future<Map<String, dynamic>> fetchReviews() {
-    throw UnimplementedError(
-      'HttpScientistBackendClient.fetchReviews is not wired yet. '
-      'Implement once the backend exposes GET /reviews.',
+  Future<Map<String, dynamic>> fetchReviews() async {
+    final HttpClient client = HttpClient();
+    try {
+      final HttpClientRequest request =
+          await client.getUrl(_resolve('reviews'));
+      final HttpClientResponse response = await request.close();
+      final String body = await response.transform(utf8.decoder).join();
+      final String? headerRequestId =
+          response.headers.value('x-request-id') ??
+              response.headers.value('X-Request-ID');
+      if (response.statusCode >= 200 && response.statusCode < 300) {
+        final Object? decoded = jsonDecode(body);
+        if (decoded is Map<String, dynamic>) {
+          return decoded;
+        }
+      }
+      throw _transportFromHttp(
+        response.statusCode,
+        body,
+        headerRequestId: headerRequestId,
+      );
+    } on ScientistTransportException {
+      rethrow;
+    } on SocketException catch (e) {
+      throw ScientistTransportException(
+        code: 'network_error',
+        message: e.message,
+      );
+    } finally {
+      client.close(force: true);
+    }
+  }
+
+  ScientistTransportException _transportFromHttp(
+    int statusCode,
+    String body, {
+    String? headerRequestId,
+  }) {
+    try {
+      final Object? decoded = jsonDecode(body);
+      if (decoded is Map<String, dynamic>) {
+        final ApiErrorDto err = ApiErrorDto.fromJson(decoded);
+        return ScientistTransportException(
+          code: err.code,
+          message: err.message,
+          statusCode: statusCode,
+          requestId: err.requestId ?? headerRequestId,
+        );
+      }
+    } catch (_) {
+      // fall through
+    }
+    return ScientistTransportException(
+      code: 'http_$statusCode',
+      message: body.isNotEmpty ? body : 'Request failed ($statusCode).',
+      statusCode: statusCode,
+      requestId: headerRequestId,
     );
   }
 }

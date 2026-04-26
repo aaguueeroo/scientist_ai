@@ -51,6 +51,51 @@ class SourceScoreBadge extends StatelessWidget {
   }
 }
 
+/// Trust tier from the backend (e.g. tier_1_peer_reviewed).
+class SourceTierChip extends StatelessWidget {
+  const SourceTierChip({super.key, required this.tier});
+
+  final String tier;
+
+  static String labelForTier(String tier) {
+    final String t = tier.toLowerCase();
+    if (t.contains('tier_1')) {
+      return 'Peer-reviewed';
+    }
+    if (t.contains('tier_2')) {
+      return 'Preprint / gray lit';
+    }
+    if (t.contains('tier_3')) {
+      return 'General web';
+    }
+    return tier.replaceAll('_', ' ');
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Container(
+      padding: const EdgeInsets.symmetric(horizontal: 6, vertical: 3),
+      decoration: BoxDecoration(
+        color: AppColors.skeleton.withValues(alpha: 0.2),
+        borderRadius: BorderRadius.circular(4),
+        border: Border.all(
+          color: AppColors.skeleton.withValues(alpha: 0.4),
+          width: 0.75,
+        ),
+      ),
+      child: Text(
+        labelForTier(tier),
+        style: TextStyle(
+          fontSize: 10,
+          fontWeight: FontWeight.w600,
+          color: Theme.of(context).colorScheme.onSurfaceVariant,
+          letterSpacing: 0.2,
+        ),
+      ),
+    );
+  }
+}
+
 /// Pill badge indicating whether a source is officially verified.
 class SourceVerifiedBadge extends StatelessWidget {
   const SourceVerifiedBadge({super.key, required this.isVerified});

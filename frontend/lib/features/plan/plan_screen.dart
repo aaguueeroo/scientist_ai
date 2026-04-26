@@ -6,9 +6,11 @@ import '../../controllers/scientist_controller.dart';
 import '../../core/app_constants.dart';
 import '../../core/theme/theme_context.dart';
 import '../../models/experiment_plan.dart';
+import '../../models/literature_qc.dart';
 import 'experiment_plan_view.dart';
 import 'project/project_plan_screen.dart';
 import 'review/plan_review_scaffold.dart';
+import 'widgets/plan_qc_only_view.dart';
 import 'widgets/workspace_step_header.dart';
 
 class PlanScreen extends StatelessWidget {
@@ -45,6 +47,7 @@ class PlanScreen extends StatelessWidget {
                   isLoadingPlan: controller.isLoadingPlan,
                   experimentPlan: controller.experimentPlan,
                   planError: controller.planError,
+                  planFetchQc: controller.planFetchQc,
                 ),
                 onSelect: (int i) => navigateToWorkspaceStep(context, i),
               ),
@@ -53,7 +56,9 @@ class PlanScreen extends StatelessWidget {
                 child: _PlanBody(
                   isLoadingPlan: controller.isLoadingPlan,
                   planError: controller.planError,
+                  planErrorRequestId: controller.planErrorRequestId,
                   plan: controller.experimentPlan,
+                  planFetchQc: controller.planFetchQc,
                   currentQuery: controller.currentQuery,
                   conversationId: controller.currentConversationId,
                   onRetry: controller.loadExperimentPlan,
@@ -72,7 +77,9 @@ class _PlanBody extends StatelessWidget {
   const _PlanBody({
     required this.isLoadingPlan,
     required this.planError,
+    this.planErrorRequestId,
     required this.plan,
+    this.planFetchQc,
     required this.currentQuery,
     required this.conversationId,
     required this.onRetry,
@@ -81,7 +88,9 @@ class _PlanBody extends StatelessWidget {
 
   final bool isLoadingPlan;
   final String? planError;
+  final String? planErrorRequestId;
   final ExperimentPlan? plan;
+  final LiteratureQcResult? planFetchQc;
   final String? currentQuery;
   final String? conversationId;
   final VoidCallback onRetry;
@@ -95,6 +104,13 @@ class _PlanBody extends StatelessWidget {
     if (planError != null) {
       return ExperimentPlanErrorView(
         message: planError!,
+        onRetry: onRetry,
+        requestId: planErrorRequestId,
+      );
+    }
+    if (plan == null && planFetchQc != null) {
+      return PlanQcOnlyView(
+        qc: planFetchQc!,
         onRetry: onRetry,
       );
     }

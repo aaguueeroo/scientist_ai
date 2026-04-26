@@ -7,7 +7,13 @@ import '../../../../models/experiment_plan.dart';
 import '../../../../ui/app_surface.dart';
 import '../../../../ui/plan_source_badges.dart';
 import '../../../review/widgets/focus_highlight_container.dart';
-import '../../widgets/material_tile.dart' show MaterialTableHeader, PlanMaterialsDensity, planMaterialsDensityForWidth;
+import '../../widgets/material_tile.dart'
+    show
+        MaterialTableHeader,
+        PlanMaterialsDensity,
+        PlanMaterialsList,
+        planMaterialsDensityForWidth,
+        planMaterialsUseBackendLayout;
 import '../models/change_target.dart';
 import '../models/material_field.dart';
 import '../plan_review_controller.dart';
@@ -29,6 +35,9 @@ class ReviewMaterialsList extends StatelessWidget {
   Widget build(BuildContext context) {
     if (materials.isEmpty) {
       return const SizedBox.shrink();
+    }
+    if (planMaterialsUseBackendLayout(materials)) {
+      return PlanMaterialsList(materials: materials);
     }
     return LayoutBuilder(
       builder: (BuildContext context, BoxConstraints constraints) {

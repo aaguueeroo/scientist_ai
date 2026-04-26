@@ -1,11 +1,11 @@
 class ExperimentPlanRequestDto {
   const ExperimentPlanRequestDto({
     required this.query,
-    this.literatureReviewId,
+    required this.literatureReviewId,
   });
 
   final String query;
-  final String? literatureReviewId;
+  final String literatureReviewId;
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{

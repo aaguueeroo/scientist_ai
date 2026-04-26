@@ -3,6 +3,7 @@ import 'package:go_router/go_router.dart';
 
 import '../../../core/app_colors.dart';
 import '../../../models/experiment_plan.dart' show ExperimentPlan;
+import '../../../models/literature_qc.dart' show LiteratureQcResult;
 import '../../../core/app_constants.dart';
 import '../../../core/app_routes.dart';
 import '../../../core/theme/theme_context.dart';
@@ -42,11 +43,13 @@ List<bool> workspaceStepEnabled({
   required bool isLoadingPlan,
   required ExperimentPlan? experimentPlan,
   required String? planError,
+  LiteratureQcResult? planFetchQc,
 }) {
   final bool hasQuery = (currentQuery ?? '').trim().isNotEmpty;
   final bool canUsePlan = hasQuery &&
       (isLoadingPlan ||
           experimentPlan != null ||
+          planFetchQc != null ||
           (planError != null && planError.isNotEmpty));
   return <bool>[
     true,

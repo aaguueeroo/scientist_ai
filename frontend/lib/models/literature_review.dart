@@ -3,11 +3,15 @@ class LiteratureReview {
     required this.doesSimilarWorkExist,
     required this.sources,
     required this.totalSources,
+    this.isFinal = false,
+    this.literatureReviewId,
   });
 
   final bool doesSimilarWorkExist;
   final List<Source> sources;
   final int totalSources;
+  final bool isFinal;
+  final String? literatureReviewId;
 }
 
 class Source {
@@ -19,6 +23,8 @@ class Source {
     required this.doi,
     required this.score,
     required this.isVerified,
+    this.tier,
+    this.unverifiedSimilaritySuggestion = false,
   });
 
   final String author;
@@ -30,4 +36,6 @@ class Source {
   final double score;
   /// Whether this is an official, verified source.
   final bool isVerified;
+  final String? tier;
+  final bool unverifiedSimilaritySuggestion;
 }

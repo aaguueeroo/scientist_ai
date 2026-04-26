@@ -41,6 +41,7 @@ class MockScientistBackendClient implements ScientistBackendClient {
           'does_similar_work_exist': false,
           'expected_total_sources': 0,
           'sources': <Map<String, dynamic>>[],
+          'literature_review_id': 'mock_lit_empty_${query.hashCode}',
         },
       };
       return;
@@ -55,6 +56,7 @@ class MockScientistBackendClient implements ScientistBackendClient {
           'does_similar_work_exist': true,
           'expected_total_sources': kMockExpectedTotalSources,
           'sources': kMockSources.sublist(0, index),
+          if (isFinal) 'literature_review_id': 'mock_lit_${query.hashCode}',
         },
       };
     }

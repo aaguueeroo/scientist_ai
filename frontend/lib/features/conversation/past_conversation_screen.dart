@@ -53,6 +53,7 @@ class _PastConversationScreenState extends State<PastConversationScreen> {
                   isLoadingPlan: controller.isLoadingPlan,
                   experimentPlan: controller.experimentPlan,
                   planError: controller.planError,
+                  planFetchQc: controller.planFetchQc,
                 ),
                 onSelect: _goToStep,
               ),

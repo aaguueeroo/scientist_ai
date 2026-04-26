@@ -3,14 +3,9 @@
 ///
 /// Override for local dev:
 /// `flutter run -d chrome --dart-define=API_BASE_URL=http://127.0.0.1:8000`
-const String kApiBaseUrl = String.fromEnvironment(
-  'API_BASE_URL',
+const String kScientistApiBaseUrl = String.fromEnvironment(
+  'SCIENTIST_API_BASE_URL',
   defaultValue: 'http://localhost:8000',
 );
 
-/// If `true`, use the in-memory [MockScientistBackendClient] (offline). If
-/// `false` (default), use [HttpScientistBackendClient] against [kApiBaseUrl].
-const bool kUseMockBackend = bool.fromEnvironment(
-  'USE_MOCK_BACKEND',
-  defaultValue: false,
-);
+bool get kUseRealScientistApi => kScientistApiBaseUrl.trim().isNotEmpty;

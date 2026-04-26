@@ -10,7 +10,40 @@ import 'widgets/material_tile.dart';
 import 'widgets/plan_hero_metrics.dart';
 import 'widgets/plan_risks_section.dart';
 import 'widgets/plan_timeline.dart';
+import 'widgets/plan_validation_section.dart';
 import 'widgets/step_tile.dart';
+
+String planHeroHeadline(ExperimentPlan plan) {
+  final String h = plan.hypothesis.trim();
+  if (h.isNotEmpty) {
+    return h;
+  }
+  return plan.description;
+}
+
+bool planHasSummaryBesideHero(ExperimentPlan plan) {
+  final String hero = planHeroHeadline(plan);
+  return plan.description.trim().isNotEmpty &&
+      plan.description.trim() != hero.trim();
+}
+
+List<Step> timelineBarStepsForPlan(ExperimentPlan plan) {
+  if (plan.timelinePhases.isEmpty) {
+    return plan.timePlan.steps;
+  }
+  return <Step>[
+    for (int i = 0; i < plan.timelinePhases.length; i++)
+      Step(
+        id: 'timeline_phase_$i',
+        number: i + 1,
+        duration: Duration(days: plan.timelinePhases[i].durationDays),
+        name: plan.timelinePhases[i].phase,
+        description: plan.timelinePhases[i].dependsOn.isEmpty
+            ? ''
+            : 'Depends on: ${plan.timelinePhases[i].dependsOn.join(', ')}',
+      ),
+  ];
+}
 
 String formatExperimentPlanTotalDuration(Duration value) {
   final int days = value.inDays;
@@ -46,6 +79,7 @@ class ExperimentPlanView extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final String hero = planHeroHeadline(plan);
     return ListView(
       padding: EdgeInsets.zero,
       children: <Widget>[
@@ -60,6 +94,23 @@ class ExperimentPlanView extends StatelessWidget {
             style: context.scientist.bodySecondary,
           ),
         ],
+        const SizedBox(height: kSpace16),
+        Text(
+          hero,
+          style: Theme.of(context).textTheme.titleMedium,
+        ),
+        if (planHasSummaryBesideHero(plan)) ...<Widget>[
+          const SizedBox(height: kSpace8),
+          Text(
+            'Summary',
+            style: Theme.of(context).textTheme.labelLarge,
+          ),
+          const SizedBox(height: kSpace4),
+          Text(
+            plan.description,
+            style: context.scientist.bodySecondary,
+          ),
+        ],
         const SizedBox(height: kSpace24),
         PlanHeroMetrics(
           totalTimeLabel: formatExperimentPlanTotalDuration(
@@ -68,12 +119,17 @@ class ExperimentPlanView extends StatelessWidget {
           totalBudgetLabel: '\$${plan.budget.total.toStringAsFixed(2)}',
         ),
         const SizedBox(height: kSpace32),
-        PlanTimeline(steps: plan.timePlan.steps),
+        PlanTimeline(steps: timelineBarStepsForPlan(plan)),
         const SizedBox(height: kSpace16),
-        Text(
-          plan.description,
-          style: context.scientist.bodySecondary,
-        ),
+        if (!planHasSummaryBesideHero(plan) &&
+            plan.description.trim().isNotEmpty)
+          Text(
+            plan.description,
+            style: context.scientist.bodySecondary,
+          ),
+        if (!planHasSummaryBesideHero(plan) &&
+            plan.description.trim().isNotEmpty)
+          const SizedBox(height: kSpace16),
         const SizedBox(height: kSpace32),
         Row(
           crossAxisAlignment: CrossAxisAlignment.start,
@@ -100,6 +156,9 @@ class ExperimentPlanView extends StatelessWidget {
           ],
         ),
         const SizedBox(height: kSpace32),
+        if (plan.validation != null)
+          PlanValidationSection(validation: plan.validation!),
+        if (plan.validation != null) const SizedBox(height: kSpace32),
         PlanRisksSection(risks: plan.risks),
       ],
     );
@@ -215,10 +274,12 @@ class ExperimentPlanErrorView extends StatelessWidget {
     super.key,
     required this.message,
     required this.onRetry,
+    this.requestId,
   });
 
   final String message;
   final VoidCallback onRetry;
+  final String? requestId;
 
   @override
   Widget build(BuildContext context) {
@@ -240,6 +301,29 @@ class ExperimentPlanErrorView extends StatelessWidget {
                 ),
                 const SizedBox(height: kSpace12),
                 Text(message, style: Theme.of(context).textTheme.bodyMedium),
+                if (requestId != null && requestId!.isNotEmpty) ...<Widget>[
+                  const SizedBox(height: kSpace12),
+                  Theme(
+                    data: Theme.of(context).copyWith(
+                      dividerColor: Colors.transparent,
+                    ),
+                    child: ExpansionTile(
+                      tilePadding: EdgeInsets.zero,
+                      title: Text(
+                        'Reference ID',
+                        style: Theme.of(context).textTheme.labelMedium,
+                      ),
+                      children: <Widget>[
+                        SelectableText(
+                          requestId!,
+                          style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                                fontFamily: 'monospace',
+                              ),
+                        ),
+                      ],
+                    ),
+                  ),
+                ],
                 const SizedBox(height: kSpace16),
                 Align(
                   alignment: Alignment.centerLeft,

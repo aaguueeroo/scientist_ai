@@ -13,6 +13,7 @@ class LiteratureReviewEventDto {
     required this.doesSimilarWorkExist,
     required this.expectedTotalSources,
     required this.sources,
+    this.literatureReviewId,
     this.errorCode,
     this.errorMessage,
   });
@@ -31,6 +32,7 @@ class LiteratureReviewEventDto {
         doesSimilarWorkExist: false,
         expectedTotalSources: 0,
         sources: const <SourceDto>[],
+        literatureReviewId: null,
         errorCode: data['code'] as String?,
         errorMessage: data['message'] as String?,
       );
@@ -46,6 +48,7 @@ class LiteratureReviewEventDto {
       sources: rawSources
           .map((dynamic e) => SourceDto.fromJson(e as Map<String, dynamic>))
           .toList(),
+      literatureReviewId: data['literature_review_id'] as String?,
     );
   }
 
@@ -54,6 +57,7 @@ class LiteratureReviewEventDto {
   final bool doesSimilarWorkExist;
   final int expectedTotalSources;
   final List<SourceDto> sources;
+  final String? literatureReviewId;
   final String? errorCode;
   final String? errorMessage;
 
@@ -76,6 +80,8 @@ class LiteratureReviewEventDto {
         'does_similar_work_exist': doesSimilarWorkExist,
         'expected_total_sources': expectedTotalSources,
         'sources': sources.map((SourceDto s) => s.toJson()).toList(),
+        if (literatureReviewId != null)
+          'literature_review_id': literatureReviewId,
       },
     };
   }
