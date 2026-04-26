@@ -67,7 +67,7 @@ flutter:
   assets:
     - lib/assets/marie-query-home.png
     - lib/assets/marie-query-blackboard.png
-    - lib/assets/animations/plan_loading.lottie
+    - lib/assets/animations/Science.json
 
   # An image asset can refer to one or more resolution-specific "variants", see
   # https://flutter.dev/to/resolution-aware-images

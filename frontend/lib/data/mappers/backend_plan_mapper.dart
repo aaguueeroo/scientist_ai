@@ -165,6 +165,7 @@ class BackendPlanMapper {
           duration: Duration(days: days > 0 ? days : 1),
           name: p.technique,
           description: p.description,
+          dependsOn: const <String>[],
           milestone: milestone,
         ),
       );

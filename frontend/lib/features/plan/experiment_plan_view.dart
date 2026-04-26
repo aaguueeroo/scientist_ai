@@ -1,11 +1,11 @@
 import 'package:flutter/material.dart' hide Material, Step;
-import 'package:lottie/lottie.dart';
 
 import '../../core/app_constants.dart';
 import '../../core/theme/theme_context.dart';
 import '../../models/experiment_plan.dart';
 import '../../ui/app_section_header.dart';
 import '../../ui/app_surface.dart';
+import '../../ui/marie_loading_lottie.dart';
 import 'widgets/material_tile.dart';
 import 'widgets/plan_hero_metrics.dart';
 import 'widgets/plan_risks_section.dart';
@@ -38,6 +38,7 @@ List<Step> timelineBarStepsForPlan(ExperimentPlan plan) {
         number: i + 1,
         duration: Duration(days: plan.timelinePhases[i].durationDays),
         name: plan.timelinePhases[i].phase,
+        dependsOn: List<String>.from(plan.timelinePhases[i].dependsOn),
         description: plan.timelinePhases[i].dependsOn.isEmpty
             ? ''
             : 'Depends on: ${plan.timelinePhases[i].dependsOn.join(', ')}',
@@ -165,8 +166,6 @@ class ExperimentPlanView extends StatelessWidget {
   }
 }
 
-const String kPlanLoadingLottieAsset = 'lib/assets/animations/plan_loading.lottie';
-
 class ExperimentPlanLoadingView extends StatelessWidget {
   const ExperimentPlanLoadingView({super.key});
 
@@ -178,24 +177,7 @@ class ExperimentPlanLoadingView extends StatelessWidget {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: <Widget>[
-            SizedBox(
-              width: kLottiePlanLoadingSize,
-              height: kLottiePlanLoadingSize,
-              child: Lottie.asset(
-                kPlanLoadingLottieAsset,
-                fit: BoxFit.contain,
-                repeat: true,
-                errorBuilder: (
-                  BuildContext context,
-                  Object error,
-                  StackTrace? stackTrace,
-                ) {
-                  // ignore: avoid_print
-                  print('Experiment plan Lottie: $error');
-                  return const _PlanLoadingLottieFallback();
-                },
-              ),
-            ),
+            const MarieLoadingLottie(),
             const SizedBox(height: kSpace24),
             Text(
               'Drafting your experiment plan…',
@@ -203,23 +185,6 @@ class ExperimentPlanLoadingView extends StatelessWidget {
               textAlign: TextAlign.center,
             ),
           ],
-        ),
-      ),
-    );
-  }
-}
-
-class _PlanLoadingLottieFallback extends StatelessWidget {
-  const _PlanLoadingLottieFallback();
-
-  @override
-  Widget build(BuildContext context) {
-    return Center(
-      child: SizedBox(
-        width: kSpace32 * 2,
-        height: kSpace32 * 2,
-        child: CircularProgressIndicator(
-          color: Theme.of(context).colorScheme.primary,
         ),
       ),
     );

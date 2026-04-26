@@ -13,12 +13,15 @@ const double kSidebarMinWidth = 200;
 const double kSidebarMaxWidth = 400;
 const double kContentMaxWidth = 1200;
 const double kHomeMaxWidth = 720;
-const double kLottiePlanLoadingSize = 240;
 
 const double kPlanHeroMetricValueSize = 52;
 const double kPlanTimelineLineThickness = 2;
 const double kPlanTimelineNodeDiameter = 12;
 const double kPlanTimelineMilestoneSize = 20;
+const double kPlanTimelineDagLabelBandHeight = 40;
+const double kPlanTimelineDagLaneRowHeight = 44;
+const double kPlanTimelineDagSubLabelBandHeight = 32;
+const double kPlanTimelineDagMinNodeWidth = 56;
 /// Min width of the materials list for the full 5-column table.
 const double kPlanMaterialsLayoutFullMinWidth = 500;
 

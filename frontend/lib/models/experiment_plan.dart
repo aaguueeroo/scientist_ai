@@ -310,6 +310,7 @@ class Step {
     required this.duration,
     required this.name,
     required this.description,
+    this.dependsOn = const <String>[],
     this.milestone,
     this.sourceRefs = const <PlanSourceRef>[],
   });
@@ -321,6 +322,7 @@ class Step {
       duration: const Duration(days: 1),
       name: 'New step',
       description: '',
+      dependsOn: const <String>[],
     );
   }
 
@@ -329,6 +331,8 @@ class Step {
   final Duration duration;
   final String name;
   final String description;
+  /// Predecessor step names (e.g. timeline phase titles), matching backend `depends_on`.
+  final List<String> dependsOn;
   final String? milestone;
   final List<PlanSourceRef> sourceRefs;
 
@@ -340,6 +344,7 @@ class Step {
     Duration? duration,
     String? name,
     String? description,
+    List<String>? dependsOn,
     String? milestone,
     bool clearMilestone = false,
     List<PlanSourceRef>? sourceRefs,
@@ -350,6 +355,7 @@ class Step {
       duration: duration ?? this.duration,
       name: name ?? this.name,
       description: description ?? this.description,
+      dependsOn: dependsOn ?? this.dependsOn,
       milestone: clearMilestone ? null : (milestone ?? this.milestone),
       sourceRefs: sourceRefs ?? this.sourceRefs,
     );

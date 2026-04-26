@@ -153,6 +153,7 @@ class ExperimentPlanMapper {
       duration: Duration(seconds: dto.durationSeconds),
       name: dto.name,
       description: dto.description,
+      dependsOn: List<String>.from(dto.dependsOn),
       milestone: dto.milestone,
       sourceRefs: PlanSourceRefDto.listFromJson(dto.sourceRefs),
     );
@@ -165,6 +166,7 @@ class ExperimentPlanMapper {
       durationSeconds: step.duration.inSeconds,
       name: step.name,
       description: step.description,
+      dependsOn: step.dependsOn,
       milestone: step.milestone,
       sourceRefs: PlanSourceRefDto.listToJson(step.sourceRefs),
     );
