@@ -5,6 +5,8 @@ class SourceDto {
     required this.dateOfPublication,
     required this.abstractText,
     required this.doi,
+    this.score,
+    this.isVerified,
   });
 
   factory SourceDto.fromJson(Map<String, dynamic> json) {
@@ -14,6 +16,8 @@ class SourceDto {
       dateOfPublication: json['date_of_publication'] as String,
       abstractText: json['abstract'] as String,
       doi: json['doi'] as String,
+      score: (json['score'] as num?)?.toDouble(),
+      isVerified: json['is_verified'] as bool?,
     );
   }
 
@@ -23,6 +27,8 @@ class SourceDto {
   final String dateOfPublication;
   final String abstractText;
   final String doi;
+  final double? score;
+  final bool? isVerified;
 
   Map<String, dynamic> toJson() {
     return <String, dynamic>{
@@ -31,6 +37,8 @@ class SourceDto {
       'date_of_publication': dateOfPublication,
       'abstract': abstractText,
       'doi': doi,
+      'score': score,
+      'is_verified': isVerified,
     };
   }
 }

@@ -17,6 +17,8 @@ class Source {
     required this.dateOfPublication,
     required this.abstractText,
     required this.doi,
+    required this.score,
+    required this.isVerified,
   });
 
   final String author;
@@ -24,4 +26,8 @@ class Source {
   final DateTime dateOfPublication;
   final String abstractText;
   final String doi;
+  /// Trust level for this source, from 0.0 (lowest) to 1.0 (highest).
+  final double score;
+  /// Whether this is an official, verified source.
+  final bool isVerified;
 }

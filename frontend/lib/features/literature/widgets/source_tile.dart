@@ -4,6 +4,7 @@ import '../../../core/app_constants.dart';
 import '../../../core/theme/theme_context.dart';
 import '../../../models/literature_review.dart';
 import '../../../ui/app_surface.dart';
+import 'source_quality_badges.dart';
 
 class SourceTile extends StatelessWidget {
   const SourceTile({
@@ -81,6 +82,16 @@ class SourceTile extends StatelessWidget {
                 ),
               ],
             ),
+          ),
+          const SizedBox(width: kSpace12),
+          Column(
+            crossAxisAlignment: CrossAxisAlignment.end,
+            mainAxisSize: MainAxisSize.min,
+            children: <Widget>[
+              SourceVerifiedBadge(isVerified: source.isVerified),
+              const SizedBox(height: kSpace8),
+              SourceScoreBadge(score: source.score),
+            ],
           ),
         ],
       ),

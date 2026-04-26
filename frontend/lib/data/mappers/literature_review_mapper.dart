@@ -20,6 +20,8 @@ class LiteratureReviewMapper {
       dateOfPublication: DateTime.parse(dto.dateOfPublication),
       abstractText: dto.abstractText,
       doi: dto.doi,
+      score: (dto.score ?? 0.0).clamp(0.0, 1.0),
+      isVerified: dto.isVerified ?? false,
     );
   }
 }
