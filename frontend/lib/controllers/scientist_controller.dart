@@ -32,6 +32,14 @@ class ScientistController extends ChangeNotifier {
   final Map<String, String> _litReviewIdByQueryKey = <String, String>{};
   bool _loadedPastConversations = false;
 
+  /// Invalidates in-flight plan loads when the user switches conversation or
+  /// starts a new plan request so stale [Future]s cannot apply the wrong plan.
+  int _planWorkGeneration = 0;
+
+  void _bumpPlanWorkGeneration() {
+    _planWorkGeneration++;
+  }
+
   String? currentQuery;
   String? currentConversationId;
   LiteratureReview? literatureReview;
@@ -58,6 +66,7 @@ class ScientistController extends ChangeNotifier {
     if (normalizedQuery.isEmpty) {
       return;
     }
+    _bumpPlanWorkGeneration();
     currentQuery = normalizedQuery;
     currentConversationId = generateLocalId('conv');
     if (!pastConversations.contains(normalizedQuery)) {
@@ -172,6 +181,8 @@ class ScientistController extends ChangeNotifier {
     }
     await _literatureSubscription?.cancel();
     _literatureSubscription = null;
+    _bumpPlanWorkGeneration();
+    final int workId = _planWorkGeneration;
     currentQuery = normalizedTitle;
     currentConversationId = _conversationIdByPastQuery.putIfAbsent(
       normalizedTitle,
@@ -185,15 +196,28 @@ class ScientistController extends ChangeNotifier {
     literatureErrorRequestId = null;
     planError = null;
     planErrorRequestId = null;
+    isLoadingPlan = false;
+    experimentPlan = null;
+    planFetchQc = null;
+    planId = null;
+    lastPlanRequestId = null;
+    usedPriorFeedback = false;
+    planGroundingCaveat = null;
     notifyListeners();
 
     final String qk = conversationQueryKey(normalizedTitle);
     var planIdForLoad = _planIdByQueryKey[qk];
     if (planIdForLoad == null || planIdForLoad.isEmpty) {
       await loadPastConversationsList(force: true);
+      if (workId != _planWorkGeneration) {
+        return;
+      }
       planIdForLoad = _planIdByQueryKey[qk];
     }
     if (planIdForLoad == null || planIdForLoad.isEmpty) {
+      if (workId != _planWorkGeneration) {
+        return;
+      }
       literatureError =
           'No saved plan found for this question yet. Run a new search to create one.';
       experimentPlan = null;
@@ -213,8 +237,14 @@ class ScientistController extends ChangeNotifier {
     try {
       final GeneratePlanResult r =
           await _repository.fetchSavedPlanById(planIdForLoad);
+      if (workId != _planWorkGeneration) {
+        return;
+      }
       _applyRestoredPlan(r, queryKey: qk, resolvedPlanId: planIdForLoad);
     } catch (err) {
+      if (workId != _planWorkGeneration) {
+        return;
+      }
       debugPrint('Restore saved plan error: $err');
       planError = 'Could not load the saved plan. Please retry.';
       planErrorRequestId = err is ScientistApiException ? err.requestId : null;
@@ -227,8 +257,10 @@ class ScientistController extends ChangeNotifier {
       literatureReview = null;
       literatureReviewId = null;
     } finally {
-      isLoadingPlan = false;
-      notifyListeners();
+      if (workId == _planWorkGeneration) {
+        isLoadingPlan = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -258,6 +290,8 @@ class ScientistController extends ChangeNotifier {
     if (query == null || query.isEmpty || litId == null || litId.isEmpty) {
       return;
     }
+    _bumpPlanWorkGeneration();
+    final int workId = _planWorkGeneration;
     isLoadingPlan = true;
     planError = null;
     planErrorRequestId = null;
@@ -265,6 +299,12 @@ class ScientistController extends ChangeNotifier {
     try {
       final GeneratePlanResult result =
           await _repository.fetchGeneratePlan(query, litId);
+      if (workId != _planWorkGeneration) {
+        return;
+      }
+      if (currentQuery != query || literatureReviewId != litId) {
+        return;
+      }
       experimentPlan = result.plan;
       planFetchQc = result.qc;
       planId = result.planId;
@@ -280,6 +320,12 @@ class ScientistController extends ChangeNotifier {
         _litReviewIdByQueryKey[k] = litId;
       }
     } catch (err) {
+      if (workId != _planWorkGeneration) {
+        return;
+      }
+      if (currentQuery != query || literatureReviewId != litId) {
+        return;
+      }
       debugPrint('Experiment plan error: $err');
       planError = 'Marie couldn\'t generate the experiment plan. Please retry.';
       planErrorRequestId =
@@ -291,8 +337,10 @@ class ScientistController extends ChangeNotifier {
       usedPriorFeedback = false;
       planGroundingCaveat = null;
     } finally {
-      isLoadingPlan = false;
-      notifyListeners();
+      if (workId == _planWorkGeneration) {
+        isLoadingPlan = false;
+        notifyListeners();
+      }
     }
   }
 
@@ -360,6 +408,7 @@ class ScientistController extends ChangeNotifier {
     final bool wasCurrent =
         currentQuery != null && conversationQueryKey(currentQuery!) == qk;
     if (wasCurrent) {
+      _bumpPlanWorkGeneration();
       await _literatureSubscription?.cancel();
       _literatureSubscription = null;
       currentQuery = null;
@@ -383,6 +432,7 @@ class ScientistController extends ChangeNotifier {
   }
 
   void reset() {
+    _bumpPlanWorkGeneration();
     currentQuery = null;
     currentConversationId = null;
     literatureReview = null;

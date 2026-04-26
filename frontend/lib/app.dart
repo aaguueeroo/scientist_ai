@@ -11,9 +11,9 @@ import 'controllers/role_controller.dart';
 import 'controllers/scientist_controller.dart';
 import 'core/api_config.dart';
 import 'core/app_router.dart';
-import 'core/app_routes.dart';
 import 'core/app_theme.dart';
 import 'core/desktop_platform.dart';
+import 'features/settings/user_api_keys_manage_panel.dart';
 import 'features/settings/user_api_keys_setup_host.dart';
 import 'data/clients/http_scientist_backend_client.dart';
 import 'data/clients/mock_scientist_backend_client.dart';
@@ -111,7 +111,7 @@ class _ScientistAppState extends State<ScientistApp> {
                           final BuildContext? nav =
                               appRootNavigatorKey.currentContext;
                           if (nav != null && nav.mounted) {
-                            GoRouter.of(nav).go(kRouteOpenAiApiKeys);
+                            showManageUserApiKeysDialog(nav);
                           }
                         },
                       ),
