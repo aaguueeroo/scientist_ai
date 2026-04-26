@@ -14,6 +14,7 @@ class PlanReferenceDto {
     this.dateOfPublication,
     this.abstractText,
     this.score,
+    this.tavilyScore,
     this.unverifiedSimilaritySuggestion,
   });
 
@@ -33,6 +34,7 @@ class PlanReferenceDto {
       dateOfPublication: json['date_of_publication'] as String?,
       abstractText: json['abstract'] as String?,
       score: (json['score'] as num?)?.toDouble(),
+      tavilyScore: (json['tavily_score'] as num?)?.toDouble(),
       unverifiedSimilaritySuggestion:
           json['unverified_similarity_suggestion'] as bool?,
     );
@@ -51,5 +53,7 @@ class PlanReferenceDto {
   final String? dateOfPublication;
   final String? abstractText;
   final double? score;
+  /// Tavily relevance in ``[0,1]`` from ``POST /literature-review`` / ``qc`` references.
+  final double? tavilyScore;
   final bool? unverifiedSimilaritySuggestion;
 }

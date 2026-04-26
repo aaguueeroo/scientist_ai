@@ -18,6 +18,7 @@ class Source {
   const Source({
     required this.author,
     required this.title,
+    this.url,
     required this.dateOfPublication,
     required this.abstractText,
     required this.doi,
@@ -29,6 +30,8 @@ class Source {
 
   final String author;
   final String title;
+  /// Article or landing page URL (Tavily / resolver); used for hyperlinks.
+  final String? url;
   final DateTime dateOfPublication;
   final String abstractText;
   final String doi;

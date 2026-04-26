@@ -75,7 +75,8 @@ _LITERATURE_SSE_OPENAPI_EXAMPLE = (
     '"is_final":true,"does_similar_work_exist":true,'
     '"expected_total_sources":1,'
     '"sources":[{"author":"Verified source (tier-assigned)",'
-    '"title":"…","date_of_publication":"1970-01-01","abstract":"…",'
+    '"title":"…","url":"https://www.example.com/article",'
+    '"date_of_publication":"1970-01-01","abstract":"…",'
     '"doi":"10.0000/…","verified":true,'
     '"unverified_similarity_suggestion":false,'
     '"tier":"tier_1_peer_reviewed"}],'
@@ -95,6 +96,7 @@ _LITERATURE_SSE_OPENAPI_EXAMPLE_SIMILARITY_ONLY: str = "data: " + json.dumps(
                 {
                     "author": "Unverified (similarity suggestion)",
                     "title": "Possibly related paper",
+                    "url": "https://example.com/possible-match",
                     "date_of_publication": "1970-01-01",
                     "abstract": (
                         "[Unverified — similar content only, not HTTP-verified] …"
@@ -129,6 +131,7 @@ def _reference_to_fe_source(ref: Reference) -> dict[str, Any]:
             else "Verified source (tier-assigned)"
         ),
         "title": ref.title,
+        "url": str(ref.url),
         "date_of_publication": "1970-01-01",
         "abstract": body,
         "doi": doi,

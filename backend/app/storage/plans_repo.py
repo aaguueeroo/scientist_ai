@@ -10,6 +10,8 @@ raises `SchemaVersionMismatch` (new saves stamp `PLAN_SCHEMA_VERSION`).
 
 from __future__ import annotations
 
+import secrets
+import string
 from dataclasses import dataclass
 from datetime import UTC, datetime
 from typing import Any
@@ -23,6 +25,11 @@ from app.storage.models import PLAN_SCHEMA_VERSION, PlanRow
 # Read path accepts any stamp we still deserialize with `GeneratePlanResponse`
 # (v1 and v2 share the same Pydantic shape today; only the column value differs).
 _READABLE_PLAN_SCHEMA_VERSIONS: frozenset[int] = frozenset({1, 2})
+
+# Storage primary key: alphanumeric only (no chat titles / human-readable slugs).
+_PLAN_ID_CHARS = string.ascii_letters + string.digits
+_PLAN_ID_LEN = 24
+_MAX_PLAN_ID_ALLOC_ATTEMPTS = 64
 
 
 class SchemaVersionMismatch(RuntimeError):
@@ -44,6 +51,18 @@ class PlansRepo:
     """Read/write `PlanRow` rows."""
 
     session_factory: async_sessionmaker[AsyncSession]
+
+    async def allocate_unique_plan_id(self) -> str:
+        """Return a new primary-key string not yet present in ``plans``."""
+        for _ in range(_MAX_PLAN_ID_ALLOC_ATTEMPTS):
+            candidate = "".join(
+                secrets.choice(_PLAN_ID_CHARS) for _ in range(_PLAN_ID_LEN)
+            )
+            if await self.get_row_by_id(candidate) is None:
+                return candidate
+        raise RuntimeError(
+            f"exhausted {_MAX_PLAN_ID_ALLOC_ATTEMPTS} attempts allocating a unique plan_id"
+        )
 
     async def save(
         self,

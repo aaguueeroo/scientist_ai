@@ -26,6 +26,7 @@ class QcReference {
     this.verificationUrl,
     this.confidence,
     this.isSimilaritySuggestion = false,
+    this.tavilyScore,
   });
 
   final String title;
@@ -37,6 +38,8 @@ class QcReference {
   final String? verificationUrl;
   final String? confidence;
   final bool isSimilaritySuggestion;
+  /// Tavily relevance in ``[0,1]`` when present on the server reference.
+  final double? tavilyScore;
 }
 
 class GroundingSummary {

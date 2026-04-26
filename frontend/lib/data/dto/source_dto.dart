@@ -2,6 +2,7 @@ class SourceDto {
   const SourceDto({
     required this.author,
     required this.title,
+    this.url,
     required this.dateOfPublication,
     required this.abstractText,
     required this.doi,
@@ -15,13 +16,16 @@ class SourceDto {
   factory SourceDto.fromJson(Map<String, dynamic> json) {
     final bool? legacyVerified = json['is_verified'] as bool?;
     final bool? beVerified = json['verified'] as bool?;
+    final double? tavily = (json['tavily_score'] as num?)?.toDouble();
+    final double? legacyScore = (json['score'] as num?)?.toDouble();
     return SourceDto(
       author: json['author'] as String? ?? '',
       title: json['title'] as String? ?? '',
+      url: json['url'] as String?,
       dateOfPublication: json['date_of_publication'] as String? ?? '1970-01-01',
       abstractText: json['abstract'] as String? ?? '',
       doi: json['doi'] as String? ?? '',
-      score: (json['score'] as num?)?.toDouble(),
+      score: tavily ?? legacyScore,
       isVerified: legacyVerified,
       verified: beVerified,
       tier: json['tier'] as String?,
@@ -32,6 +36,7 @@ class SourceDto {
 
   final String author;
   final String title;
+  final String? url;
   // ISO 8601 date (YYYY-MM-DD).
   final String dateOfPublication;
   final String abstractText;
@@ -48,9 +53,11 @@ class SourceDto {
     return <String, dynamic>{
       'author': author,
       'title': title,
+      if (url != null) 'url': url,
       'date_of_publication': dateOfPublication,
       'abstract': abstractText,
       'doi': doi,
+      'tavily_score': score,
       'score': score,
       'is_verified': isVerified,
       'verified': verified,

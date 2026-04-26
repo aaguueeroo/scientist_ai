@@ -10,6 +10,7 @@ from __future__ import annotations
 
 import json
 import logging
+import re
 from collections.abc import AsyncIterator
 from typing import Any
 
@@ -485,7 +486,8 @@ async def test_experiment_plan_full_path_returns_plan_with_grounded_references(
         body = await post_literature_then_experiment_plan(client, query=SAMPLE_HYPOTHESIS)
 
     assert body["plan"] is not None
-    assert body["plan_id"] == "plan-route-001"
+    assert re.fullmatch(r"[A-Za-z0-9]{24}", body["plan_id"])
+    assert body["plan_id"] == body["plan"]["plan_id"]
     assert body["qc"]["novelty"] == NoveltyLabel.SIMILAR_WORK_EXISTS.value
     assert body["plan"]["references"][0]["verified"] is True
     assert all(m["verified"] is True for m in body["plan"]["materials"])

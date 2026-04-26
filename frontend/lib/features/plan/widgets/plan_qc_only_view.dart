@@ -6,6 +6,7 @@ import '../../../core/app_routes.dart';
 import '../../../core/theme/theme_context.dart';
 import '../../../models/literature_qc.dart';
 import '../../../ui/app_surface.dart';
+import '../../literature/widgets/reference_link.dart';
 
 /// Shown when experiment-plan returns QC but no structured plan body.
 class PlanQcOnlyView extends StatelessWidget {
@@ -70,8 +71,9 @@ class PlanQcOnlyView extends StatelessWidget {
                   style: textTheme.titleSmall,
                 ),
                 const SizedBox(height: kSpace8),
-                Text(
-                  qc.similaritySuggestion!.title,
+                ReferenceTitleLink(
+                  title: qc.similaritySuggestion!.title,
+                  pageUrl: qc.similaritySuggestion!.url,
                   style: textTheme.bodyMedium,
                 ),
                 if ((qc.similaritySuggestion!.whyRelevant ?? '')
@@ -98,7 +100,11 @@ class PlanQcOnlyView extends StatelessWidget {
                 child: Column(
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: <Widget>[
-                    Text(r.title, style: textTheme.bodyMedium),
+                    ReferenceTitleLink(
+                      title: r.title,
+                      pageUrl: r.url,
+                      style: textTheme.bodyMedium,
+                    ),
                     if ((r.whyRelevant ?? '').isNotEmpty)
                       Text(
                         r.whyRelevant!,

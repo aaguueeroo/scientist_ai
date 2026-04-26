@@ -128,6 +128,14 @@ async def post_experiment_plan(
         request_id=ctx.request_id,
         precached_literature_qc=precached,
     )
+    if response.plan is not None:
+        server_plan_id = await plans_repo.allocate_unique_plan_id()
+        response = response.model_copy(
+            update={
+                "plan_id": server_plan_id,
+                "plan": response.plan.model_copy(update={"plan_id": server_plan_id}),
+            }
+        )
     _log.debug(
         "app.experiment_plan.output",
         request_id=ctx.request_id,
