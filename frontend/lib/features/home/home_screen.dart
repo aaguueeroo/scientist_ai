@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../controllers/scientist_controller.dart';
@@ -133,10 +134,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 if (!context.mounted) {
                                   return;
                                 }
-                                Navigator.pushNamed(
-                                  context,
-                                  kRouteLiterature,
-                                );
+                                context.go(kRouteLiterature);
                               },
                         icon: const Icon(Icons.arrow_forward, size: 16),
                         label: const Text('Submit'),
