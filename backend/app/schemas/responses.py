@@ -70,6 +70,7 @@ _GENERATE_PLAN_EXAMPLE: dict[str, Any] = {
         "unverified_count": 1,
         "tier_0_drops": 0,
     },
+    "used_prior_feedback": False,
     "prompt_versions": {
         "literature_qc.md": "8f3c2a1b9d0e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0",
         "feedback_relevance.md": "1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a0b1c2d3e4f5a6b7c8d9e0f1a2",
@@ -97,4 +98,6 @@ class GeneratePlanResponse(BaseModel):
     qc: Any
     plan: Any | None = None
     grounding_summary: Any
+    used_prior_feedback: bool = False
+    """True when at least one past few-shot correction was retrieved and passed to the planner."""
     prompt_versions: dict[str, str] = Field(default_factory=dict)

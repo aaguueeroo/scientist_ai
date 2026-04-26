@@ -10,6 +10,7 @@ class GeneratePlanResult {
     this.plan,
     this.groundingSummary,
     this.promptVersions,
+    this.usedPriorFeedback = false,
   });
 
   final String? planId;
@@ -18,4 +19,7 @@ class GeneratePlanResult {
   final ExperimentPlan? plan;
   final GroundingSummary? groundingSummary;
   final Map<String, String>? promptVersions;
+
+  /// True when the agent incorporated prior user corrections (few-shots).
+  final bool usedPriorFeedback;
 }

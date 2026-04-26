@@ -10,10 +10,9 @@ typed shapes only.
 from __future__ import annotations
 
 from enum import StrEnum
+from typing import Any, Literal, cast
 
-from typing import Any, cast
-
-from pydantic import BaseModel, ConfigDict, Field
+from pydantic import BaseModel, ConfigDict, Field, model_validator
 
 
 class DomainTag(StrEnum):
@@ -35,6 +34,9 @@ _FEEDBACK_REQUEST_EXAMPLE: dict[str, str] = {
     "reason": "Per supplier datasheet and in-house SOP; previous vendor was placeholder.",
 }
 
+FEW_SHOT_PLAN_REVIEW_FIELD_MARKER = "__plan_review__"
+"""Value stored in `FeedbackRow.corrected_field` for plan-review rows (not few-shots)."""
+
 _FEEDBACK_RESPONSE_EXAMPLE: dict[str, str | bool] = {
     "feedback_id": "fb-6d7c8b9a0e1f2d3c4b5a68790fedcba1",
     "request_id": "0f1e2d3c4b5a69788796a5b4c3d2e1f0",
@@ -44,7 +46,7 @@ _FEEDBACK_RESPONSE_EXAMPLE: dict[str, str | bool] = {
 
 
 class FeedbackRequest(BaseModel):
-    """Input DTO for `POST /feedback`."""
+    """Legacy few-shot DTO: field correction for Agent 2 retrieval (unchanged)."""
 
     model_config = ConfigDict(
         extra="forbid",
@@ -59,6 +61,59 @@ class FeedbackRequest(BaseModel):
     reason: str = Field(max_length=2000)
 
 
+class PlanReviewEventIn(BaseModel):
+    """Mobile `Review` body (correction, comment, or section feedback) for `POST /feedback`."""
+
+    model_config = ConfigDict(extra="forbid")
+
+    plan_id: str | None = Field(
+        default=None,
+        max_length=80,
+        description="Ties the review to a persisted plan row. Inferred from `original_plan` if omitted.",
+    )
+    id: str = Field(min_length=1, max_length=200)
+    created_at: str = Field(min_length=1, max_length=64)
+    conversation_id: str = Field(max_length=4000)
+    query: str = Field(max_length=4000)
+    original_plan: dict[str, Any]
+    kind: Literal["correction", "comment", "feedback"]
+    payload: dict[str, Any]
+
+    @model_validator(mode="after")
+    def fill_plan_id(self) -> PlanReviewEventIn:
+        if self.plan_id is not None and self.plan_id.strip():
+            return self.model_copy(update={"plan_id": self.plan_id.strip()})
+        op = self.original_plan
+        pid: str | None = None
+        if isinstance(op, dict):
+            raw = op.get("plan_id")
+            if isinstance(raw, str) and raw.strip():
+                pid = raw.strip()
+        if pid is not None:
+            return self.model_copy(update={"plan_id": pid})
+        return self.model_copy(update={"plan_id": "unscoped"})
+
+
+def looks_like_plan_review_envelope(data: object) -> bool:
+    if not isinstance(data, dict):
+        return False
+    return (
+        data.get("kind") in ("correction", "comment", "feedback")
+        and "original_plan" in data
+    )
+
+
+def parse_post_feedback_json(data: Any) -> FeedbackRequest | PlanReviewEventIn:
+    """Discriminate legacy few-shot vs plan-review (A1) on the same `POST /feedback` path."""
+
+    if not isinstance(data, dict):
+        msg = "JSON body must be an object"
+        raise ValueError(msg)
+    if looks_like_plan_review_envelope(data):
+        return PlanReviewEventIn.model_validate(data)
+    return FeedbackRequest.model_validate(data)
+
+
 class FeedbackResponse(BaseModel):
     """Output DTO for `POST /feedback`."""
 
@@ -70,7 +125,10 @@ class FeedbackResponse(BaseModel):
     feedback_id: str
     request_id: str
     accepted: bool
-    domain_tag: DomainTag
+    domain_tag: DomainTag | None = None
+    """Set for legacy few-shot; omitted / null for plan-review events."""
+    review: dict[str, Any] | None = None
+    """Echo of the stored plan review (wire `Review`); null for legacy few-shot."""
 
 
 class FeedbackRecord(BaseModel):

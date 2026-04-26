@@ -364,6 +364,9 @@ async def test_feedback_loop_correction_visibly_influences_next_plan(
             ),
         )
     assert body["plan"] is not None, "Continue branch must produce a plan."
+    assert body.get("used_prior_feedback") is True, (
+        "Response should flag when few-shot feedback was passed to the planner"
+    )
 
     materials = body["plan"]["materials"]
     vendors: list[str] = [m["vendor"] for m in materials]

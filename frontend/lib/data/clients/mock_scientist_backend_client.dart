@@ -85,14 +85,22 @@ class MockScientistBackendClient implements ScientistBackendClient {
   }
 
   @override
-  Future<Map<String, dynamic>> postReview(
+  Future<Map<String, dynamic>> postFeedback(
     Map<String, dynamic> requestBody,
   ) async {
     await Future<void>.delayed(_kReviewLatency);
-    final Map<String, dynamic> stored =
-        Map<String, dynamic>.from(requestBody);
-    _reviews.insert(0, stored);
-    return stored;
+    final String feedbackId =
+        'fb-mock-${DateTime.now().microsecondsSinceEpoch}';
+    final Map<String, dynamic> echo = Map<String, dynamic>.from(requestBody);
+    echo['id'] = feedbackId;
+    _reviews.insert(0, Map<String, dynamic>.from(echo));
+    return <String, dynamic>{
+      'feedback_id': feedbackId,
+      'request_id': 'req_mock',
+      'accepted': true,
+      'domain_tag': null,
+      'review': echo,
+    };
   }
 
   @override

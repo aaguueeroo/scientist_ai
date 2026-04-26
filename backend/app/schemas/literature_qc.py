@@ -53,6 +53,15 @@ class Reference(OpenAIStructuredModel):
             "suggestion), not passed through the HTTP citation resolver as verified."
         ),
     )
+    tavily_score: float | None = Field(
+        default=None,
+        ge=0.0,
+        le=1.0,
+        description=(
+            "Tavily search relevance score for this work, when the URL was returned "
+            "in a Tavily result (typically max score across queries for this URL/work)."
+        ),
+    )
 
 
 class LiteratureQCResult(OpenAIStructuredModel):

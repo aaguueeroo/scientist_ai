@@ -47,6 +47,9 @@ class ScientistController extends ChangeNotifier {
   String? planError;
   String? planErrorRequestId;
 
+  /// Shown in the plan UI when the backend used prior few-shot corrections.
+  bool usedPriorFeedback = false;
+
   Future<void> submitQuestion(String query) async {
     final String normalizedQuery = query.trim();
     if (normalizedQuery.isEmpty) {
@@ -65,6 +68,7 @@ class ScientistController extends ChangeNotifier {
     planErrorRequestId = null;
     literatureReviewId = null;
     isLoadingPlan = false;
+    usedPriorFeedback = false;
     unawaited(loadLiteratureReview());
   }
 
@@ -192,6 +196,7 @@ class ScientistController extends ChangeNotifier {
       planFetchQc = null;
       planId = null;
       lastPlanRequestId = null;
+      usedPriorFeedback = false;
       literatureReview = null;
       literatureReviewId = _litReviewIdByQueryKey[qk];
       notifyListeners();
@@ -212,6 +217,7 @@ class ScientistController extends ChangeNotifier {
       planFetchQc = null;
       planId = null;
       lastPlanRequestId = null;
+      usedPriorFeedback = false;
       literatureReview = null;
       literatureReviewId = null;
     } finally {
@@ -229,6 +235,7 @@ class ScientistController extends ChangeNotifier {
     planFetchQc = r.qc;
     planId = (r.planId != null && r.planId!.isNotEmpty) ? r.planId : resolvedPlanId;
     lastPlanRequestId = r.requestId.isNotEmpty ? r.requestId : null;
+    usedPriorFeedback = r.usedPriorFeedback;
     planError = null;
     literatureReviewId = _litReviewIdByQueryKey[queryKey];
     literatureReview = LiteratureReviewFromQc.fromQc(
@@ -255,6 +262,7 @@ class ScientistController extends ChangeNotifier {
       planFetchQc = result.qc;
       planId = result.planId;
       lastPlanRequestId = result.requestId.isNotEmpty ? result.requestId : null;
+      usedPriorFeedback = result.usedPriorFeedback;
       final String k = conversationQueryKey(query);
       final String? outPid = result.planId;
       if (outPid != null && outPid.isNotEmpty) {
@@ -272,6 +280,7 @@ class ScientistController extends ChangeNotifier {
       planFetchQc = null;
       planId = null;
       lastPlanRequestId = null;
+      usedPriorFeedback = false;
     } finally {
       isLoadingPlan = false;
       notifyListeners();
@@ -317,6 +326,7 @@ class ScientistController extends ChangeNotifier {
     isLoadingPlan = false;
     planError = null;
     planErrorRequestId = null;
+    usedPriorFeedback = false;
     _literatureSubscription?.cancel();
     _literatureSubscription = null;
     _planReviewSessions.clear();

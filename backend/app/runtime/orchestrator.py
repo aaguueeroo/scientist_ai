@@ -125,6 +125,7 @@ class Orchestrator:
                     unverified_count=sum(1 for r in qc.references if not r.verified),
                     tier_0_drops=qc.tier_0_drops,
                 ),
+                used_prior_feedback=False,
                 prompt_versions=prompt_versions(),
             )
 
@@ -219,5 +220,6 @@ class Orchestrator:
             qc=qc,
             plan=with_miqe,
             grounding_summary=with_miqe.grounding_summary,
+            used_prior_feedback=len(few_shots) > 0,
             prompt_versions=prompt_versions(),
         )

@@ -108,14 +108,23 @@ class ScientistRepositoryImpl implements ScientistRepository {
     final ReviewDto requestDto = ReviewMapper.fromDomain(review);
     Map<String, dynamic> rawResponse;
     try {
-      rawResponse = await _client.postReview(requestDto.toJson());
+      rawResponse = await _client.postFeedback(requestDto.toJson());
     } catch (err, stackTrace) {
       debugPrint('Submit review transport error: $err\n$stackTrace');
       throw _translateTransportError(err);
     }
     try {
-      final ReviewDto responseDto = ReviewDto.fromJson(rawResponse);
-      return ReviewMapper.toDomain(responseDto);
+      final Object? reviewJson = rawResponse['review'];
+      if (reviewJson is Map) {
+        final Map<String, dynamic> m =
+            Map<String, dynamic>.from(reviewJson);
+        return ReviewMapper.toDomain(ReviewDto.fromJson(m));
+      }
+      final String? serverId = rawResponse['feedback_id'] as String?;
+      if (serverId != null && serverId.isNotEmpty) {
+        return ReviewMapper.withServerId(review, serverId);
+      }
+      throw const FormatException('Missing review echo and feedback_id');
     } catch (err, stackTrace) {
       debugPrint('Submit review parse error: $err\n$stackTrace');
       throw ScientistApiException(

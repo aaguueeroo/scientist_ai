@@ -141,12 +141,12 @@ class HttpScientistBackendClient implements ScientistBackendClient {
   }
 
   @override
-  Future<Map<String, dynamic>> postReview(
+  Future<Map<String, dynamic>> postFeedback(
     Map<String, dynamic> requestBody,
   ) async {
     final HttpClient client = HttpClient();
     try {
-      final HttpClientRequest request = await client.postUrl(_resolve('reviews'));
+      final HttpClientRequest request = await client.postUrl(_resolve('feedback'));
       request.headers.set(
         HttpHeaders.contentTypeHeader,
         'application/json; charset=utf-8',
@@ -255,7 +255,7 @@ class HttpScientistBackendClient implements ScientistBackendClient {
     final HttpClient client = HttpClient();
     try {
       final HttpClientRequest request =
-          await client.getUrl(_resolve('reviews'));
+          await client.getUrl(_resolve('feedback'));
       final HttpClientResponse response = await request.close();
       final String body = await response.transform(utf8.decoder).join();
       final String? headerRequestId =

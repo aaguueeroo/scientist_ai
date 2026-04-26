@@ -33,7 +33,7 @@ def _parse_sse_chunks(stream: bytes) -> list[dict[str, object]]:
     return out
 
 
-def test_stream_emits_one_source_per_event_sequentially() -> None:
+def test_stream_emits_cumulative_sources_sequentially() -> None:
     qc = LiteratureQCResult(
         novelty=NoveltyLabel.NOT_FOUND,
         references=[
@@ -49,16 +49,21 @@ def test_stream_emits_one_source_per_event_sequentially() -> None:
     )
     events = _parse_sse_chunks(chunks)
     assert len(events) == 3
+    titles = ("A", "B", "C")
     for i, env in enumerate(events):
         assert env["event"] == "review_update"
         data = env["data"]
         assert isinstance(data, dict)
         assert data["expected_total_sources"] == 3
-        assert data["source_index"] == i + 1
-        assert len(data["sources"]) == 1
-        assert data["sources"][0]["title"] == ("A", "B", "C")[i]
-        assert data["is_final"] == (i == 2)
-        assert data["literature_review_id"] == "lr-test"
+        assert data["does_similar_work_exist"] is False
+        assert len(data["sources"]) == i + 1
+        assert data["sources"][-1]["title"] == titles[i]
+        is_final = i == 2
+        assert data["is_final"] == is_final
+        if is_final:
+            assert data["literature_review_id"] == "lr-test"
+        else:
+            assert "literature_review_id" not in data
 
 
 def test_final_snapshot_has_all_sources_for_get_replay() -> None:
@@ -73,6 +78,7 @@ def test_final_snapshot_has_all_sources_for_get_replay() -> None:
     )
     data = _final_review_data_from_qc(qc, "lr-snap")
     assert data["is_final"] is True
+    assert data["does_similar_work_exist"] is False
     assert data["expected_total_sources"] == 2
     assert len(data["sources"]) == 2
     assert data["sources"][0]["title"] == "A"
@@ -95,6 +101,7 @@ def test_stream_zero_sources_single_event_with_id() -> None:
     assert len(events) == 1
     data = events[0]["data"]
     assert data["is_final"] is True
+    assert data["does_similar_work_exist"] is False
     assert data["expected_total_sources"] == 0
     assert data["sources"] == []
     assert "source_index" not in data

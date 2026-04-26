@@ -10,6 +10,7 @@ class GeneratePlanResponseDto {
     this.plan,
     this.groundingSummary,
     this.promptVersions,
+    this.usedPriorFeedback = false,
   });
 
   factory GeneratePlanResponseDto.fromJson(Map<String, dynamic> json) {
@@ -33,6 +34,7 @@ class GeneratePlanResponseDto {
             ),
       promptVersions: rawPromptVersions
           ?.map((String k, dynamic v) => MapEntry(k, v.toString())),
+      usedPriorFeedback: json['used_prior_feedback'] as bool? ?? false,
     );
   }
 
@@ -42,4 +44,7 @@ class GeneratePlanResponseDto {
   final BackendExperimentPlanDto? plan;
   final GroundingSummaryDto? groundingSummary;
   final Map<String, String>? promptVersions;
+
+  /// True when the backend passed prior few-shot corrections into the planner.
+  final bool usedPriorFeedback;
 }

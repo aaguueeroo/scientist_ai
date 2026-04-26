@@ -21,17 +21,13 @@ abstract class ScientistBackendClient {
     Map<String, dynamic> requestBody,
   );
 
-  // POST /reviews.
+  // POST /feedback — legacy few-shot correction and/or plan-review (Review) envelope.
   //
-  // Persists a single review event (correction, comment, or feedback).
-  // Returns the decoded JSON body of a successful response.
-  // On non-2xx, throws a `ScientistTransportException`.
-  Future<Map<String, dynamic>> postReview(Map<String, dynamic> requestBody);
+  // Returns a JSON object: plan-review path includes a `review` echo; legacy
+  // few-shot returns `feedback_id`, `domain_tag`, etc.
+  Future<Map<String, dynamic>> postFeedback(Map<String, dynamic> requestBody);
 
-  // GET /reviews.
-  //
-  // Returns the decoded JSON body `{ "reviews": [...] }`.
-  // On non-2xx, throws a `ScientistTransportException`.
+  // GET /feedback — plan reviews list `{ "reviews": [...] }` (not legacy few-shots).
   Future<Map<String, dynamic>> fetchReviews();
 
   // GET /conversations — recent saved sessions (query + plan_id for sidebar).

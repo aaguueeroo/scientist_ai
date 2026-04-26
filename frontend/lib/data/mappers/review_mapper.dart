@@ -38,6 +38,44 @@ class ReviewMapper {
     );
   }
 
+  /// Rebuilds the same review with a server-assigned id (e.g. legacy
+  /// `POST /feedback` when `review` is omitted in the response body).
+  static Review withServerId(Review review, String id) {
+    return switch (review) {
+      final CorrectionReview r => CorrectionReview(
+          id: id,
+          conversationId: r.conversationId,
+          query: r.query,
+          originalPlan: r.originalPlan,
+          createdAt: r.createdAt,
+          target: r.target,
+          before: r.before,
+          after: r.after,
+        ),
+      final CommentReview r => CommentReview(
+          id: id,
+          conversationId: r.conversationId,
+          query: r.query,
+          originalPlan: r.originalPlan,
+          createdAt: r.createdAt,
+          target: r.target,
+          quote: r.quote,
+          start: r.start,
+          end: r.end,
+          body: r.body,
+        ),
+      final FeedbackReview r => FeedbackReview(
+          id: id,
+          conversationId: r.conversationId,
+          query: r.query,
+          originalPlan: r.originalPlan,
+          createdAt: r.createdAt,
+          section: r.section,
+          polarity: r.polarity,
+        ),
+    };
+  }
+
   static CorrectionReview _correctionFromDto(ReviewDto dto) {
     final Map<String, dynamic> payload = dto.payload;
     final String address = payload['target'] as String;
