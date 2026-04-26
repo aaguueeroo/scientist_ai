@@ -5,7 +5,6 @@ import '../../../controllers/plan_review_session_snapshot.dart';
 import '../../../controllers/review_store_controller.dart';
 import '../../../controllers/scientist_controller.dart';
 import '../../../core/app_constants.dart';
-import '../../../core/theme/theme_context.dart';
 import '../../../models/experiment_plan.dart';
 import '../../../models/literature_review.dart';
 import '../../review/models/review.dart' as global_review;
@@ -165,7 +164,6 @@ class _ReviewScaffoldShell extends StatelessWidget {
         context.watch<PlanReviewController>();
     final LiteratureReview? literatureReview =
         context.watch<ScientistController>().literatureReview;
-    final Color schemeSurface = context.appColorScheme.surface;
     return PlanSourcesNavigatorScope(
       literatureReview: literatureReview,
       child: Stack(
@@ -175,18 +173,15 @@ class _ReviewScaffoldShell extends StatelessWidget {
               padding: const EdgeInsets.only(top: 56),
               child: ClipRRect(
                 borderRadius: BorderRadius.circular(kRadius),
-                child: ColoredBox(
-                  color: schemeSurface,
-                  child: Column(
-                    children: <Widget>[
-                      if (controller.isHistoricalView)
-                        _HistoricalBanner(
-                          onReturn: controller.returnToCurrentVersion,
-                        ),
-                      Expanded(child: _bodyForMode(controller)),
-                      SendPlanToLabBar(query: query),
-                    ],
-                  ),
+                child: Column(
+                  children: <Widget>[
+                    if (controller.isHistoricalView)
+                      _HistoricalBanner(
+                        onReturn: controller.returnToCurrentVersion,
+                      ),
+                    Expanded(child: _bodyForMode(controller)),
+                    SendPlanToLabBar(query: query),
+                  ],
                 ),
               ),
             ),
