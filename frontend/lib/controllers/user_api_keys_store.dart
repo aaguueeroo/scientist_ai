@@ -5,6 +5,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 import '../core/api_config.dart';
 import '../core/user_api_keys_constants.dart';
 import '../models/app_provider_api_key_kind.dart';
+
 /// Persists user-supplied OpenAI and Tavily API keys (secure storage + in-memory cache for HTTP).
 class UserApiKeysStore extends ChangeNotifier {
   UserApiKeysStore._(
@@ -109,7 +110,15 @@ class UserApiKeysStore extends ChangeNotifier {
 
   bool get hasTavilyKeyReady => activeTavilySecretForHttpHeader != null;
 
-  bool get hasAllProviderKeysReady => hasOpenAiKeyReady && hasTavilyKeyReady;
+  bool get hasAllProviderKeysReady {
+    if (kValidateProviderApiKeys) {
+      return hasOpenAiKeyReady && hasTavilyKeyReady;
+    }
+    if (_prefs.getBool(kUserApiKeysOnboardingDismissedPrefsKey) ?? false) {
+      return true;
+    }
+    return hasOpenAiKeyReady && hasTavilyKeyReady;
+  }
 
   /// When true, first-run onboarding should block the main shell (real API only).
   bool get needsUserApiKeysOnboarding =>
@@ -157,30 +166,44 @@ class UserApiKeysStore extends ChangeNotifier {
   /// Validates and saves one provider key. Pass trimmed secret.
   Future<String?> saveKey(AppProviderApiKeyKind kind, String secret) async {
     final String t = secret.trim();
-    if (t.isEmpty) {
+    if (kValidateProviderApiKeys && t.isEmpty) {
       return 'Please paste your ${kind.displayLabel}.';
     }
-    switch (kind) {
-      case AppProviderApiKeyKind.openAi:
-        if (!isPlausibleOpenAiSecret(t)) {
-          return 'OpenAI keys usually start with sk- and are at least 20 characters.';
-        }
-        break;
-      case AppProviderApiKeyKind.tavily:
-        if (!isPlausibleTavilySecret(t)) {
-          return 'Tavily keys usually start with tvly- (copy the key from your Tavily account).';
-        }
-        break;
-    }
-    try {
-      await _secure.write(key: _storageKeyFor(kind), value: t);
+    if (kValidateProviderApiKeys) {
       switch (kind) {
         case AppProviderApiKeyKind.openAi:
-          _cachedOpenAi = t;
+          if (!isPlausibleOpenAiSecret(t)) {
+            return 'OpenAI keys usually start with sk- and are at least 20 characters.';
+          }
           break;
         case AppProviderApiKeyKind.tavily:
-          _cachedTavily = t;
+          if (!isPlausibleTavilySecret(t)) {
+            return 'Tavily keys usually start with tvly- (copy the key from your Tavily account).';
+          }
           break;
+      }
+    }
+    try {
+      if (t.isEmpty) {
+        await _secure.delete(key: _storageKeyFor(kind));
+        switch (kind) {
+          case AppProviderApiKeyKind.openAi:
+            _cachedOpenAi = null;
+            break;
+          case AppProviderApiKeyKind.tavily:
+            _cachedTavily = null;
+            break;
+        }
+      } else {
+        await _secure.write(key: _storageKeyFor(kind), value: t);
+        switch (kind) {
+          case AppProviderApiKeyKind.openAi:
+            _cachedOpenAi = t;
+            break;
+          case AppProviderApiKeyKind.tavily:
+            _cachedTavily = t;
+            break;
+        }
       }
       notifyListeners();
       return null;
@@ -216,6 +239,20 @@ class UserApiKeysStore extends ChangeNotifier {
     required String openAiSecret,
     required String tavilySecret,
   }) async {
+    if (!kValidateProviderApiKeys) {
+      try {
+        // Backend not required yet: do not touch secure storage (avoids macOS
+        // -34018 when keychain entitlements are missing). Mark onboarding done
+        // so the dialog can close without persisting secrets.
+        await _prefs.setBool(kUserApiKeysOnboardingDismissedPrefsKey, true);
+        notifyListeners();
+        return null;
+      } catch (e, st) {
+        // ignore: avoid_print
+        print('UserApiKeysStore.saveOpenAiAndTavily failed: $e\n$st');
+        return 'Could not save. Please try again.';
+      }
+    }
     final String? openErr =
         await saveKey(AppProviderApiKeyKind.openAi, openAiSecret);
     if (openErr != null) {
