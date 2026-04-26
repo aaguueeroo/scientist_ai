@@ -87,7 +87,7 @@ class _DrawerContent extends StatelessWidget {
                   Icon(Icons.history_rounded,
                       size: 18, color: scheme.onSurface),
                   const SizedBox(width: kSpace8),
-                  Text('Plan history', style: textTheme.titleMedium),
+                  Text('Marie\'s revisions', style: textTheme.titleMedium),
                   const Spacer(),
                   IconButton(
                     icon: const Icon(Icons.close_rounded, size: 18),
@@ -230,7 +230,7 @@ class _VersionTile extends StatelessWidget {
                   const SizedBox(height: kSpace4),
                   Text(
                     version.isOriginal
-                        ? 'Initial plan'
+                        ? 'Marie\'s first draft'
                         : '${version.changeCount} change${version.changeCount == 1 ? '' : 's'}',
                     style: textTheme.bodySmall?.copyWith(
                       color: context.scientist.onSurfaceFaint,

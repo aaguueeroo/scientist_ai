@@ -10,9 +10,9 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:scientist_ai/app.dart';
 
 void main() {
-  testWidgets('Renders Scientist AI home', (WidgetTester tester) async {
+  testWidgets('Renders Marie Query home', (WidgetTester tester) async {
     await tester.pumpWidget(const ScientistApp());
-    expect(find.text('Scientist AI'), findsOneWidget);
-    expect(find.text('What do you want to investigate?'), findsOneWidget);
+    expect(find.text('Marie Query'), findsOneWidget);
+    expect(find.text('What are we investigating today?'), findsOneWidget);
   });
 }

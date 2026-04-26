@@ -13,7 +13,7 @@ class SectionFeedbackBar extends StatelessWidget {
   const SectionFeedbackBar({
     super.key,
     required this.section,
-    this.label = 'Was this helpful?',
+    this.label = 'How did Marie do?',
     this.alignment = MainAxisAlignment.end,
   });
 

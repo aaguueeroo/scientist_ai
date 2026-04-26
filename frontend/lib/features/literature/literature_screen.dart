@@ -97,7 +97,7 @@ class LiteratureScreen extends StatelessWidget {
                           context.go(kRoutePlan);
                         },
                   icon: const Icon(Icons.arrow_forward, size: 16),
-                  label: const Text('Generate experiment plan'),
+                  label: const Text('Ask Marie for an experiment plan'),
                 ),
               ),
             ],

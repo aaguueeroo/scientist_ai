@@ -4,7 +4,7 @@ import '../features/review/models/review.dart';
 import '../repositories/scientist_repository.dart';
 
 /// Global, persisted store of every correction, comment, and like/dislike
-/// the user has ever given the AI. Backed by `POST /reviews` and
+/// the user has ever given Marie. Backed by `POST /reviews` and
 /// `GET /reviews`.
 ///
 /// Errors never block the UI: optimistic inserts are rolled back on
@@ -39,7 +39,7 @@ class ReviewStoreController extends ChangeNotifier {
         ..addAll(next);
     } catch (err, stackTrace) {
       debugPrint('Load reviews error: $err\n$stackTrace');
-      _loadError = 'Unable to load your reviews. Please retry.';
+      _loadError = 'Marie couldn\'t load your reviews. Please retry.';
     } finally {
       _isLoading = false;
       notifyListeners();
@@ -61,7 +61,7 @@ class ReviewStoreController extends ChangeNotifier {
       notifyListeners();
     } catch (err, stackTrace) {
       debugPrint('Submit review error: $err\n$stackTrace');
-      _submitError = 'Unable to save your review. It will not appear in '
+      _submitError = 'Marie couldn\'t save your review. It will not appear in '
           'the Reviewer.';
       _reviews.removeWhere((Review r) => r.id == review.id);
       notifyListeners();

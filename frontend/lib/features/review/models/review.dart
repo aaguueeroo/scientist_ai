@@ -4,7 +4,7 @@ import '../../plan/review/models/feedback_polarity.dart';
 import '../../plan/review/models/review_section.dart';
 import 'review_kind.dart';
 
-/// One piece of feedback the user gave the AI on a generated experiment
+/// One piece of feedback the user gave Marie on a generated experiment
 /// plan. Persisted globally (across conversations) and rendered in the
 /// Reviewer screen.
 sealed class Review {

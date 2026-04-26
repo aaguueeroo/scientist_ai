@@ -2,13 +2,22 @@ import 'package:flutter/material.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
+import '../../../controllers/projects_controller.dart';
+import '../../../controllers/role_controller.dart';
 import '../../../controllers/scientist_controller.dart';
 import '../../../core/app_constants.dart';
 import '../../../core/app_router.dart';
 import '../../../core/app_routes.dart';
 import '../../../core/theme/theme_context.dart';
+import '../../../models/project.dart';
+import '../../../models/user_role.dart';
+import 'ongoing_project_tile.dart';
 import 'past_conversation_tile.dart';
 import 'sidebar_nav_link.dart';
+import 'sidebar_user_menu.dart';
+
+const String _kCurrentUserName = 'Jane Doe';
+const String _kCurrentUserAvatarUrl = 'https://i.pravatar.cc/120?u=jane-doe';
 
 /// Persistent sidebar shown alongside every screen.
 ///
@@ -59,11 +68,31 @@ class Sidebar extends StatelessWidget {
     context.go(kRoutePastConversation);
   }
 
+  void _openProject(BuildContext context, String projectId) {
+    if (navigationShell.currentIndex != kBranchConversation) {
+      navigationShell.goBranch(kBranchConversation);
+    }
+    context.go('$kRoutePlan?projectId=$projectId');
+  }
+
+  void _showSettingsPlaceholder(BuildContext context) {
+    ScaffoldMessenger.of(context)
+      ..hideCurrentSnackBar()
+      ..showSnackBar(
+        const SnackBar(
+          content: Text('Settings are not available in this preview yet.'),
+          duration: Duration(seconds: 2),
+        ),
+      );
+  }
+
   @override
   Widget build(BuildContext context) {
     final TextTheme textTheme = Theme.of(context).textTheme;
     final ColorScheme scheme = context.appColorScheme;
     final String location = GoRouterState.of(context).matchedLocation;
+    final String? activeProjectId =
+        GoRouterState.of(context).uri.queryParameters['projectId'];
     final int currentBranch = navigationShell.currentIndex;
     final bool isHomeActive = _isAtConversationHome(currentBranch, location);
     final bool isReviewerActive = currentBranch == kBranchReviewer;
@@ -71,12 +100,15 @@ class Sidebar extends StatelessWidget {
       decoration: BoxDecoration(
         color: context.scientist.sidebarBackground,
       ),
-      child: Consumer<ScientistController>(
+      child: Consumer3<ScientistController, RoleController, ProjectsController>(
         builder: (
           BuildContext context,
           ScientistController controller,
+          RoleController roleController,
+          ProjectsController projectsController,
           Widget? child,
         ) {
+          final List<Project> projects = projectsController.projects;
           return Column(
             crossAxisAlignment: CrossAxisAlignment.stretch,
             children: <Widget>[
@@ -88,7 +120,7 @@ class Sidebar extends StatelessWidget {
                   kSpace16,
                 ),
                 child: Text(
-                  'Scientist AI',
+                  'Marie Query',
                   style: textTheme.titleLarge,
                 ),
               ),
@@ -99,7 +131,7 @@ class Sidebar extends StatelessWidget {
                   children: <Widget>[
                     SidebarNavLink(
                       icon: Icons.add_rounded,
-                      label: 'New conversation',
+                      label: 'New question',
                       isActive: isHomeActive,
                       onTap: () => _goToConversationHome(context, controller),
                     ),
@@ -125,12 +157,13 @@ class Sidebar extends StatelessWidget {
               Padding(
                 padding: const EdgeInsets.symmetric(horizontal: kSpace24),
                 child: Text(
-                  'PAST CONVERSATIONS',
+                  'RECENT QUESTIONS',
                   style: textTheme.labelSmall,
                 ),
               ),
               const SizedBox(height: kSpace8),
-              Expanded(
+              Flexible(
+                flex: 2,
                 child: ListView.builder(
                   padding: const EdgeInsets.symmetric(
                     horizontal: kSpace8,
@@ -154,6 +187,69 @@ class Sidebar extends StatelessWidget {
                     );
                   },
                 ),
+              ),
+              const SizedBox(height: kSpace16),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: kSpace16),
+                child: Divider(
+                  height: 1,
+                  thickness: 1,
+                  color: scheme.outline.withValues(alpha: 0.25),
+                ),
+              ),
+              const SizedBox(height: kSpace16),
+              Padding(
+                padding: const EdgeInsets.symmetric(horizontal: kSpace24),
+                child: Text(
+                  'ONGOING PROJECTS',
+                  style: textTheme.labelSmall,
+                ),
+              ),
+              const SizedBox(height: kSpace8),
+              Flexible(
+                flex: 3,
+                child: projects.isEmpty
+                    ? Padding(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: kSpace24,
+                        ),
+                        child: Text(
+                          'No ongoing projects yet. Ask Marie to get started.',
+                          style: context.scientist.bodyTertiary,
+                        ),
+                      )
+                    : ListView.builder(
+                        padding: const EdgeInsets.symmetric(
+                          horizontal: kSpace8,
+                          vertical: kSpace4,
+                        ),
+                        itemCount: projects.length,
+                        itemBuilder: (BuildContext context, int index) {
+                          final Project project = projects[index];
+                          final bool isActive =
+                              currentBranch == kBranchConversation &&
+                                  location == kRoutePlan &&
+                                  activeProjectId == project.id;
+                          return OngoingProjectTile(
+                            project: project,
+                            role: roleController.role,
+                            progress:
+                                projectsController.progressFor(project),
+                            isActive: isActive,
+                            onTap: () => _openProject(context, project.id),
+                          );
+                        },
+                      ),
+              ),
+              const SizedBox(height: kSpace8),
+              SidebarUserMenu(
+                userName: _kCurrentUserName,
+                userAvatarUrl: _kCurrentUserAvatarUrl,
+                role: roleController.role,
+                onSelectRole: (UserRole next) {
+                  roleController.setRole(next);
+                },
+                onOpenSettings: () => _showSettingsPlaceholder(context),
               ),
             ],
           );

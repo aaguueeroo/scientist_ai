@@ -1,7 +1,9 @@
 import 'package:flutter/material.dart' hide Material, Step;
 import 'package:provider/provider.dart';
 
+import 'controllers/projects_controller.dart';
 import 'controllers/review_store_controller.dart';
+import 'controllers/role_controller.dart';
 import 'controllers/scientist_controller.dart';
 import 'core/app_router.dart';
 import 'core/app_theme.dart';
@@ -33,9 +35,15 @@ class ScientistApp extends StatelessWidget {
             repository: c.read<ScientistRepository>(),
           )..loadReviews(),
         ),
+        ChangeNotifierProvider<RoleController>(
+          create: (BuildContext c) => RoleController(),
+        ),
+        ChangeNotifierProvider<ProjectsController>(
+          create: (BuildContext c) => ProjectsController(),
+        ),
       ],
       child: MaterialApp.router(
-        title: 'Scientist AI',
+        title: 'Marie Query',
         debugShowCheckedModeBanner: false,
         theme: buildAppTheme(),
         themeMode: ThemeMode.dark,

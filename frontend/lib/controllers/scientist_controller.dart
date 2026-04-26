@@ -65,7 +65,7 @@ class ScientistController extends ChangeNotifier {
       },
       onError: (Object err) {
         debugPrint('Literature stream error: $err');
-        literatureError = 'Unable to load literature review. Please retry.';
+        literatureError = 'Marie couldn\'t load the literature review. Please retry.';
         isLoadingLiterature = false;
         notifyListeners();
       },
@@ -104,7 +104,7 @@ class ScientistController extends ChangeNotifier {
       experimentPlan = await _repository.fetchExperimentPlan(query);
     } catch (err) {
       debugPrint('Experiment plan error: $err');
-      planError = 'Unable to generate experiment plan. Please retry.';
+      planError = 'Marie couldn\'t generate the experiment plan. Please retry.';
     } finally {
       isLoadingPlan = false;
       notifyListeners();

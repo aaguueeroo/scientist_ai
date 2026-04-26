@@ -25,7 +25,7 @@ class LiteratureEmpty extends StatelessWidget {
           ),
           const SizedBox(height: kSpace8),
           Text(
-            'You may be the first exploring this question.',
+            'Marie couldn\'t find existing work on this. You may be breaking new ground!',
             style: context.scientist.bodySecondary,
           ),
         ],

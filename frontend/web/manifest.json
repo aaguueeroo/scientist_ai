@@ -1,11 +1,11 @@
 {
-    "name": "scientist_ai",
-    "short_name": "scientist_ai",
+    "name": "Marie Query",
+    "short_name": "Marie Query",
     "start_url": ".",
     "display": "standalone",
     "background_color": "#0175C2",
     "theme_color": "#0175C2",
-    "description": "An AI that creates an experiment plan for a theory to be proved.",
+    "description": "Marie Query — your AI lab colleague that reviews literature and drafts experiment plans.",
     "orientation": "portrait-primary",
     "prefer_related_applications": false,
     "icons": [

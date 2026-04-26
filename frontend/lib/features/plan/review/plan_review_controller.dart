@@ -506,7 +506,7 @@ class PlanReviewController extends ChangeNotifier {
 
   String authorLabel(String authorId) {
     if (authorId == _localAuthorId) return 'You';
-    if (authorId == _baselineAuthorId) return 'AI';
+    if (authorId == _baselineAuthorId) return 'Marie';
     return authorId;
   }
 

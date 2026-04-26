@@ -9,7 +9,7 @@ import '../features/review/reviewer_screen.dart';
 import '../features/shell/app_shell.dart';
 import 'app_routes.dart';
 
-/// Top-level router for Scientist AI.
+/// Top-level router for Marie Query.
 ///
 /// Uses [StatefulShellRoute.indexedStack] so the app has two independent
 /// navigation branches – the conversation workspace and the reviewer – with

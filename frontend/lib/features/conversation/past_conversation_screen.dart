@@ -88,7 +88,7 @@ class _PromptPane extends StatelessWidget {
     if (query == null || query!.isEmpty) {
       return Center(
         child: Text(
-          'No prompt available.',
+          'No question recorded for this conversation.',
           style: context.scientist.bodySecondary,
         ),
       );
@@ -100,7 +100,7 @@ class _PromptPane extends StatelessWidget {
           Text('Prompt', style: textTheme.headlineMedium),
           const SizedBox(height: kSpace8),
           Text(
-            'Original research question for this conversation.',
+            'The research question you asked Marie.',
             style: context.scientist.bodySecondary,
           ),
           const SizedBox(height: kSpace24),
@@ -127,7 +127,7 @@ class _LiteraturePane extends StatelessWidget {
     if (currentReview == null) {
       return Center(
         child: Text(
-          'No literature review available.',
+          'Marie hasn\'t reviewed the literature for this question yet.',
           style: context.scientist.bodySecondary,
         ),
       );
@@ -191,7 +191,7 @@ class _ExperimentPlanStepPane extends StatelessWidget {
     if (currentPlan == null) {
       return Center(
         child: Text(
-          'No experiment plan available.',
+          'Marie hasn\'t prepared an experiment plan yet.',
           style: context.scientist.bodySecondary,
         ),
       );

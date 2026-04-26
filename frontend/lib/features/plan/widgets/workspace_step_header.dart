@@ -9,7 +9,7 @@ import '../../../core/theme/theme_context.dart';
 const List<String> kWorkspaceStepLabels = <String>[
   'Prompt',
   'Literature review',
-  'Experiment plan',
+  'Experiment Plan',
 ];
 
 const List<IconData> kWorkspaceStepIcons = <IconData>[

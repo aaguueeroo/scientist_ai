@@ -146,7 +146,7 @@ class ScientistRepositoryImpl implements ScientistRepository {
     }
     return ScientistApiException(
       code: 'transport_error',
-      message: 'Could not reach the scientist service.',
+      message: 'Could not reach Marie. Please check your connection and try again.',
       cause: err,
     );
   }

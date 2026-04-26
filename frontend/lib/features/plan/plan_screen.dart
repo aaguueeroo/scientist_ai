@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart' hide Material, Step;
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../controllers/scientist_controller.dart';
@@ -6,6 +7,7 @@ import '../../core/app_constants.dart';
 import '../../core/theme/theme_context.dart';
 import '../../models/experiment_plan.dart';
 import 'experiment_plan_view.dart';
+import 'project/project_plan_screen.dart';
 import 'review/plan_review_scaffold.dart';
 import 'widgets/workspace_step_header.dart';
 
@@ -14,6 +16,11 @@ class PlanScreen extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    final String? projectId =
+        GoRouterState.of(context).uri.queryParameters['projectId'];
+    if (projectId != null && projectId.isNotEmpty) {
+      return ProjectPlanScreen(projectId: projectId);
+    }
     return Padding(
       padding: const EdgeInsets.fromLTRB(
         kSpace40,
@@ -50,7 +57,7 @@ class PlanScreen extends StatelessWidget {
                 if (plan == null) {
                   return Center(
                     child: Text(
-                      'No experiment plan available.',
+                      'Marie hasn\'t prepared an experiment plan yet.',
                       style: context.scientist.bodySecondary,
                     ),
                   );

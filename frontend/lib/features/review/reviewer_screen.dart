@@ -162,7 +162,7 @@ class _ReviewerEmpty extends StatelessWidget {
             ),
             const SizedBox(height: kSpace8),
             Text(
-              'Corrections, comments, and likes you give the AI on '
+              'Corrections, comments, and feedback you give Marie on '
               'experiment plans will collect here automatically.',
               textAlign: TextAlign.center,
               style: context.scientist.bodySecondary,

@@ -35,7 +35,7 @@ class EditablePlanView extends StatelessWidget {
       padding: EdgeInsets.zero,
       children: <Widget>[
         Text(
-          'Experiment plan',
+          'Marie\'s experiment plan',
           style: Theme.of(context).textTheme.headlineMedium,
         ),
         if (query != null && query!.isNotEmpty) ...<Widget>[

@@ -74,13 +74,13 @@ class _HomeScreenState extends State<HomeScreen> {
                         crossAxisAlignment: CrossAxisAlignment.stretch,
                         children: <Widget>[
                   Text(
-                    'What do you want to investigate?',
+                    'What are we investigating today?',
                     style: textTheme.headlineMedium,
                     textAlign: TextAlign.center,
                   ),
                   const SizedBox(height: kSpace8),
                   Text(
-                    'Describe a hypothesis or research question and we will plan the literature review and experiments.',
+                    'Describe a hypothesis or research question and Marie will review the literature and draft an experiment plan for you.',
                     style: context.scientist.bodySecondary,
                     textAlign: TextAlign.center,
                   ),
@@ -99,7 +99,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   ),
                   const SizedBox(height: kSpace12),
                   Text(
-                    'Try an example',
+                    'Not sure where to start? Try one of these',
                     style: textTheme.labelSmall,
                   ),
                   const SizedBox(height: kSpace8),
@@ -137,7 +137,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                 context.go(kRouteLiterature);
                               },
                         icon: const Icon(Icons.arrow_forward, size: 16),
-                        label: const Text('Submit'),
+                        label: const Text('Ask Marie'),
                       ),
                     ),
                   ),
