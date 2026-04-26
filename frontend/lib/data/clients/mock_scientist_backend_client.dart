@@ -22,6 +22,7 @@ class MockScientistBackendClient implements ScientistBackendClient {
             : <Map<String, dynamic>>[];
 
   final List<Map<String, dynamic>> _reviews;
+  final Set<String> _deletedPlanIds = <String>{};
 
   @override
   Stream<Map<String, dynamic>> streamLiteratureReview(
@@ -114,16 +115,32 @@ class MockScientistBackendClient implements ScientistBackendClient {
   @override
   Future<Map<String, dynamic>> fetchConversations() async {
     await Future<void>.delayed(_kReviewLatency);
-    return <String, dynamic>{
-      'conversations': <Map<String, dynamic>>[
-        for (int i = 0; i < kMockPastConversationSeeds.length; i++)
-          <String, dynamic>{
-            'query': kMockPastConversationSeeds[i],
-            'plan_id': 'mock_past_conv_$i',
-            'literature_review_id': 'mock_lr_$i',
-          },
-      ],
-    };
+    final List<Map<String, dynamic>> rows = <Map<String, dynamic>>[
+      for (int i = 0; i < kMockPastConversationSeeds.length; i++)
+        <String, dynamic>{
+          'query': kMockPastConversationSeeds[i],
+          'plan_id': 'mock_past_conv_$i',
+          'literature_review_id': 'mock_lr_$i',
+        },
+    ];
+    rows.removeWhere(
+      (Map<String, dynamic> row) =>
+          _deletedPlanIds.contains(row['plan_id'] as String? ?? ''),
+    );
+    return <String, dynamic>{'conversations': rows};
+  }
+
+  @override
+  Future<void> deletePlan(String planId) async {
+    await Future<void>.delayed(_kReviewLatency);
+    if (planId.isEmpty) {
+      throw const ScientistTransportException(
+        code: 'validation_error',
+        message: 'plan id is empty',
+        statusCode: 400,
+      );
+    }
+    _deletedPlanIds.add(planId);
   }
 
   @override
@@ -134,6 +151,13 @@ class MockScientistBackendClient implements ScientistBackendClient {
         code: 'validation_error',
         message: 'plan id is empty',
         statusCode: 400,
+      );
+    }
+    if (_deletedPlanIds.contains(planId)) {
+      throw const ScientistTransportException(
+        code: 'validation_error',
+        message: 'plan id not found',
+        statusCode: 404,
       );
     }
     return Map<String, dynamic>.from(kMockExperimentPlanJson);

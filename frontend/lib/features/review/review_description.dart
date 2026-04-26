@@ -44,6 +44,10 @@ String _describeSection(FeedbackReview review) {
       return 'steps';
     case 'materials':
       return 'materials';
+    case 'validation':
+      return 'validation';
+    case 'risks':
+      return 'risks';
   }
   return review.section.name;
 }

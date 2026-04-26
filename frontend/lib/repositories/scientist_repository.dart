@@ -29,6 +29,9 @@ abstract class ScientistRepository {
 
   // GET /plans/{plan_id} — full snapshot; does not re-run the pipeline.
   Future<GeneratePlanResult> fetchSavedPlanById(String planId);
+
+  /// DELETE /plans/{plan_id}. Treats 404 as success (already removed).
+  Future<void> deleteSavedPlan(String planId);
 }
 
 class ScientistApiException implements Exception {

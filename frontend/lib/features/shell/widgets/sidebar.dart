@@ -10,6 +10,7 @@ import '../../../core/app_constants.dart';
 import '../../../core/app_router.dart';
 import '../../../core/app_routes.dart';
 import '../../../core/app_toasts.dart';
+import '../../../core/conversation_query_key.dart';
 import '../../../core/theme/theme_context.dart';
 import '../../../models/project.dart';
 import '../../../models/user_role.dart';
@@ -191,6 +192,29 @@ class Sidebar extends StatelessWidget {
                         controller,
                         title,
                       ),
+                      onDelete: () async {
+                        final bool sessionWasThis =
+                            controller.currentQuery != null &&
+                                conversationQueryKey(controller.currentQuery!) ==
+                                    conversationQueryKey(title);
+                        final bool ok =
+                            await controller.deleteRecentQuestion(title);
+                        if (!context.mounted) {
+                          return;
+                        }
+                        if (!ok) {
+                          showAppToast(
+                            context,
+                            message:
+                                'Could not remove that question. Try again.',
+                            autoCloseDuration: const Duration(seconds: 3),
+                          );
+                          return;
+                        }
+                        if (sessionWasThis) {
+                          _goToConversationHome(context, controller);
+                        }
+                      },
                     );
                   },
                 ),

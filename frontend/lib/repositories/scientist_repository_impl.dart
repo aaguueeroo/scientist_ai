@@ -168,6 +168,25 @@ class ScientistRepositoryImpl implements ScientistRepository {
   }
 
   @override
+  Future<void> deleteSavedPlan(String planId) async {
+    if (planId.isEmpty) {
+      return;
+    }
+    try {
+      await _client.deletePlan(planId);
+    } on ScientistTransportException catch (err, stackTrace) {
+      if (err.statusCode == 404) {
+        return;
+      }
+      debugPrint('DELETE plan transport error: $err\n$stackTrace');
+      throw _translateTransportError(err);
+    } catch (err, stackTrace) {
+      debugPrint('DELETE plan transport error: $err\n$stackTrace');
+      throw _translateTransportError(err);
+    }
+  }
+
+  @override
   Future<GeneratePlanResult> fetchSavedPlanById(String planId) async {
     if (planId.isEmpty) {
       throw const ScientistApiException(

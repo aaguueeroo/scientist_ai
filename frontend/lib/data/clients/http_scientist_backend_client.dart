@@ -215,6 +215,41 @@ class HttpScientistBackendClient implements ScientistBackendClient {
   }
 
   @override
+  Future<void> deletePlan(String planId) async {
+    final HttpClient client = HttpClient();
+    try {
+      final String encoded = Uri.encodeComponent(planId);
+      final HttpClientRequest request =
+          await client.deleteUrl(_resolve('plans/$encoded'));
+      final HttpClientResponse response = await request.close();
+      final String? headerRequestId =
+          response.headers.value('x-request-id') ??
+              response.headers.value('X-Request-ID');
+      if (response.statusCode == 204 ||
+          response.statusCode == 200 ||
+          response.statusCode == 404) {
+        await response.drain<void>();
+        return;
+      }
+      final String body = await response.transform(utf8.decoder).join();
+      throw _transportFromHttp(
+        response.statusCode,
+        body,
+        headerRequestId: headerRequestId,
+      );
+    } on ScientistTransportException {
+      rethrow;
+    } on SocketException catch (e) {
+      throw ScientistTransportException(
+        code: 'network_error',
+        message: e.message,
+      );
+    } finally {
+      client.close(force: true);
+    }
+  }
+
+  @override
   Future<Map<String, dynamic>> getPlanById(String planId) async {
     final HttpClient client = HttpClient();
     try {

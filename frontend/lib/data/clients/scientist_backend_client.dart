@@ -35,6 +35,11 @@ abstract class ScientistBackendClient {
 
   // GET /plans/{plan_id} — snapshot from DB (same shape as POST /experiment-plan).
   Future<Map<String, dynamic>> getPlanById(String planId);
+
+  // DELETE /plans/{plan_id} — remove persisted plan (sidebar recent question).
+  //
+  // Returns normally when the row was deleted (204) or was already absent (404).
+  Future<void> deletePlan(String planId);
 }
 
 class ScientistTransportException implements Exception {

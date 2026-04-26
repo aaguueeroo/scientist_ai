@@ -311,6 +311,68 @@ class ScientistController extends ChangeNotifier {
     _planReviewSessions[conversationId] = snapshot;
   }
 
+  /// Removes [query] from the recent list and deletes the persisted plan when
+  /// one exists. Returns false when the API call fails (caller may toast).
+  /// When the removed question is the active session, clears in-memory session
+  /// state (caller should navigate away from past conversation if needed).
+  Future<bool> deleteRecentQuestion(String query) async {
+    final String normalized = query.trim();
+    if (normalized.isEmpty) {
+      return false;
+    }
+    final String qk = conversationQueryKey(normalized);
+    final String? existingPlanId = _planIdByQueryKey[qk];
+    String? convIdToClear;
+    for (final MapEntry<String, String> e in _conversationIdByPastQuery.entries) {
+      if (conversationQueryKey(e.key) == qk) {
+        convIdToClear = e.value;
+        break;
+      }
+    }
+    try {
+      if (existingPlanId != null && existingPlanId.isNotEmpty) {
+        await _repository.deleteSavedPlan(existingPlanId);
+      }
+    } catch (err, stackTrace) {
+      debugPrint('deleteRecentQuestion: $err\n$stackTrace');
+      return false;
+    }
+    pastConversations.removeWhere(
+      (String q) => conversationQueryKey(q) == qk,
+    );
+    _planIdByQueryKey.remove(qk);
+    _litReviewIdByQueryKey.remove(qk);
+    _conversationIdByPastQuery.removeWhere(
+      (String k, _) => conversationQueryKey(k) == qk,
+    );
+    if (convIdToClear != null) {
+      _planReviewSessions.remove(convIdToClear);
+    }
+    final bool wasCurrent =
+        currentQuery != null && conversationQueryKey(currentQuery!) == qk;
+    if (wasCurrent) {
+      await _literatureSubscription?.cancel();
+      _literatureSubscription = null;
+      currentQuery = null;
+      currentConversationId = null;
+      literatureReview = null;
+      literatureReviewId = null;
+      isLoadingLiterature = false;
+      literatureError = null;
+      literatureErrorRequestId = null;
+      experimentPlan = null;
+      planFetchQc = null;
+      planId = null;
+      lastPlanRequestId = null;
+      isLoadingPlan = false;
+      planError = null;
+      planErrorRequestId = null;
+      usedPriorFeedback = false;
+    }
+    notifyListeners();
+    return true;
+  }
+
   void reset() {
     currentQuery = null;
     currentConversationId = null;

@@ -165,15 +165,23 @@ class ReadOnlyReviewBody extends StatelessWidget {
           ],
         ),
         const SizedBox(height: kSpace32),
+        if (plan.validation != null)
+          FocusHighlightContainer(
+            section: ReviewSection.validation,
+            child: Column(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: <Widget>[
+                PlanValidationSection(validation: plan.validation!),
+                const SectionFeedbackBar(section: ReviewSection.validation),
+              ],
+            ),
+          ),
+        if (plan.validation != null) const SizedBox(height: kSpace32),
         FocusHighlightContainer(
           section: ReviewSection.risks,
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: <Widget>[
-              if (plan.validation != null) ...<Widget>[
-                PlanValidationSection(validation: plan.validation!),
-                const SizedBox(height: kSpace24),
-              ],
               PlanRisksSection(risks: plan.risks),
               const SectionFeedbackBar(section: ReviewSection.risks),
             ],

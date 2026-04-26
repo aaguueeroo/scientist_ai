@@ -4,5 +4,6 @@ enum ReviewSection {
   timeline,
   steps,
   materials,
+  validation,
   risks,
 }
