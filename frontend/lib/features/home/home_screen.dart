@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:flutter/services.dart';
 import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
@@ -23,7 +24,43 @@ class HomeScreen extends StatefulWidget {
 
 class _HomeScreenState extends State<HomeScreen> {
   final TextEditingController _queryController = TextEditingController();
-  final FocusNode _focusNode = FocusNode();
+  late final FocusNode _focusNode;
+
+  @override
+  void initState() {
+    super.initState();
+    _focusNode = FocusNode(
+      onKeyEvent: (FocusNode node, KeyEvent event) {
+        if (event is! KeyDownEvent) {
+          return KeyEventResult.ignored;
+        }
+        if (event.logicalKey != LogicalKeyboardKey.enter) {
+          return KeyEventResult.ignored;
+        }
+        if (HardwareKeyboard.instance.isShiftPressed) {
+          return KeyEventResult.ignored;
+        }
+        final String q = _queryController.text.trim();
+        if (q.isEmpty) {
+          return KeyEventResult.handled;
+        }
+        _submitPlan();
+        return KeyEventResult.handled;
+      },
+    );
+  }
+
+  Future<void> _submitPlan() async {
+    if (!mounted) {
+      return;
+    }
+    final ScientistController controller = context.read<ScientistController>();
+    await controller.submitQuestion(_queryController.text);
+    if (!mounted) {
+      return;
+    }
+    context.go(kRouteLiterature);
+  }
 
   @override
   void dispose() {
@@ -43,7 +80,6 @@ class _HomeScreenState extends State<HomeScreen> {
   @override
   Widget build(BuildContext context) {
     final TextTheme textTheme = Theme.of(context).textTheme;
-    final bool isQueryEmpty = _queryController.text.trim().isEmpty;
     return Padding(
       padding: const EdgeInsets.symmetric(
         horizontal: kSpace40,
@@ -109,7 +145,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                 minLines: 7,
                                 maxLines: 12,
                                 style: textTheme.bodyLarge,
-                                onChanged: (_) => setState(() {}),
                                 decoration: const InputDecoration(
                                   hintText:
                                       'e.g. Does intermittent fasting improve markers of mitochondrial biogenesis in sedentary adults?',
@@ -138,32 +173,6 @@ class _HomeScreenState extends State<HomeScreen> {
                                           MaterialTapTargetSize.shrinkWrap,
                                     ),
                                 ],
-                              ),
-                              const SizedBox(height: kSpace16),
-                              Align(
-                                alignment: Alignment.centerRight,
-                                child: AnimatedOpacity(
-                                  duration: const Duration(milliseconds: 150),
-                                  opacity: isQueryEmpty ? 0.6 : 1,
-                                  child: FilledButton.icon(
-                                    onPressed: isQueryEmpty
-                                        ? null
-                                        : () async {
-                                            await controller.submitQuestion(
-                                              _queryController.text,
-                                            );
-                                            if (!context.mounted) {
-                                              return;
-                                            }
-                                            context.go(kRouteLiterature);
-                                          },
-                                    icon: const Icon(
-                                      Icons.arrow_forward,
-                                      size: 16,
-                                    ),
-                                    label: const Text('Ask Marie'),
-                                  ),
-                                ),
                               ),
                         ],
                       ),
