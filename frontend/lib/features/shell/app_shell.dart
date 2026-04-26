@@ -1,16 +1,22 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../core/app_constants.dart';
 import '../../core/theme/theme_context.dart';
 import 'widgets/sidebar.dart';
 
+/// Persistent shell that hosts the sidebar plus the active branch content.
+///
+/// The shell itself is built once for the lifetime of the app (by
+/// [StatefulShellRoute.indexedStack]) so the sidebar stays mounted while the
+/// branch content swaps in/out.
 class AppShell extends StatefulWidget {
   const AppShell({
     super.key,
-    required this.child,
+    required this.navigationShell,
   });
 
-  final Widget child;
+  final StatefulNavigationShell navigationShell;
 
   @override
   State<AppShell> createState() => _AppShellState();
@@ -34,7 +40,7 @@ class _AppShellState extends State<AppShell> {
         children: <Widget>[
           SizedBox(
             width: _sidebarWidth,
-            child: const Sidebar(),
+            child: Sidebar(navigationShell: widget.navigationShell),
           ),
           _SidebarResizeHandle(onDragUpdate: _handleDragUpdate),
           Expanded(
@@ -43,7 +49,7 @@ class _AppShellState extends State<AppShell> {
                 alignment: Alignment.topCenter,
                 child: ConstrainedBox(
                   constraints: const BoxConstraints(maxWidth: kContentMaxWidth),
-                  child: widget.child,
+                  child: widget.navigationShell,
                 ),
               ),
             ),

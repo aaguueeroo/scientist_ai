@@ -1,3 +1,5 @@
+import '../core/id_generator.dart';
+
 class ExperimentPlan {
   const ExperimentPlan({
     required this.description,
@@ -44,6 +46,7 @@ class Budget {
 
 class Material {
   const Material({
+    required this.id,
     required this.title,
     required this.catalogNumber,
     required this.description,
@@ -52,7 +55,8 @@ class Material {
   });
 
   factory Material.blank() {
-    return const Material(
+    return Material(
+      id: generateLocalId('mat'),
       title: 'New material',
       catalogNumber: '',
       description: '',
@@ -61,6 +65,7 @@ class Material {
     );
   }
 
+  final String id;
   final String title;
   final String catalogNumber;
   final String description;
@@ -68,6 +73,7 @@ class Material {
   final double price;
 
   Material copyWith({
+    String? id,
     String? title,
     String? catalogNumber,
     String? description,
@@ -75,6 +81,7 @@ class Material {
     double? price,
   }) {
     return Material(
+      id: id ?? this.id,
       title: title ?? this.title,
       catalogNumber: catalogNumber ?? this.catalogNumber,
       description: description ?? this.description,
@@ -106,6 +113,7 @@ class TimePlan {
 
 class Step {
   const Step({
+    required this.id,
     required this.number,
     required this.duration,
     required this.name,
@@ -115,6 +123,7 @@ class Step {
 
   factory Step.blank({required int number}) {
     return Step(
+      id: generateLocalId('step'),
       number: number,
       duration: const Duration(days: 1),
       name: 'New step',
@@ -122,6 +131,7 @@ class Step {
     );
   }
 
+  final String id;
   final int number;
   final Duration duration;
   final String name;
@@ -131,6 +141,7 @@ class Step {
   bool get isMilestone => milestone != null;
 
   Step copyWith({
+    String? id,
     int? number,
     Duration? duration,
     String? name,
@@ -139,6 +150,7 @@ class Step {
     bool clearMilestone = false,
   }) {
     return Step(
+      id: id ?? this.id,
       number: number ?? this.number,
       duration: duration ?? this.duration,
       name: name ?? this.name,

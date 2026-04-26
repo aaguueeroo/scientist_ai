@@ -1,6 +1,6 @@
 # Scientist AI — Frontend ↔ Backend API Contract
 
-**Version:** 1.0 (first flow)
+**Version:** 1.1 (first flow + reviewer)
 **Status:** Active — implemented on the FE against a mock backend client.
 **Scope:** This document defines every HTTP endpoint, request body, response body, SSE event, error code, data type, and field convention that the FE expects from the BE for the **first flow**: a user submits a research question and receives a literature review followed by an experiment plan.
 
@@ -13,6 +13,8 @@
 3. [Endpoints](#3-endpoints)
    - 3.1 [`POST /literature-review`](#31-post-literature-review)
    - 3.2 [`POST /experiment-plan`](#32-post-experiment-plan)
+   - 3.3 [`POST /reviews`](#33-post-reviews)
+   - 3.4 [`GET /reviews`](#34-get-reviews)
 4. [Object schemas](#4-object-schemas)
    - 4.1 [`Source`](#41-source)
    - 4.2 [`ExperimentPlan`](#42-experimentplan)
@@ -21,6 +23,7 @@
    - 4.5 [`TimePlan`](#45-timeplan)
    - 4.6 [`Step`](#46-step)
    - 4.7 [`ApiError`](#47-apierror)
+   - 4.8 [`Review`](#48-review)
 5. [SSE events](#5-sse-events)
    - 5.1 [`review_update`](#51-review_update)
    - 5.2 [`error`](#52-error)
@@ -309,6 +312,131 @@ Generates a full experiment plan (description + budget + timeline) for a query. 
 
 ---
 
+### 3.3 `POST /reviews`
+
+Persists a single user-emitted review event (a correction, a comment, or a like/dislike). The FE submits one request per atomic feedback the user generates. Synchronous JSON request/response.
+
+#### Request
+
+- **Method:** `POST`
+- **Path:** `/reviews`
+- **Headers:**
+  - `Content-Type: application/json; charset=utf-8`
+  - `Accept: application/json`
+- **Body:** a [`Review`](#48-review) object. The FE generates `id` and `created_at`; the BE MAY override them.
+
+##### Sample request — correction
+
+```json
+{
+  "id": "review_lq2x8aab_1_pn8z",
+  "created_at": "2026-04-26T22:10:00Z",
+  "conversation_id": "Does cold exposure improve insulin sensitivity in healthy adults?",
+  "query": "Does cold exposure improve insulin sensitivity in healthy adults?",
+  "original_plan": { /* ... full ExperimentPlan ... */ },
+  "kind": "correction",
+  "payload": {
+    "target": "step[step_3].name",
+    "before": "Run pilot experiment",
+    "after": "Run pilot assay with positive controls"
+  }
+}
+```
+
+##### Sample request — comment
+
+```json
+{
+  "id": "review_lq2x8aac_2_q3sa",
+  "created_at": "2026-04-26T22:11:00Z",
+  "conversation_id": "Does cold exposure improve insulin sensitivity in healthy adults?",
+  "query": "Does cold exposure improve insulin sensitivity in healthy adults?",
+  "original_plan": { /* ... full ExperimentPlan ... */ },
+  "kind": "comment",
+  "payload": {
+    "target": "plan.description",
+    "quote": "controlled T-cell expansion assay",
+    "start": 2,
+    "end": 36,
+    "body": "Clarify the donor pool size in this sentence."
+  }
+}
+```
+
+##### Sample request — feedback
+
+```json
+{
+  "id": "review_lq2x8aad_3_r4tb",
+  "created_at": "2026-04-26T22:12:00Z",
+  "conversation_id": "Does cold exposure improve insulin sensitivity in healthy adults?",
+  "query": "Does cold exposure improve insulin sensitivity in healthy adults?",
+  "original_plan": { /* ... full ExperimentPlan ... */ },
+  "kind": "feedback",
+  "payload": {
+    "section": "steps",
+    "polarity": "like"
+  }
+}
+```
+
+#### Response
+
+- **Status (success):** `200 OK`
+- **Content-Type:** `application/json; charset=utf-8`
+- **Body:** the stored [`Review`](#48-review) object (echoes the request, with any BE-side normalisation).
+
+#### Failure modes
+
+| Scenario | BE response |
+|---|---|
+| Validation error (malformed payload, unknown `kind`, etc.) | `400 Bad Request` + [`ApiError`](#47-apierror) body, `code: "invalid_query"`. |
+| Auth failure (future) | `401 Unauthorized` + `ApiError` body. |
+| Rate-limited | `429 Too Many Requests` + `ApiError` body. |
+| Internal failure | `500 Internal Server Error` + `ApiError` body. |
+
+---
+
+### 3.4 `GET /reviews`
+
+Returns every review the current user has ever submitted, across all conversations. Used by the Reviewer screen on app startup.
+
+#### Request
+
+- **Method:** `GET`
+- **Path:** `/reviews`
+- **Headers:**
+  - `Accept: application/json`
+
+#### Response
+
+- **Status (success):** `200 OK`
+- **Content-Type:** `application/json; charset=utf-8`
+- **Body:**
+
+```json
+{
+  "reviews": [
+    { /* Review */ },
+    { /* Review */ }
+  ]
+}
+```
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `reviews` | array of [`Review`](#48-review) | yes | Ordered by `created_at` descending (most recent first). May be empty. |
+
+#### Failure modes
+
+| Scenario | BE response |
+|---|---|
+| Auth failure (future) | `401 Unauthorized` + `ApiError` body. |
+| Rate-limited | `429 Too Many Requests` + `ApiError` body. |
+| Internal failure | `500 Internal Server Error` + `ApiError` body. |
+
+---
+
 ## 4. Object schemas
 
 All objects below are returned as JSON. Field tables are authoritative; sample JSON in the endpoint sections illustrates them.
@@ -378,6 +506,45 @@ Common error body. Used as the response body of HTTP `4xx`/`5xx` responses and a
 |---|---|---|---|
 | `code` | string | yes | Machine-readable error code. See [Error model](#6-error-model) for the vocabulary. |
 | `message` | string | yes | Human-readable description. May be surfaced in logs; FE shows a generic friendly message in the UI. |
+
+### 4.8 `Review`
+
+A single piece of feedback the user gave the AI on a generated experiment plan. The FE persists each accepted correction, each comment, and each like/dislike as one `Review`.
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `id` | string | yes | Stable id. FE generates a local id; BE MAY replace on persist. |
+| `created_at` | string | yes | ISO 8601 datetime with timezone (e.g. `2026-04-26T22:10:00Z`). |
+| `conversation_id` | string | yes | Identifies the source conversation. In v1 the FE uses the original query string as the conversation id (a real id will replace this once `GET /conversations` exists). |
+| `query` | string | yes | The original research question for that conversation. Denormalised so the Reviewer screen can show the conversation label even if the conversation list is unavailable. |
+| `original_plan` | [`ExperimentPlan`](#42-experimentplan) | yes | Full snapshot of the plan **before** any user corrections, captured at the moment the review was created. The Reviewer screen renders this snapshot when the user clicks the review. |
+| `kind` | string | yes | One of `"correction"`, `"comment"`, `"feedback"`. Determines the shape of `payload`. |
+| `payload` | object | yes | Kind-specific. See subsections below. |
+
+#### 4.8.1 `payload` for `kind: "correction"`
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `target` | string | yes | Address of the field that was changed. Format matches the FE's `ChangeTarget.toString()`: `"plan.description"`, `"plan.budget.total"`, `"plan.timePlan.totalDuration"`, `"step[<step_id>].<field>"` where `<field>` ∈ `{name, description, duration, milestone}`, `"material[<material_id>].<field>"` where `<field>` ∈ `{title, catalogNumber, description, amount, price}`. |
+| `before` | any | yes | The previous value (string for text fields, number for `total`, integer seconds for `duration`/`totalDuration`, etc.). |
+| `after` | any | yes | The new value (same type as `before`). |
+
+#### 4.8.2 `payload` for `kind: "comment"`
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `target` | string | yes | Same address vocabulary as for corrections. |
+| `quote` | string | yes | The substring of the target text the comment is anchored to. |
+| `start` | int | yes | Inclusive start offset of `quote` inside the target text at the time the comment was created. |
+| `end` | int | yes | Exclusive end offset; `text.substring(start, end) == quote`. |
+| `body` | string | yes | The comment text. |
+
+#### 4.8.3 `payload` for `kind: "feedback"`
+
+| Field | Type | Required | Notes |
+|---|---|---|---|
+| `section` | string | yes | One of `"totalTime"`, `"budget"`, `"timeline"`, `"steps"`, `"materials"`. Identifies the plan section that received the like/dislike. |
+| `polarity` | string | yes | One of `"like"`, `"dislike"`. |
 
 ---
 
@@ -512,3 +679,4 @@ The BE implementation should produce byte-equivalent JSON to the fixtures for th
 | Version | Date | Changes |
 |---|---|---|
 | 1.0 | 2026-04-26 | Initial contract: `POST /literature-review` (SSE) and `POST /experiment-plan` (JSON). |
+| 1.1 | 2026-04-26 | Added Reviewer feature: `POST /reviews`, `GET /reviews`, `Review` schema. |

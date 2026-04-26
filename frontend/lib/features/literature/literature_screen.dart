@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import 'package:provider/provider.dart';
 
 import '../../controllers/scientist_controller.dart';
@@ -93,7 +94,7 @@ class LiteratureScreen extends StatelessWidget {
                       ? null
                       : () {
                           controller.loadExperimentPlan();
-                          Navigator.pushNamed(context, kRoutePlan);
+                          context.go(kRoutePlan);
                         },
                   icon: const Icon(Icons.arrow_forward, size: 16),
                   label: const Text('Generate experiment plan'),

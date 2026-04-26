@@ -1,14 +1,19 @@
 import 'dart:async';
 
 import 'mock_payloads.dart';
+import 'mock_review_payloads.dart';
 import 'scientist_backend_client.dart';
 
 const Duration _kStreamStepInterval = Duration(milliseconds: 600);
 const Duration _kErrorPreEmitDelay = Duration(milliseconds: 900);
 const Duration _kPlanLatency = Duration(milliseconds: 2500);
+const Duration _kReviewLatency = Duration(milliseconds: 200);
 
 class MockScientistBackendClient implements ScientistBackendClient {
-  const MockScientistBackendClient();
+  MockScientistBackendClient()
+      : _reviews = List<Map<String, dynamic>>.from(kMockSeedReviews);
+
+  final List<Map<String, dynamic>> _reviews;
 
   @override
   Stream<Map<String, dynamic>> streamLiteratureReview(
@@ -68,6 +73,25 @@ class MockScientistBackendClient implements ScientistBackendClient {
       );
     }
     return kMockExperimentPlanJson;
+  }
+
+  @override
+  Future<Map<String, dynamic>> postReview(
+    Map<String, dynamic> requestBody,
+  ) async {
+    await Future<void>.delayed(_kReviewLatency);
+    final Map<String, dynamic> stored =
+        Map<String, dynamic>.from(requestBody);
+    _reviews.insert(0, stored);
+    return stored;
+  }
+
+  @override
+  Future<Map<String, dynamic>> fetchReviews() async {
+    await Future<void>.delayed(_kReviewLatency);
+    return <String, dynamic>{
+      'reviews': List<Map<String, dynamic>>.from(_reviews),
+    };
   }
 
   bool _isUnknownQuery(String query) {

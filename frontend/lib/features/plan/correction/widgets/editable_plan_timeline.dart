@@ -6,8 +6,10 @@ import '../../../../core/app_constants.dart';
 import '../../../../core/theme/theme_context.dart';
 import '../../../../models/experiment_plan.dart';
 import '../../../../ui/app_surface.dart';
+import '../../review/models/step_field.dart';
+import '../../review/plan_review_controller.dart';
 import '../correction_format.dart';
-import '../plan_correction_controller.dart';
+import 'edit_highlight.dart';
 import 'inline_editable_text.dart';
 
 const double _kInsertChipSize = 22;
@@ -18,9 +20,10 @@ class EditablePlanTimeline extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
-    final PlanCorrectionController controller =
-        context.watch<PlanCorrectionController>();
-    final List<Step> steps = controller.draft.timePlan.steps;
+    final PlanReviewController controller =
+        context.watch<PlanReviewController>();
+    final ExperimentPlan plan = controller.draft ?? controller.livePlan;
+    final List<Step> steps = plan.timePlan.steps;
     if (steps.isEmpty) {
       return _EmptyEditableTimeline(onAdd: controller.appendStep);
     }
@@ -38,6 +41,18 @@ class EditablePlanTimeline extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: List<Widget>.generate(steps.length, (int index) {
               final Step step = steps[index];
+              final bool isInserted =
+                  controller.isStepInsertedInDraft(step.id);
+              final Set<StepField> changedFields =
+                  controller.draftChangedStepFields(step.id);
+              final bool isNameChanged = isInserted ||
+                  changedFields.contains(StepField.name);
+              final TextStyle? baseStyle = step.isMilestone
+                  ? textTheme.labelMedium!.copyWith(
+                      color: scheme.primary,
+                      fontWeight: FontWeight.w700,
+                    )
+                  : textTheme.labelMedium;
               return Expanded(
                 flex: _flexForStep(step),
                 child: Padding(
@@ -48,12 +63,10 @@ class EditablePlanTimeline extends StatelessWidget {
                     textAlign: TextAlign.center,
                     maxLines: 2,
                     hintText: 'Step name',
-                    style: step.isMilestone
-                        ? textTheme.labelMedium!.copyWith(
-                            color: scheme.primary,
-                            fontWeight: FontWeight.w700,
-                          )
-                        : textTheme.labelMedium,
+                    style: editedTextStyle(
+                      baseStyle,
+                      isChanged: isNameChanged,
+                    ),
                     onSubmitted: (String text) {
                       controller.updateStep(index, step.copyWith(name: text));
                     },
@@ -66,11 +79,22 @@ class EditablePlanTimeline extends StatelessWidget {
           Row(
             crossAxisAlignment: CrossAxisAlignment.center,
             children: List<Widget>.generate(steps.length, (int index) {
+              final Step step = steps[index];
+              final bool isInserted =
+                  controller.isStepInsertedInDraft(step.id);
+              final Set<StepField> changedFields =
+                  controller.draftChangedStepFields(step.id);
+              final EditChangeKind kind = isInserted
+                  ? EditChangeKind.inserted
+                  : (changedFields.isEmpty
+                      ? EditChangeKind.unchanged
+                      : EditChangeKind.edited);
               return Expanded(
-                flex: _flexForStep(steps[index]),
+                flex: _flexForStep(step),
                 child: _EditableTimelineNodeSegment(
                   index: index,
-                  step: steps[index],
+                  step: step,
+                  changeKind: kind,
                   hasLeftLine: index > 0,
                   hasRightLine: index < steps.length - 1,
                   onInsertAfter: () => controller.insertStepAt(index),
@@ -85,10 +109,17 @@ class EditablePlanTimeline extends StatelessWidget {
             crossAxisAlignment: CrossAxisAlignment.start,
             children: List<Widget>.generate(steps.length, (int index) {
               final Step step = steps[index];
+              final bool isInserted =
+                  controller.isStepInsertedInDraft(step.id);
+              final Set<StepField> changedFields =
+                  controller.draftChangedStepFields(step.id);
+              final bool isDurationChanged = isInserted ||
+                  changedFields.contains(StepField.duration);
               return Expanded(
                 flex: _flexForStep(step),
                 child: _EditableTimelineDurationLabel(
                   step: step,
+                  isChanged: isDurationChanged,
                   onChanged: (Duration value) {
                     controller.updateStep(
                       index,
@@ -114,10 +145,12 @@ class EditablePlanTimeline extends StatelessWidget {
 class _EditableTimelineDurationLabel extends StatelessWidget {
   const _EditableTimelineDurationLabel({
     required this.step,
+    required this.isChanged,
     required this.onChanged,
   });
 
   final Step step;
+  final bool isChanged;
   final ValueChanged<Duration> onChanged;
 
   @override
@@ -130,15 +163,18 @@ class _EditableTimelineDurationLabel extends StatelessWidget {
       return Text(
         step.milestone!,
         textAlign: TextAlign.center,
-        style: Theme.of(context).textTheme.labelSmall!.copyWith(
-              color: scheme.primary,
-            ),
+        style: editedTextStyle(
+          Theme.of(context).textTheme.labelSmall!.copyWith(
+                color: scheme.primary,
+              ),
+          isChanged: isChanged,
+        ),
       );
     }
     return InlineEditableText(
       value: formatDurationLabel(step.duration),
       expandHorizontally: true,
-      style: baseStyle,
+      style: editedTextStyle(baseStyle, isChanged: isChanged),
       textAlign: TextAlign.center,
       maxLines: 1,
       hintText: '0 h',
@@ -156,6 +192,7 @@ class _EditableTimelineNodeSegment extends StatelessWidget {
   const _EditableTimelineNodeSegment({
     required this.index,
     required this.step,
+    required this.changeKind,
     required this.hasLeftLine,
     required this.hasRightLine,
     required this.onInsertAfter,
@@ -165,6 +202,7 @@ class _EditableTimelineNodeSegment extends StatelessWidget {
 
   final int index;
   final Step step;
+  final EditChangeKind changeKind;
   final bool hasLeftLine;
   final bool hasRightLine;
   final VoidCallback onInsertAfter;
@@ -181,7 +219,11 @@ class _EditableTimelineNodeSegment extends StatelessWidget {
               ? _TimelineInsertLine(onInsert: onInsertBefore)
               : const SizedBox.shrink(),
         ),
-        _HoverDeleteNode(step: step, onRemove: onRemove),
+        _HoverDeleteNode(
+          step: step,
+          changeKind: changeKind,
+          onRemove: onRemove,
+        ),
         Expanded(
           child: hasRightLine
               ? _TimelineInsertLine(onInsert: onInsertAfter)
@@ -301,10 +343,12 @@ class _InsertChip extends StatelessWidget {
 class _HoverDeleteNode extends StatefulWidget {
   const _HoverDeleteNode({
     required this.step,
+    required this.changeKind,
     required this.onRemove,
   });
 
   final Step step;
+  final EditChangeKind changeKind;
   final VoidCallback onRemove;
 
   @override
@@ -321,8 +365,9 @@ class _HoverDeleteNodeState extends State<_HoverDeleteNode> {
     final double size = isMilestone
         ? kPlanTimelineMilestoneSize
         : kPlanTimelineNodeDiameter;
-    final Color baseColor =
-        isMilestone ? scheme.primary : scheme.primary;
+    final Color baseColor = widget.changeKind == EditChangeKind.unchanged
+        ? scheme.primary
+        : EditedContainerHighlight.colorForKind(widget.changeKind);
     return MouseRegion(
       cursor: SystemMouseCursors.click,
       onEnter: (_) => setState(() => _isHovered = true),

@@ -1,4 +1,5 @@
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 import '../../../core/app_colors.dart';
 import '../../../core/app_constants.dart';
@@ -25,11 +26,11 @@ const int _kWorkspaceTabBarAnimationMs = 220;
 
 void navigateToWorkspaceStep(BuildContext context, int index) {
   if (index == 0) {
-    Navigator.pushReplacementNamed(context, kRouteHome);
+    context.go(kRouteHome);
   } else if (index == 1) {
-    Navigator.pushReplacementNamed(context, kRouteLiterature);
+    context.go(kRouteLiterature);
   } else if (index == 2) {
-    Navigator.pushReplacementNamed(context, kRoutePlan);
+    context.go(kRoutePlan);
   }
 }
 

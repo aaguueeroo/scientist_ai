@@ -1,0 +1,4 @@
+enum FeedbackPolarity {
+  like,
+  dislike,
+}

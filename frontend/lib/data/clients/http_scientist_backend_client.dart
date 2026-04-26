@@ -36,4 +36,22 @@ class HttpScientistBackendClient implements ScientistBackendClient {
       'Implement once the backend exposes POST /experiment-plan.',
     );
   }
+
+  @override
+  Future<Map<String, dynamic>> postReview(
+    Map<String, dynamic> requestBody,
+  ) {
+    throw UnimplementedError(
+      'HttpScientistBackendClient.postReview is not wired yet. '
+      'Implement once the backend exposes POST /reviews.',
+    );
+  }
+
+  @override
+  Future<Map<String, dynamic>> fetchReviews() {
+    throw UnimplementedError(
+      'HttpScientistBackendClient.fetchReviews is not wired yet. '
+      'Implement once the backend exposes GET /reviews.',
+    );
+  }
 }
